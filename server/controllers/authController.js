@@ -166,15 +166,54 @@ const getMe = async (req, res, next) => {
   }
 };
 
-// @desc    Update user settings
+// @desc    Update user profile & settings
 // @route   PUT /api/auth/settings
 // @access  Private
 const updateSettings = async (req, res, next) => {
   try {
-    const { settings } = req.body;
+    const { settings, name, dob, email, userId, tradingExperience } = req.body;
+    const updateFields = {};
+
+    if (settings) {
+      updateFields.settings = { ...req.user.settings, ...settings };
+    }
+
+    if (name && name.trim()) {
+      updateFields.name = name.trim();
+    }
+
+    if (dob !== undefined) {
+      updateFields.dob = dob.trim();
+    }
+
+    if (tradingExperience) {
+      updateFields.tradingExperience = tradingExperience;
+    }
+
+    if (email !== undefined && email.trim()) {
+      const cleanEmail = email.trim().toLowerCase();
+      // Check if email is used by another user
+      const existingEmail = await User.findOne({ email: cleanEmail, _id: { $ne: req.user.id } });
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: 'This email is already associated with another account' });
+      }
+      updateFields.email = cleanEmail;
+    }
+
+    if (userId && userId.trim()) {
+      const cleanUserId = userId.trim().toLowerCase();
+      const withAt = cleanUserId.startsWith('@') ? cleanUserId : `@${cleanUserId}`;
+      // Check if userId is taken by another user
+      const existingUserId = await User.findOne({ userId: withAt, _id: { $ne: req.user.id } });
+      if (existingUserId) {
+        return res.status(400).json({ success: false, message: 'This User ID / Handle is already taken' });
+      }
+      updateFields.userId = withAt;
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { $set: { settings: { ...req.user.settings, ...settings } } },
+      { $set: updateFields },
       { new: true, runValidators: true }
     );
 

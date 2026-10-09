@@ -115,7 +115,12 @@ export const api = {
   register: (userData) => request('/auth/register', { method: 'POST', body: JSON.stringify(userData) }),
   demoLogin: () => request('/auth/demo', { method: 'POST' }),
   getMe: () => request('/auth/me'),
-  updateSettings: (settings) => request('/auth/settings', { method: 'PUT', body: JSON.stringify({ settings }) }),
+  updateSettings: (payload) => {
+    const body = (payload?.settings || payload?.name || payload?.dob || payload?.email || payload?.userId || payload?.tradingExperience)
+      ? payload
+      : { settings: payload };
+    return request('/auth/settings', { method: 'PUT', body: JSON.stringify(body) });
+  },
 
   // Trades
   getTrades: (params = {}) => {

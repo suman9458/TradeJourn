@@ -1,0 +1,18 @@
+{
+  "name": "tradejourn-mern",
+  "version": "2.0.0",
+  "description": "TradeJourn - MERN Stack Scalable Trading Command Center & Analytics Platform",
+  "scripts": {
+    "install:server": "npm --prefix server install",
+    "install:client": "npm --prefix client install",
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "server": "node --watch server/server.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently -k \"node --watch server/server.js\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build && npm --prefix server install",
+    "start": "node server/server.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

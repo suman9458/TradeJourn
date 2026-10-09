@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TRADING COMMAND CENTER</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-box">
+          <div class="brand-mark">TC</div>
+          <div>
+            <p class="eyebrow">PRO JOURNAL</p>
+            <h1>TRADING COMMAND CENTER</h1>
+          </div>
+        </div>
+
+        <nav class="side-nav">
+          <a href="#overview">Overview</a>
+          <a href="#analytics">Analytics</a>
+          <a href="#early-exits">Early Exits</a>
+          <a href="#ai-coach">AI Coach</a>
+          <a href="#reviews">Reviews</a>
+          <a href="#playbook">Playbook</a>
+          <a href="#goals">Goals</a>
+        </nav>
+
+        <div class="sidebar-card">
+          <h3>Quick Lens</h3>
+          <div class="mini-metric">
+            <span>Discipline</span>
+            <strong id="mini-discipline">0</strong>
+          </div>
+          <div class="mini-metric">
+            <span>Best Setup</span>
+            <strong id="mini-best-setup">-</strong>
+          </div>
+          <div class="mini-metric">
+            <span>Best Session</span>
+            <strong id="mini-best-session">-</strong>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-panel" id="overview">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow muted">Professional discretionary journal</p>
+            <h2>TRADING COMMAND CENTER</h2>
+          </div>
+          <div class="header-actions">
+            <button class="ghost-btn" id="clear-data">Clear All</button>
+            <button class="primary-btn" type="submit" form="trade-form">Save Trade</button>
+          </div>
+        </header>
+
+        <section class="quick-add panel">
+          <div class="section-heading">
+            <h3>Quick Add Trade</h3>
+          </div>
+
+          <form id="trade-form" class="trade-form">
+            <div class="form-grid">
+              <label>
+                <span>Trade Name</span>
+                <input name="tradeName" type="text" placeholder="Example: EURUSD London Reversal" required />
+              </label>
+              <label>
+                <span>Date</span>
+                <select name="date" id="trade-date" required></select>
+              </label>
+              <label>
+                <span>Time</span>
+                <select name="time" id="trade-time" required></select>
+              </label>
+              <label>
+                <span>Instrument</span>
+                <select name="instrument">
+                  <option>XAUUSD</option>
+                  <option>EURUSD</option>
+                  <option>GBPUSD</option>
+                  <option>USDJPY</option>
+                  <option>NAS100</option>
+                  <option>US30</option>
+                  <option>XAGUSD</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Level Traded</span>
+                <input name="levelTraded" type="text" value="Support" placeholder="Type level traded" />
+              </label>
+              <label>
+                <span>Session</span>
+                <select name="session">
+                  <option>Asian</option>
+                  <option>London</option>
+                  <option>New York</option>
+                  <option>London + New York</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Bias</span>
+                <select name="bias">
+                  <option>Bullish</option>
+                  <option>Bearish</option>
+                  <option>Neutral</option>
+                </select>
+              </label>
+              <label>
+                <span>Result</span>
+                <select name="result">
+                  <option>WIN</option>
+                  <option>LOSS</option>
+                  <option>BE</option>
+                </select>
+              </label>
+              <label>
+                <span>RR</span>
+                <input name="rr" type="number" step="0.01" min="-10" max="10" value="1.5" />
+              </label>
+              <label>
+                <span>Setup Rating</span>
+                <select name="setupRating">
+                  <option>A+</option>
+                  <option>A</option>
+                  <option>B+</option>
+                  <option>B</option>
+                  <option>C</option>
+                  <option>D</option>
+                  <option>No Setup</option>
+                </select>
+              </label>
+              <label>
+                <span>Entry Type</span>
+                <select name="entryType">
+                  <option>Confirmation</option>
+                  <option>Early Entry</option>
+                  <option>Retest</option>
+                  <option>Breakout</option>
+                  <option>Liquidity Sweep</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Confirmation Used</span>
+                <input name="confirmation" type="text" value="Yes" placeholder="Yes / No / Partial" />
+              </label>
+              <label>
+                <span>Pips Captured</span>
+                <input name="pips" type="number" step="1" value="0" />
+              </label>
+              <label>
+                <span>Emotion During Trade</span>
+                <select name="emotion">
+                  <option>Calm</option>
+                  <option>Confident</option>
+                  <option>Focused</option>
+                  <option>Fear</option>
+                  <option>Greed</option>
+                  <option>Impatient</option>
+                  <option>Revenge</option>
+                  <option>FOMO</option>
+                  <option>Overconfident</option>
+                  <option>Frustrated</option>
+                  <option>Anxious</option>
+                  <option>Hesitant</option>
+                  <option>Bored</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Reason For Early Exit</span>
+                <select name="reasonEarlyExit">
+                  <option>None</option>
+                  <option>TP Hit</option>
+                  <option>SL Hit</option>
+                  <option>Manual Exit</option>
+                  <option>Fear</option>
+                  <option>Greed</option>
+                  <option>Impatience</option>
+                  <option>News</option>
+                  <option>Market Structure Changed</option>
+                  <option>Liquidity Changed</option>
+                  <option>Moved SL</option>
+                  <option>Moved TP</option>
+                  <option>Didn't Trust Setup</option>
+                  <option>Revenge</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Market Condition</span>
+                <select name="marketCondition">
+                  <option>Trending</option>
+                  <option>Ranging</option>
+                  <option>Choppy</option>
+                  <option>Volatile</option>
+                  <option>Low Volatility</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="form-grid compact">
+              <div class="checkbox-group">
+                <span>Mistake Made</span>
+                <div class="checkbox-list">
+                  <label><input type="checkbox" name="mistakes" value="Early Entry" /> Early Entry</label>
+                  <label><input type="checkbox" name="mistakes" value="Late Entry" /> Late Entry</label>
+                  <label><input type="checkbox" name="mistakes" value="Early Exit" /> Early Exit</label>
+                  <label><input type="checkbox" name="mistakes" value="Late Exit" /> Late Exit</label>
+                  <label><input type="checkbox" name="mistakes" value="Overtrading" /> Overtrading</label>
+                  <label><input type="checkbox" name="mistakes" value="Revenge Trading" /> Revenge Trading</label>
+                  <label><input type="checkbox" name="mistakes" value="FOMO" /> FOMO</label>
+                  <label><input type="checkbox" name="mistakes" value="Moved SL" /> Moved SL</label>
+                  <label><input type="checkbox" name="mistakes" value="Moved TP" /> Moved TP</label>
+                  <label><input type="checkbox" name="mistakes" value="Ignored Bias" /> Ignored Bias</label>
+                  <label><input type="checkbox" name="mistakes" value="Ignored Confirmation" /> Ignored Confirmation</label>
+                  <label><input type="checkbox" name="mistakes" value="Poor RR" /> Poor RR</label>
+                  <label><input type="checkbox" name="mistakes" value="Entered Without Setup" /> Entered Without Setup</label>
+                  <label><input type="checkbox" name="mistakes" value="Traded During News" /> Traded During News</label>
+                  <label><input type="checkbox" name="mistakes" value="Emotional Decision" /> Emotional Decision</label>
+                  <label><input type="checkbox" name="mistakes" value="Overleveraged" /> Overleveraged</label>
+                  <label><input type="checkbox" name="mistakes" value="None" /> None</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label class="full-span">
+                <span>Notes</span>
+                <textarea name="notes" rows="3" placeholder="What did you see? Why did you enter? Did you follow the plan?"></textarea>
+              </label>
+            </div>
+
+            <div class="form-grid">
+              <label class="full-span">
+                <span>Screenshot</span>
+                <input name="screenshot" type="file" accept="image/*" />
+              </label>
+            </div>
+          </form>
+        </section>
+
+        <section class="kpi-grid" id="kpi-grid"></section>
+
+        <section class="summary-grid">
+          <div class="panel">
+            <div class="section-heading">
+              <h3>Performance</h3>
+            </div>
+            <ul id="performance-summary" class="metric-list"></ul>
+          </div>
+          <div class="panel">
+            <div class="section-heading">
+              <h3>Risk & Reward</h3>
+            </div>
+            <ul id="risk-summary" class="metric-list"></ul>
+          </div>
+          <div class="panel">
+            <div class="section-heading">
+              <h3>Discipline</h3>
+            </div>
+            <ul id="discipline-summary" class="metric-list"></ul>
+          </div>
+          <div class="panel">
+            <div class="section-heading">
+              <h3>Psychology</h3>
+            </div>
+            <ul id="psychology-summary" class="metric-list"></ul>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <h3>Recent Trades</h3>
+          </div>
+          <div id="recent-trades" class="table-wrap"></div>
+        </section>
+
+        <section class="panel" id="analytics">
+          <div class="section-heading">
+            <h3>Analytics</h3>
+          </div>
+          <div class="analytics-grid">
+            <div class="sub-panel">
+              <h4>Setup Analysis</h4>
+              <div id="setup-analysis"></div>
+            </div>
+            <div class="sub-panel">
+              <h4>Session Analysis</h4>
+              <div id="session-analysis"></div>
+            </div>
+            <div class="sub-panel">
+              <h4>Bias Analysis</h4>
+              <div id="bias-analysis"></div>
+            </div>
+            <div class="sub-panel">
+              <h4>Emotion Analysis</h4>
+              <div id="emotion-analysis"></div>
+            </div>
+            <div class="sub-panel wide">
+              <h4>Mistake Analysis</h4>
+              <div id="mistake-analysis"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="early-exits">
+          <div class="section-heading">
+            <h3>Early Exit Analyzer</h3>
+          </div>
+          <div id="early-exit-analysis"></div>
+        </section>
+
+        <section class="panel" id="ai-coach">
+          <div class="section-heading">
+            <h3>AI Trading Coach</h3>
+          </div>
+          <div id="ai-coach-output"></div>
+        </section>
+
+        <section class="panel" id="live-ai">
+          <div class="section-heading">
+            <h3>AI LIVE COACH</h3>
+            <button class="primary-btn" id="run-ai-analysis">Analyze My Journal</button>
+          </div>
+
+          <div class="form-grid" style="margin-bottom: 16px;">
+            <label>
+              <span>AI API Key</span>
+              <input id="ai-api-key" type="password" placeholder="Paste your OpenAI-compatible API key" />
+            </label>
+            <label>
+              <span>AI Model</span>
+              <select id="ai-model">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="ai-live-analysis" class="ai-block"></div>
+
+          <div class="ai-chatbox" style="margin-top: 16px;">
+            <textarea id="ai-chat-input" rows="4" placeholder="Ask: What are my biggest mistakes? What should I improve today?"></textarea>
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+              <button class="primary-btn" id="send-ai-chat">Ask AI Coach</button>
+            </div>
+            <div id="ai-chat-output" class="ai-block" style="margin-top: 12px;"></div>
+          </div>
+        </section>
+
+        <section class="panel" id="reviews">
+          <div class="section-heading">
+            <h3>Daily Review</h3>
+          </div>
+          <div id="daily-review"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <h3>Weekly Review</h3>
+          </div>
+          <div id="weekly-review"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <h3>Monthly Review</h3>
+          </div>
+          <div id="monthly-review"></div>
+        </section>
+
+        <section class="panel" id="playbook">
+          <div class="section-heading">
+            <h3>MY TRADING PLAYBOOK</h3>
+          </div>
+          <div class="rules-grid">
+            <div class="rules-box">
+              <h4>Entry Rules</h4>
+              <ul>
+                <li>Only trade planned levels</li>
+                <li>Wait for confirmation</li>
+                <li>Respect bias</li>
+                <li>Minimum RR requirement</li>
+                <li>No FOMO entries</li>
+              </ul>
+            </div>
+            <div class="rules-box">
+              <h4>Risk Rules</h4>
+              <ul>
+                <li>Follow fixed risk</li>
+                <li>Never move SL emotionally</li>
+                <li>Never revenge trade</li>
+                <li>Stop after predefined daily loss</li>
+              </ul>
+            </div>
+            <div class="rules-box">
+              <h4>Exit Rules</h4>
+              <ul>
+                <li>Follow predefined TP</li>
+                <li>Don't exit because of temporary fear</li>
+                <li>Don't move TP emotionally</li>
+                <li>Document every manual exit</li>
+              </ul>
+            </div>
+            <div class="rules-box">
+              <h4>Psychology Rules</h4>
+              <ul>
+                <li>No revenge trading</li>
+                <li>No FOMO</li>
+                <li>No overtrading</li>
+                <li>Take a break after emotional trades</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel goals-panel" id="goals">
+          <div class="section-heading">
+            <h3>TRADING GOALS</h3>
+          </div>
+          <div id="goals-panel"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

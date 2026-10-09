@@ -135,18 +135,39 @@ const getKPIs = async (req, res, next) => {
     const emotionalTradeCount = trades.filter(t => t.emotionalTradeFlag === 1).length;
     const disciplineScoreAverage = trades.reduce((sum, t) => sum + (t.disciplineScore || 0), 0) / totalTrades;
 
-    // Best setup and best session by total R
-    const setupRMap = {};
-    for (const t of trades) {
-      setupRMap[t.setupRating] = (setupRMap[t.setupRating] || 0) + (t.rResult || 0);
-    }
-    const bestSetupEntry = Object.entries(setupRMap).sort((a, b) => b[1] - a[1])[0];
+    // Helper to extract dollar profit for each trade
+    const getTradeTakeProfitUSD = (t) => {
+      if (t.takeProfitUSD !== undefined && t.takeProfitUSD !== null && t.takeProfitUSD !== '') {
+        return Number(t.takeProfitUSD);
+      }
+      if (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== '') {
+        return Number(t.takeProfit);
+      }
+      return (t.rResult || 0) * 100;
+    };
 
-    const sessionRMap = {};
+    // Best setup and best session by total dollar Profit
+    const setupProfitMap = {};
     for (const t of trades) {
-      sessionRMap[t.session] = (sessionRMap[t.session] || 0) + (t.rResult || 0);
+      const pnl = getTradeTakeProfitUSD(t);
+      setupProfitMap[t.setupRating] = (setupProfitMap[t.setupRating] || 0) + pnl;
     }
-    const bestSessionEntry = Object.entries(sessionRMap).sort((a, b) => b[1] - a[1])[0];
+    const bestSetupEntry = Object.entries(setupProfitMap).sort((a, b) => b[1] - a[1])[0];
+
+    const sessionProfitMap = {};
+    for (const t of trades) {
+      const pnl = getTradeTakeProfitUSD(t);
+      sessionProfitMap[t.session] = (sessionProfitMap[t.session] || 0) + pnl;
+    }
+    const bestSessionEntry = Object.entries(sessionProfitMap).sort((a, b) => b[1] - a[1])[0];
+
+    const formatPnlDisplay = (entry) => {
+      if (!entry) return 'None';
+      const name = entry[0];
+      const pnl = entry[1];
+      const formatted = Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      return `${name} (${pnl >= 0 ? '+' : '-'}$${formatted})`;
+    };
 
     res.json({
       success: true,
@@ -173,8 +194,8 @@ const getKPIs = async (req, res, next) => {
         earlyExitCount,
         emotionalTradeCount,
         disciplineScoreAverage,
-        bestSetup: bestSetupEntry ? `${bestSetupEntry[0]} (${bestSetupEntry[1].toFixed(1)}R)` : 'None',
-        bestSession: bestSessionEntry ? `${bestSessionEntry[0]} (${bestSessionEntry[1].toFixed(1)}R)` : 'None'
+        bestSetup: formatPnlDisplay(bestSetupEntry),
+        bestSession: formatPnlDisplay(bestSessionEntry)
       }
     });
   } catch (error) {

@@ -2331,6 +2331,45 @@ label {
   }
 }
 
+/* Zero State Quick Starter Card */
+.zero-state-starter-card {
+  background: rgba(0, 245, 155, 0.05);
+  border: 1px solid rgba(0, 245, 155, 0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.zero-state-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zero-state-icon {
+  color: var(--profit);
+  flex-shrink: 0;
+}
+
+.zero-state-title {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+}
+
+.zero-state-desc {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+
 /* 5 KPI Cards Row */
 .modern-kpi-row {
   display: grid;
@@ -3765,6 +3804,23 @@ select option {
   border: 1px solid rgba(5, 150, 105, 0.25);
   color: #059669;
 }
+[data-theme="light"] .btn-primary {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(4, 120, 87, 0.4);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28);
+  font-weight: 700;
+}
+[data-theme="light"] .btn-primary:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.42);
+}
+[data-theme="light"] .btn-primary * {
+  color: #ffffff !important;
+  stroke: #ffffff;
+}
+
 [data-theme="light"] .btn-secondary {
   background: #ffffff;
   border-color: #cbd5e1;
@@ -3776,6 +3832,26 @@ select option {
   border-color: #94a3b8;
   color: #0f172a;
 }
+
+[data-theme="light"] .btn-ghost {
+  color: #475569;
+}
+[data-theme="light"] .btn-ghost:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .btn-danger {
+  background: rgba(225, 29, 72, 0.1);
+  border-color: rgba(225, 29, 72, 0.3);
+  color: #be123c;
+}
+[data-theme="light"] .btn-danger:hover {
+  background: rgba(225, 29, 72, 0.18);
+  border-color: rgba(225, 29, 72, 0.5);
+  color: #9f1239;
+}
+
 [data-theme="light"] .market-ticker-bar {
   background: rgba(255, 255, 255, 0.85);
   border-color: rgba(226, 232, 240, 0.9);
@@ -3797,8 +3873,20 @@ select option {
 
 /* Command Overview: Zero State Card */
 [data-theme="light"] .zero-state-starter-card {
-  background: rgba(5, 150, 105, 0.06);
-  border: 1px solid rgba(5, 150, 105, 0.25);
+  background: #f0fdf4 !important;
+  border: 1px solid rgba(5, 150, 105, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.08);
+}
+[data-theme="light"] .zero-state-icon {
+  color: #059669 !important;
+}
+[data-theme="light"] .zero-state-title {
+  color: #064e3b !important;
+  font-weight: 800;
+}
+[data-theme="light"] .zero-state-desc {
+  color: #334155 !important;
+  font-weight: 500;
 }
 
 /* Command Overview: 5 KPI Cards */

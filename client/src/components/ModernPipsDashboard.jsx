@@ -1022,25 +1022,14 @@ export const ModernPipsDashboard = ({
 
       {/* Zero State Quick Starter Alert if no trades exist yet */}
       {totalTradesCount === 0 && (
-        <div style={{
-          background: 'rgba(0, 245, 155, 0.05)',
-          border: '1px solid rgba(0, 245, 155, 0.25)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Sparkles size={22} color="var(--profit)" />
+        <div className="zero-state-starter-card">
+          <div className="zero-state-content">
+            <Sparkles size={22} className="zero-state-icon" />
             <div>
-              <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem' }}>
+              <div className="zero-state-title">
                 Dynamic Ledger Active • 0 Closed Trades Recorded
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+              <div className="zero-state-desc">
                 All charts and KPIs below form dynamically from your logged trades. Add your first execution to start tracking.
               </div>
             </div>
@@ -2034,7 +2023,7 @@ export const ModernPipsDashboard = ({
                     >
                       <Camera size={16} />
                     </div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#ffffff', fontWeight: '700' }}>
+                    <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)', fontWeight: '700' }}>
                       Add Chart Image
                     </h4>
                   </div>
@@ -2061,7 +2050,7 @@ export const ModernPipsDashboard = ({
                     onClick={() => dashboardChartFileInputRef.current?.click()}
                     style={{
                       border: `2px dashed ${isDashboardChartDragging ? 'var(--accent-cyan)' : 'rgba(0, 210, 255, 0.45)'}`,
-                      background: isDashboardChartDragging ? 'rgba(0, 210, 255, 0.12)' : 'rgba(10, 19, 30, 0.6)',
+                      background: isDashboardChartDragging ? 'rgba(0, 210, 255, 0.12)' : 'var(--bg-glass)',
                       borderRadius: '12px',
                       padding: '36px 20px',
                       textAlign: 'center',
@@ -2083,7 +2072,7 @@ export const ModernPipsDashboard = ({
                     >
                       <UploadCloud size={26} />
                     </div>
-                    <strong style={{ display: 'block', fontSize: '1rem', color: '#ffffff', marginBottom: '6px' }}>
+                    <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
                       {uploadingDashboardChart ? 'Uploading chart screenshot...' : 'Click to Upload or Drag & Drop Chart'}
                     </strong>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>

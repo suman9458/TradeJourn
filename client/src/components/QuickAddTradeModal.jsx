@@ -1,6 +1,23 @@
-import React, { useState } from 'react';
-import { Plus, X, Shield, Sparkles, CheckCircle2, AlertTriangle, Calculator, FileText } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Plus,
+  X,
+  Shield,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  Calculator,
+  FileText,
+  Camera,
+  Image as ImageIcon,
+  UploadCloud,
+  Link as LinkIcon,
+  Trash2,
+  Maximize2,
+  Eye
+} from 'lucide-react';
 import { api } from '../services/api';
+import { compressImageFile } from '../utils/imageHelper';
 
 const emotionalRiskList = ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Frustrated', 'Anxious', 'Overconfident'];
 
@@ -28,11 +45,104 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
     reasonEarlyExit: 'None',
     marketCondition: 'Trending',
     mistakes: ['None'],
-    notes: ''
+    notes: '',
+    screenshotUrl: ''
   });
+
+  const [imageMode, setImageMode] = useState('upload'); // 'upload' | 'url'
+  const [urlInput, setUrlInput] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isPreviewZoomOpen, setIsPreviewZoomOpen] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Paste image directly from clipboard (e.g. TradingView copy screenshot / Snipping tool)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleWindowPaste = async (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            try {
+              setIsCompressing(true);
+              const dataUrl = await compressImageFile(file);
+              setForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+            } catch (err) {
+              console.warn('Clipboard image compression failed:', err);
+            } finally {
+              setIsCompressing(false);
+            }
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, [isOpen]);
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsCompressing(true);
+      const dataUrl = await compressImageFile(file);
+      setForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+    } catch (err) {
+      setError(err.message || 'Failed to process image');
+    } finally {
+      setIsCompressing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    try {
+      setIsCompressing(true);
+      const dataUrl = await compressImageFile(file);
+      setForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+    } catch (err) {
+      setError(err.message || 'Failed to process dropped image');
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const handleApplyUrl = () => {
+    if (!urlInput.trim()) return;
+    setForm(prev => ({ ...prev, screenshotUrl: urlInput.trim() }));
+    setUrlInput('');
+  };
+
+  const handleRemoveImage = () => {
+    setForm(prev => ({ ...prev, screenshotUrl: '' }));
+    setUrlInput('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   if (!isOpen) return null;
 
@@ -169,7 +279,7 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
         {/* Header with Live Discipline Meter */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--profit-soft)', border: '1px solid rgba(0, 245, 155, 0.3)', display: 'grid', placeItems: 'center', color: 'var(--profit)' }}>
+            <div className="modal-title-icon" style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--profit-soft)', border: '1px solid rgba(0, 245, 155, 0.3)', display: 'grid', placeItems: 'center', color: 'var(--profit)' }}>
               <Plus size={22} />
             </div>
             <div>
@@ -183,11 +293,11 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Live Animated Discipline Score Badge */}
             <div
+              className="modal-discipline-badge"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                background: 'rgba(10, 18, 28, 0.8)',
                 padding: '8px 16px',
                 borderRadius: 'var(--radius-pill)',
                 border: '1px solid var(--border-medium)',
@@ -461,16 +571,352 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
             </label>
           </div>
 
+          {/* Section 4: Trade Chart Screenshot & Setup Image (Optional) */}
+          <div
+            className="modal-section-card"
+            style={{
+              borderRadius: '12px',
+              padding: '16px'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '12px',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Camera size={18} style={{ color: 'var(--accent-cyan)' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-white)' }}>
+                  Chart Screenshot & Technical Setup
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    background: 'rgba(148, 163, 184, 0.14)',
+                    color: 'var(--text-secondary)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-pill)',
+                    fontWeight: '700',
+                    letterSpacing: '0.04em'
+                  }}
+                >
+                  OPTIONAL
+                </span>
+              </div>
+
+              {/* Upload vs URL Toggle */}
+              <div
+                className="modal-toggle-tabs"
+                style={{
+                  display: 'flex',
+                  padding: '3px',
+                  borderRadius: '8px'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setImageMode('upload')}
+                  style={{
+                    border: 'none',
+                    background: imageMode === 'upload' ? 'var(--accent-cyan-soft)' : 'transparent',
+                    color: imageMode === 'upload' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <UploadCloud size={13} /> Upload / Paste
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageMode('url')}
+                  style={{
+                    border: 'none',
+                    background: imageMode === 'url' ? 'var(--accent-cyan-soft)' : 'transparent',
+                    color: imageMode === 'url' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <LinkIcon size={13} /> Image URL
+                </button>
+              </div>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+            />
+
+            {/* Image Preview or Drop Area */}
+            {form.screenshotUrl ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div
+                  className="modal-image-preview-box"
+                  style={{
+                    position: 'relative',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-bright)',
+                    maxHeight: '260px',
+                    background: '#04080e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <img
+                    src={form.screenshotUrl}
+                    alt="Trade Setup Preview"
+                    style={{
+                      width: '100%',
+                      maxHeight: '260px',
+                      objectFit: 'contain',
+                      display: 'block'
+                    }}
+                  />
+
+                  {/* Overlay Controls */}
+                  <div
+                    className="modal-image-controls"
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      display: 'flex',
+                      gap: '6px',
+                      background: 'rgba(3, 6, 11, 0.85)',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <button
+                      type="button"
+                      title="View Full Size"
+                      onClick={() => setIsPreviewZoomOpen(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}
+                    >
+                      <Maximize2 size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Change Image"
+                      onClick={() => {
+                        if (imageMode === 'upload' && fileInputRef.current) {
+                          fileInputRef.current.click();
+                        } else {
+                          setImageMode('url');
+                        }
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--accent-cyan)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}
+                    >
+                      <UploadCloud size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Remove Image"
+                      onClick={handleRemoveImage}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--loss)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-muted)'
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--profit)', fontWeight: '600' }}>
+                    <CheckCircle2 size={14} /> Chart image ready to save with trade
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ff6685',
+                      cursor: 'pointer',
+                      fontSize: '0.76rem',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              </div>
+            ) : imageMode === 'upload' ? (
+              /* Drag & Drop Upload Zone */
+              <div
+                className={`modal-dropzone ${isDragging ? 'dragging' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                style={{
+                  borderRadius: '10px',
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-fast)'
+                }}
+              >
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    background: 'rgba(0, 210, 255, 0.1)',
+                    color: 'var(--accent-cyan)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    margin: '0 auto 10px'
+                  }}
+                >
+                  <UploadCloud size={20} />
+                </div>
+                <p style={{ fontSize: '0.86rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  {isCompressing ? 'Optimizing Chart Image...' : 'Click to upload or drag & drop trade screenshot'}
+                </p>
+                <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  PNG, JPG, WebP, GIF • Or paste directly anywhere with <kbd className="modal-kbd">Ctrl+V</kbd>
+                </p>
+              </div>
+            ) : (
+              /* URL Input Tab */
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="url"
+                  placeholder="Paste chart image URL (e.g. TradingView, Imgur, Discord link)"
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleApplyUrl}
+                  style={{ padding: '0 16px', whiteSpace: 'nowrap' }}
+                >
+                  Attach
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
             <button type="button" className="btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary" disabled={saving}>
+            <button type="submit" className="btn-primary" disabled={saving || isCompressing}>
               {saving ? 'Recording to MongoDB...' : 'Save Trade to Journal'}
             </button>
           </div>
         </form>
+
+        {/* Full Image Lightbox Preview Modal */}
+        {isPreviewZoomOpen && form.screenshotUrl && (
+          <div
+            className="modal-overlay"
+            style={{ zIndex: 110000 }}
+            onClick={() => setIsPreviewZoomOpen(false)}
+          >
+            <div
+              className="modal-lightbox-card"
+              style={{
+                maxWidth: '92vw',
+                maxHeight: '92vh',
+                position: 'relative',
+                background: '#04080e',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-bright)',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.9)'
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setIsPreviewZoomOpen(false)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  zIndex: 2,
+                  background: 'rgba(0,0,0,0.7)',
+                  borderRadius: '50%'
+                }}
+              >
+                <X size={20} />
+              </button>
+              <img
+                src={form.screenshotUrl}
+                alt="Trade Setup Enlarged"
+                style={{
+                  maxWidth: '90vw',
+                  maxHeight: '88vh',
+                  objectFit: 'contain',
+                  display: 'block',
+                  borderRadius: '8px'
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

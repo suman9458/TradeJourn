@@ -11,6 +11,7 @@ const goalSchema = new mongoose.Schema(
     },
     // Prop Firm Challenge Fields
     isChallengeActive: { type: Boolean, default: false },
+    challengeStartedAt: { type: Date, default: null },
     accountSize: { type: Number, default: 50000 },
     profitTarget: { type: Number, default: 5000 },
     maxLoss: { type: Number, default: 5000 },

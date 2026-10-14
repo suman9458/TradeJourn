@@ -67,6 +67,59 @@
   --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ==========================================================================
+   LIGHT MODE DESIGN SYSTEM ([data-theme="light"])
+   Inspired by TradingView Pro Light, Linear, and Stripe Institutional
+   ========================================================================== */
+[data-theme="light"] {
+  /* Surface Layers */
+  --bg-core: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-card-elevated: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  
+  /* Borders & Dividers */
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-medium: rgba(203, 213, 225, 0.85);
+  --border-bright: rgba(2, 132, 199, 0.4);
+  --border-glow: rgba(5, 150, 105, 0.35);
+
+  /* Typography */
+  --text-white: #0f172a;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+
+  /* Trading Colors */
+  --profit: #059669;
+  --profit-soft: rgba(5, 150, 105, 0.12);
+  --profit-glow: rgba(5, 150, 105, 0.22);
+  --profit-gradient: linear-gradient(135deg, #059669 0%, #047857 100%);
+
+  --loss: #e11d48;
+  --loss-soft: rgba(225, 29, 72, 0.12);
+  --loss-glow: rgba(225, 29, 72, 0.22);
+  --loss-gradient: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --warning-glow: rgba(217, 119, 6, 0.22);
+
+  --accent-cyan: #0284c7;
+  --accent-cyan-soft: rgba(2, 132, 199, 0.12);
+  --accent-purple: #7c3aed;
+  --accent-purple-soft: rgba(124, 58, 237, 0.12);
+
+  /* Shadows */
+  --shadow-subtle: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border-medium);
+  --shadow-glow-profit: 0 0 20px -3px rgba(5, 150, 105, 0.2);
+  --shadow-glow-cyan: 0 0 20px -3px rgba(2, 132, 199, 0.2);
+}
+
 /* Base Reset */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -77,6 +130,10 @@
 html {
   scroll-behavior: smooth;
   color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
@@ -96,6 +153,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
   overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+[data-theme="light"] body {
+  background-color: var(--bg-core);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.05) 0px, transparent 45%),
+    radial-gradient(at 100% 0%, rgba(5, 150, 105, 0.04) 0px, transparent 40%),
+    radial-gradient(at 50% 100%, rgba(124, 58, 237, 0.03) 0px, transparent 50%),
+    linear-gradient(to right, rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+  color: var(--text-primary);
 }
 
 /* Custom Scrollbars */
@@ -591,6 +660,19 @@ button:active {
 .kpi-card.negative .kpi-value { color: var(--loss); }
 .kpi-card.warning .kpi-value { color: var(--warning); }
 .kpi-card.neutral .kpi-value { color: var(--accent-cyan); }
+
+.review-highlight-card.best {
+  border-left: 4px solid var(--profit);
+  background: linear-gradient(135deg, rgba(0, 245, 155, 0.04) 0%, rgba(10, 18, 28, 0.8) 100%);
+}
+.review-highlight-card.worst {
+  border-left: 4px solid var(--loss);
+  background: linear-gradient(135deg, rgba(255, 51, 102, 0.04) 0%, rgba(10, 18, 28, 0.8) 100%);
+}
+.behavioral-audit-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+}
 
 /* ==========================================================================
    SUMMARY COLUMNS
@@ -3468,4 +3550,1540 @@ select option {
   font-weight: 800;
   box-shadow: 0 0 8px rgba(0, 245, 155, 0.3);
 }
+
+/* ==========================================================================
+   PIPS & PROFIT TRAJECTORY: HUD SUPER BOX & CHART (Base Dark Mode)
+   ========================================================================== */
+.hud-super-box {
+  width: 100%;
+  margin-top: 16px;
+  background: rgba(10, 18, 30, 0.75);
+  border: 1px solid rgba(0, 245, 155, 0.2);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.hud-super-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.hud-stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justifyContent: center;
+  transition: all 0.2s ease;
+}
+
+.hud-stat-box.profit {
+  background: rgba(0, 245, 155, 0.05);
+  border: 1px solid rgba(0, 245, 155, 0.22);
+}
+
+.hud-stat-box.loss {
+  background: rgba(255, 51, 102, 0.05);
+  border: 1px solid rgba(255, 51, 102, 0.22);
+}
+
+.hud-stat-box.cyan {
+  background: rgba(0, 210, 255, 0.05);
+  border: 1px solid rgba(0, 210, 255, 0.22);
+}
+
+.hud-stat-title {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.hud-stat-title.profit {
+  color: var(--profit);
+}
+
+.hud-stat-title.loss {
+  color: var(--loss);
+}
+
+.hud-stat-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  margin: 4px 0 0;
+}
+
+.hud-stat-value.profit {
+  color: var(--profit);
+}
+
+.hud-stat-value.loss {
+  color: var(--loss);
+}
+
+.hud-stat-value.cyan {
+  color: var(--accent-cyan);
+}
+
+.chart-vgrid-line {
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 1;
+}
+
+.chart-vgrid-line.hovered {
+  stroke: rgba(0, 210, 255, 0.4);
+  stroke-width: 1.5;
+}
+
+.chart-data-dot {
+  stroke: #060c14;
+}
+
+.chart-curve-path {
+  stroke: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   THEME TOGGLE BUTTON (Placed before time in Topbar)
+   ========================================================================== */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-pill);
+  padding: 5px 13px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-subtle);
+  outline: none;
+  white-space: nowrap;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-bright);
+  transform: translateY(-1px);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.96);
+}
+
+.theme-toggle-btn .theme-icon.sun {
+  color: #ffb800;
+  filter: drop-shadow(0 0 6px rgba(255, 184, 0, 0.6));
+}
+
+.theme-toggle-btn .theme-icon.moon {
+  color: #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+}
+
+[data-theme="light"] .theme-toggle-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .theme-toggle-btn:hover {
+  background: #f8fafc;
+  border-color: #0284c7;
+}
+
+/* ==========================================================================
+   COMMAND OVERVIEW & APP SHELL LIGHT MODE OVERRIDES
+   ========================================================================== */
+
+/* Shell: Sidebar */
+[data-theme="light"] .sidebar {
+  background: rgba(255, 255, 255, 0.94);
+  border-right: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 4px 0 25px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .brand-section {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .brand-info h1 {
+  color: #0f172a;
+}
+[data-theme="light"] .nav-item {
+  color: #475569;
+}
+[data-theme="light"] .nav-item:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .nav-item.active {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow: none;
+}
+[data-theme="light"] .nav-item.active::before {
+  background: #0284c7;
+  box-shadow: 0 0 8px #0284c7;
+}
+[data-theme="light"] .quick-lens-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .quick-lens-card::before {
+  background: linear-gradient(90deg, transparent, var(--profit), transparent);
+}
+[data-theme="light"] .quick-metric {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: #475569;
+}
+[data-theme="light"] .quick-metric strong {
+  color: #0f172a;
+}
+
+/* Shell: Topbar */
+[data-theme="light"] .topbar-title h2 {
+  background: linear-gradient(180deg, #0f172a 40%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="light"] .live-clock-badge {
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  color: #059669;
+}
+[data-theme="light"] .btn-secondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+[data-theme="light"] .market-ticker-bar {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(226, 232, 240, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+[data-theme="light"] .ticker-sym {
+  color: #0f172a;
+}
+[data-theme="light"] .ticker-price {
+  color: #334155;
+}
+
+/* Command Overview: Hero Banner */
+[data-theme="light"] .modern-hero-banner {
+  background: linear-gradient(135deg, #091322 0%, #0c1a2e 100%);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* Command Overview: Zero State Card */
+[data-theme="light"] .zero-state-starter-card {
+  background: rgba(5, 150, 105, 0.06);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+}
+
+/* Command Overview: 5 KPI Cards */
+[data-theme="light"] .modern-kpi-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .modern-kpi-card:hover {
+  border-color: rgba(2, 132, 199, 0.35);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.07);
+}
+[data-theme="light"] .kpi-label {
+  color: #64748b;
+}
+[data-theme="light"] .kpi-val {
+  color: #0f172a;
+}
+[data-theme="light"] .kpi-unit {
+  color: #64748b;
+}
+[data-theme="light"] .kpi-sub-txt {
+  color: #94a3b8;
+}
+
+/* Command Overview: Generic Panels */
+[data-theme="light"] .modern-panel {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .panel-top-bar h3 {
+  color: #0f172a;
+}
+[data-theme="light"] .panel-sub {
+  color: #64748b;
+}
+[data-theme="light"] .panel-select-wrap select {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  color-scheme: light;
+}
+[data-theme="light"] .panel-select-wrap select:hover {
+  background: #ffffff;
+  border-color: #0284c7;
+}
+[data-theme="light"] .panel-select-wrap select option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .select-arrow {
+  color: #64748b;
+}
+[data-theme="light"] .btn-month-nav {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+[data-theme="light"] .btn-month-nav:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+[data-theme="light"] .panel-view-all {
+  color: #0284c7;
+}
+[data-theme="light"] .panel-view-all:hover {
+  color: #0369a1;
+}
+
+/* Command Overview: Timeframe Picker */
+[data-theme="light"] .pips-timeframe-picker {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] .pips-tf-btn {
+  color: #64748b;
+}
+[data-theme="light"] .pips-tf-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+[data-theme="light"] .pips-tf-btn.active {
+  background: #ffffff;
+  border-color: #059669;
+  color: #059669;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .pips-tf-count {
+  background: #e2e8f0;
+  color: #475569;
+}
+[data-theme="light"] .pips-tf-btn.active .pips-tf-count {
+  background: rgba(5, 150, 105, 0.15);
+  color: #059669;
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+/* Command Overview: Chart SVG & Floating Tooltips */
+.chart-zero-line {
+  stroke: rgba(255, 255, 255, 0.18);
+}
+[data-theme="light"] .chart-zero-line {
+  stroke: rgba(0, 0, 0, 0.14);
+}
+.chart-grid-line {
+  stroke: rgba(255, 255, 255, 0.05);
+}
+[data-theme="light"] .chart-grid-line {
+  stroke: rgba(0, 0, 0, 0.06);
+}
+.chart-axis-text {
+  fill: #64748b;
+}
+[data-theme="light"] .chart-axis-text {
+  fill: #64748b;
+}
+.chart-month-label {
+  fill: #64748b;
+}
+.chart-month-label.active {
+  fill: #cbd5e1;
+}
+[data-theme="light"] .chart-month-label.active {
+  fill: #1e293b;
+}
+.chart-empty-marker {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+[data-theme="light"] .chart-empty-marker {
+  stroke: rgba(0, 0, 0, 0.12);
+}
+.donut-center-num {
+  fill: #ffffff;
+}
+[data-theme="light"] .donut-center-num {
+  fill: #0f172a;
+}
+
+[data-theme="light"] .chart-floating-tooltip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+[data-theme="light"] .chart-floating-tooltip::after {
+  background: #ffffff;
+  border-right-color: #cbd5e1;
+  border-bottom-color: #cbd5e1;
+}
+
+[data-theme="light"] .chart-zoom-toolbar {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] .chart-zoom-btn {
+  color: #64748b;
+}
+[data-theme="light"] .chart-zoom-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+[data-theme="light"] .chart-pan-slider-container {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] .chart-pan-slider {
+  background: #cbd5e1;
+}
+
+/* Command Overview: Win Rate Donut & Legends */
+[data-theme="light"] .legend-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .legend-name {
+  color: #64748b;
+}
+[data-theme="light"] .legend-val {
+  color: #0f172a;
+}
+
+/* Command Overview: Asset & Direction Donuts */
+[data-theme="light"] .asset-name {
+  color: #334155;
+}
+[data-theme="light"] .asset-pct {
+  color: #0f172a;
+}
+
+/* Command Overview: Risk Bars */
+[data-theme="light"] .hbar-label {
+  color: #475569;
+}
+[data-theme="light"] .hbar-track {
+  background: #e2e8f0;
+}
+[data-theme="light"] .hbar-val {
+  color: #0f172a;
+}
+
+/* Command Overview: Recent Trades Table */
+[data-theme="light"] .modern-table th {
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+[data-theme="light"] .modern-table td {
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+[data-theme="light"] .cell-date {
+  color: #64748b;
+}
+[data-theme="light"] .cell-asset {
+  color: #0f172a;
+}
+[data-theme="light"] .cell-price,
+[data-theme="light"] .cell-rr {
+  color: #64748b;
+}
+[data-theme="light"] .cell-pips.profit,
+[data-theme="light"] .cell-pnl.profit {
+  color: #059669;
+}
+[data-theme="light"] .cell-pips.loss,
+[data-theme="light"] .cell-pnl.loss {
+  color: #e11d48;
+}
+[data-theme="light"] .cell-pnl.be {
+  color: #64748b;
+}
+
+/* Command Overview: Calendar Heatmap */
+[data-theme="light"] .weekday-col-title {
+  color: #64748b;
+}
+[data-theme="light"] .calendar-day-cell.none {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+[data-theme="light"] .calendar-day-cell.none:hover {
+  background: #e2e8f0;
+}
+[data-theme="light"] .calendar-day-cell.win {
+  background: rgba(5, 150, 105, 0.15);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.35);
+}
+[data-theme="light"] .calendar-day-cell.loss {
+  background: rgba(225, 29, 72, 0.15);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.35);
+}
+[data-theme="light"] .calendar-day-cell.be {
+  background: rgba(217, 119, 6, 0.15);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+}
+[data-theme="light"] .calendar-day-cell.win .day-profit-text {
+  color: #047857;
+}
+[data-theme="light"] .calendar-day-cell.loss .day-profit-text {
+  color: #be123c;
+}
+[data-theme="light"] .calendar-day-cell.be .day-profit-text {
+  color: #b45309;
+}
+
+/* Command Overview: Key Metrics Panel */
+[data-theme="light"] .metric-row-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+[data-theme="light"] .metric-title {
+  color: #475569;
+}
+[data-theme="light"] .metric-num {
+  color: #0f172a;
+}
+[data-theme="light"] .metric-num.profit {
+  color: #059669;
+}
+[data-theme="light"] .metric-num.loss {
+  color: #e11d48;
+}
+[data-theme="light"] .metric-num.teal {
+  color: #0284c7;
+}
+
+/* Fullscreen Ledger Modal in Light Mode */
+[data-theme="light"] .fullscreen-trades-modal {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .fullscreen-modal-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* ==========================================================================
+   LIGHT MODE: MODALS & FORM CONTROLS (Execute & Log Trade Modal, etc.)
+   ========================================================================== */
+[data-theme="light"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="light"] .modal-content {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.18), 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .modal-header {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .modal-header h3 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .modal-header p {
+  color: #64748b;
+}
+
+[data-theme="light"] .modal-title-icon {
+  background: rgba(5, 150, 105, 0.12) !important;
+  border-color: rgba(5, 150, 105, 0.25) !important;
+  color: #059669 !important;
+}
+
+[data-theme="light"] .modal-discipline-badge {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .modal-discipline-badge span {
+  color: #64748b !important;
+}
+
+/* Light Mode Form Elements (Inputs, Selects, Textareas) */
+[data-theme="light"] label span {
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  font-family: var(--font-sans);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  color-scheme: light;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  color: #0f172a;
+}
+
+[data-theme="light"] select option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Mistakes Grid in Modal */
+[data-theme="light"] .checkbox-grid {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .checkbox-pill {
+  color: #475569;
+}
+
+[data-theme="light"] .checkbox-pill:hover {
+  color: #0f172a;
+}
+
+[data-theme="light"] .checkbox-pill input {
+  accent-color: #059669;
+}
+
+/* Chart Screenshot & Setup Card */
+[data-theme="light"] .modal-section-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .modal-toggle-tabs {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+}
+
+[data-theme="light"] .modal-dropzone {
+  background: #ffffff;
+  border: 2px dashed #cbd5e1;
+}
+
+[data-theme="light"] .modal-dropzone:hover,
+[data-theme="light"] .modal-dropzone.dragging {
+  background: #f0f9ff;
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .modal-dropzone p:first-of-type {
+  color: #0f172a;
+}
+
+[data-theme="light"] .modal-dropzone p:last-of-type {
+  color: #64748b;
+}
+
+[data-theme="light"] .modal-kbd {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+[data-theme="light"] .modal-image-preview-box {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .modal-image-controls {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .modal-image-controls button {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .modal-image-controls button:hover {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .modal-lightbox-card {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Modal Buttons & Footer */
+[data-theme="light"] .btn-ghost {
+  color: #64748b;
+}
+
+[data-theme="light"] .btn-ghost:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme="light"] .btn-close {
+  color: #64748b;
+}
+
+[data-theme="light"] .btn-close:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+/* ==========================================================================
+   LIGHT MODE: PIPS & PROFIT TRAJECTORY CURVE PAGE
+   ========================================================================== */
+[data-theme="light"] .hud-super-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .hud-stat-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+[data-theme="light"] .hud-stat-box.profit {
+  background: rgba(5, 150, 105, 0.06);
+  border: 1px solid rgba(5, 150, 105, 0.28);
+}
+
+[data-theme="light"] .hud-stat-box.loss {
+  background: rgba(225, 29, 72, 0.06);
+  border: 1px solid rgba(225, 29, 72, 0.28);
+}
+
+[data-theme="light"] .hud-stat-box.cyan {
+  background: rgba(2, 132, 199, 0.06);
+  border: 1px solid rgba(2, 132, 199, 0.28);
+}
+
+[data-theme="light"] .hud-stat-title {
+  color: #64748b;
+}
+
+[data-theme="light"] .hud-stat-title.profit {
+  color: #059669;
+}
+
+[data-theme="light"] .hud-stat-title.loss {
+  color: #e11d48;
+}
+
+[data-theme="light"] .hud-stat-value.profit {
+  color: #059669;
+}
+
+[data-theme="light"] .hud-stat-value.loss {
+  color: #e11d48;
+}
+
+[data-theme="light"] .hud-stat-value.cyan {
+  color: #0284c7;
+}
+
+[data-theme="light"] .chart-grid-line {
+  stroke: #e2e8f0;
+}
+
+[data-theme="light"] .chart-vgrid-line {
+  stroke: #f1f5f9;
+}
+
+[data-theme="light"] .chart-vgrid-line.hovered {
+  stroke: #0284c7;
+}
+
+[data-theme="light"] .chart-axis-text {
+  fill: #64748b;
+}
+
+[data-theme="light"] .chart-data-dot {
+  stroke: #ffffff;
+}
+
+[data-theme="light"] .chart-zero-line {
+  stroke: rgba(2, 132, 199, 0.45);
+}
+
+[data-theme="light"] .chart-curve-path {
+  stroke: #0284c7;
+}
+
+/* ==========================================================================
+   LIGHT MODE: DEEP ANALYTICS & GLOBAL DATA TABLES
+   ========================================================================== */
+[data-theme="light"] .table-responsive {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] table th {
+  background: #f8fafc;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 700;
+}
+
+[data-theme="light"] table td {
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+[data-theme="light"] table tr:hover td {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .winrate-bar-track {
+  background: #e2e8f0 !important;
+}
+
+/* Setup Quality Pills in Light Mode */
+[data-theme="light"] .pill-grade.elite,
+[data-theme="light"] .pill-grade.a {
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.28);
+}
+
+[data-theme="light"] .pill-grade.b {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(2, 132, 199, 0.28);
+}
+
+[data-theme="light"] .pill-grade.c {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+}
+
+[data-theme="light"] .pill-grade.d,
+[data-theme="light"] .pill-grade.nosetup,
+[data-theme="light"] .pill-grade.needs-improvement {
+  background: rgba(225, 29, 72, 0.12);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.28);
+}
+
+/* Badges in Light Mode */
+[data-theme="light"] .badge-win {
+  color: #047857;
+  background: rgba(5, 150, 105, 0.12);
+  border-color: rgba(5, 150, 105, 0.28);
+}
+
+[data-theme="light"] .badge-loss {
+  color: #be123c;
+  background: rgba(225, 29, 72, 0.12);
+  border-color: rgba(225, 29, 72, 0.28);
+}
+
+[data-theme="light"] .badge-be {
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.28);
+}
+
+/* ==========================================================================
+   LIGHT MODE: PERFORMANCE REVIEWS & AUDIT PAGE
+   ========================================================================== */
+[data-theme="light"] .kpi-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .kpi-card:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .kpi-top {
+  color: #64748b;
+}
+
+[data-theme="light"] .kpi-card p {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .review-highlight-card.best {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.06) 0%, #ffffff 100%);
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #059669;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .review-highlight-card.worst {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.06) 0%, #ffffff 100%);
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #e11d48;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .behavioral-audit-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
+}
+
+/* ==========================================================================
+   PROP GOALS & MILESTONES (BASE & LIGHT MODE)
+   ========================================================================== */
+
+.prop-toggle-wrap {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-medium);
+}
+
+.prop-status-banner {
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  transition: all 0.25s ease;
+}
+
+.prop-status-banner.inactive {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-medium);
+}
+
+.prop-status-banner.failed {
+  background: linear-gradient(135deg, rgba(255, 77, 77, 0.15) 0%, rgba(20, 10, 10, 0.9) 100%);
+  border: 1px solid rgba(255, 77, 77, 0.4);
+}
+
+.prop-status-banner.passed {
+  background: linear-gradient(135deg, rgba(0, 245, 155, 0.15) 0%, rgba(10, 25, 20, 0.9) 100%);
+  border: 1px solid rgba(0, 245, 155, 0.4);
+}
+
+.prop-status-banner.active {
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.15) 0%, rgba(10, 18, 30, 0.9) 100%);
+  border: 1px solid rgba(0, 210, 255, 0.4);
+}
+
+.prop-hud-pill-bar {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 20px;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.prop-config-form {
+  background: rgba(6, 12, 20, 0.95);
+  border: 1px solid var(--accent-cyan);
+  padding: 24px;
+  border-radius: var(--radius-md);
+  margin-bottom: 28px;
+  box-shadow: 0 8px 32px rgba(0, 210, 255, 0.15);
+}
+
+.prop-preset-card {
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+}
+
+.prop-preset-btn {
+  padding: 8px 16px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-medium);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prop-preset-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.prop-preset-btn.active {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 210, 255, 0.25);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.3);
+}
+
+.prop-milestone-card {
+  background: var(--bg-card);
+  padding: 20px 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+
+.prop-milestone-card.failed {
+  border-color: rgba(255, 77, 77, 0.3);
+}
+
+.prop-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+/* Light Theme Overrides */
+[data-theme="light"] .prop-toggle-wrap {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .prop-status-banner.inactive {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .prop-status-banner.active {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, #ffffff 100%);
+  border: 1px solid rgba(2, 132, 199, 0.3);
+  box-shadow: 0 4px 20px rgba(2, 132, 199, 0.08);
+}
+
+[data-theme="light"] .prop-status-banner.passed {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, #ffffff 100%);
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+}
+
+[data-theme="light"] .prop-status-banner.failed {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.08) 0%, #ffffff 100%);
+  border: 1px solid rgba(225, 29, 72, 0.3);
+  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+}
+
+[data-theme="light"] .prop-hud-pill-bar {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .prop-config-form {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .prop-preset-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .prop-preset-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+[data-theme="light"] .prop-preset-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+[data-theme="light"] .prop-preset-btn.active {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: #0284c7;
+  color: #0284c7;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
+}
+
+[data-theme="light"] .prop-milestone-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+[data-theme="light"] .prop-milestone-card.failed {
+  border-color: rgba(225, 29, 72, 0.35);
+  box-shadow: 0 2px 12px rgba(225, 29, 72, 0.06);
+}
+
+[data-theme="light"] .prop-progress-track {
+  background: #e2e8f0 !important;
+}
+
+/* ==========================================================================
+   EXPORT PDF MODAL (BASE & LIGHT MODE)
+   ========================================================================== */
+
+.pdf-modal-card {
+  background: #0d1726;
+  border: 1px solid rgba(0, 245, 155, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 245, 155, 0.12);
+  color: #f8fafc;
+}
+
+.pdf-icon-badge {
+  background: rgba(0, 245, 155, 0.12);
+  border: 1px solid rgba(0, 245, 155, 0.3);
+  color: var(--profit);
+}
+
+.pdf-timeframe-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-medium);
+}
+
+.pdf-tf-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+}
+
+.pdf-tf-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pdf-tf-btn.active {
+  background: rgba(0, 245, 155, 0.15);
+  border: 1px solid var(--profit);
+  color: var(--profit);
+}
+
+.pdf-col-checkbox-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pdf-col-checkbox-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pdf-col-checkbox-card.active {
+  background: rgba(0, 245, 155, 0.08);
+  border: 1px solid rgba(0, 245, 155, 0.35);
+}
+
+.pdf-summary-opt-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pdf-summary-opt-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pdf-summary-opt-card.active {
+  background: rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.35);
+}
+
+.pdf-modal-footer {
+  border-top: 1px solid var(--border-medium);
+}
+
+/* Light Mode Overrides for Export PDF Modal */
+[data-theme="light"] .pdf-modal-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.18), 0 4px 16px rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+[data-theme="light"] .pdf-icon-badge {
+  background: rgba(5, 150, 105, 0.12);
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  color: #059669;
+}
+
+[data-theme="light"] .pdf-timeframe-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .pdf-tf-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+}
+
+[data-theme="light"] .pdf-tf-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+[data-theme="light"] .pdf-tf-btn.active {
+  background: rgba(5, 150, 105, 0.12);
+  border-color: #059669;
+  color: #059669;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
+}
+
+[data-theme="light"] .pdf-col-checkbox-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .pdf-col-checkbox-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .pdf-col-checkbox-card.active {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.4);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.08);
+}
+
+[data-theme="light"] .pdf-summary-opt-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .pdf-summary-opt-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .pdf-summary-opt-card.active {
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.4);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+}
+
+[data-theme="light"] .pdf-modal-footer {
+  border-top: 1px solid #e2e8f0;
+}
+
+/* ==========================================================================
+   DATABASE LEDGER & VIEWS (BASE & LIGHT MODE)
+   ========================================================================== */
+
+/* View Switcher */
+.ledger-view-switcher {
+  display: flex;
+  background: rgba(10, 18, 28, 0.85);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Quick Filter Pills */
+.ledger-filter-pill {
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+}
+
+.ledger-filter-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ledger-filter-pill.active {
+  background: var(--profit);
+  color: #04080e;
+  border-color: var(--profit);
+  font-weight: 700;
+}
+
+.ledger-pill-count {
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.ledger-pill-count.active {
+  background: rgba(0, 0, 0, 0.22);
+  color: #03130d;
+}
+
+/* Table Chart Mini Thumb & Add Button */
+.table-chart-thumb {
+  width: 48px;
+  height: 34px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 210, 255, 0.45);
+  background: #04080e;
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.table-chart-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+}
+
+.table-chart-add-btn {
+  width: 48px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px dashed rgba(0, 210, 255, 0.45);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--accent-cyan);
+  cursor: pointer;
+  background: rgba(0, 210, 255, 0.05);
+  transition: all 0.15s ease;
+}
+
+.table-chart-add-btn:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 210, 255, 0.15);
+  transform: scale(1.08);
+}
+
+/* Detail Modal Cards */
+.detail-stat-card {
+  background: var(--bg-card);
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.detail-breakdown-card {
+  background: rgba(6, 12, 20, 0.6);
+  border: 1px solid var(--border-subtle);
+}
+
+.detail-notes-card {
+  background: rgba(4, 9, 15, 0.7);
+  border: 1px solid var(--border-subtle);
+}
+
+.detail-chart-card {
+  background: rgba(6, 12, 20, 0.7);
+  border: 1px solid var(--border-subtle);
+}
+
+.detail-chart-empty {
+  border: 1px dashed var(--border-medium);
+  background: rgba(8, 16, 26, 0.4);
+}
+
+/* Dedicated Chart Preview Modal */
+.chart-preview-modal-card {
+  background: #060c15;
+  border: 1px solid var(--border-bright);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95);
+}
+
+.chart-preview-viewport {
+  background: #020509;
+  border: 1px solid var(--border-subtle);
+}
+
+.chart-upload-dropzone {
+  border: 2px dashed rgba(0, 210, 255, 0.45);
+  background: rgba(10, 19, 30, 0.6);
+}
+
+/* ==========================================================================
+   LIGHT MODE: DATABASE LEDGER
+   ========================================================================== */
+[data-theme="light"] .ledger-view-switcher {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+}
+
+[data-theme="light"] .ledger-view-switcher .btn-ghost {
+  color: #64748b;
+}
+
+[data-theme="light"] .ledger-view-switcher .btn-ghost:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+[data-theme="light"] .ledger-filter-pill {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+[data-theme="light"] .ledger-filter-pill:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+[data-theme="light"] .ledger-filter-pill.active {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+}
+
+[data-theme="light"] .ledger-pill-count {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+[data-theme="light"] .ledger-pill-count.active {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+[data-theme="light"] .table-chart-thumb {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .table-chart-thumb:hover {
+  border-color: #0284c7;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+}
+
+[data-theme="light"] .table-chart-add-btn {
+  background: rgba(2, 132, 199, 0.06);
+  border-color: rgba(2, 132, 199, 0.35);
+  color: #0284c7;
+}
+
+[data-theme="light"] .table-chart-add-btn:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .detail-stat-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .detail-breakdown-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .detail-breakdown-card strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .detail-notes-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .detail-chart-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .detail-chart-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+}
+
+[data-theme="light"] .chart-preview-modal-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
+}
+
+[data-theme="light"] .chart-preview-viewport {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .chart-upload-dropzone {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+[data-theme="light"] .chart-upload-dropzone:hover {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.04);
+}
+
+
+
+
+
 

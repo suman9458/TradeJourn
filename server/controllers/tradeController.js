@@ -253,7 +253,8 @@ const exportTradesCSV = async (req, res, next) => {
       'Mistakes',
       'Discipline Score',
       'Grade',
-      'Notes'
+      'Notes',
+      'Chart Image / Screenshot'
     ];
 
     const rows = trades.map(t => [
@@ -277,7 +278,8 @@ const exportTradesCSV = async (req, res, next) => {
       `"${(t.mistakes || []).join('; ').replace(/"/g, '""')}"`,
       t.disciplineScore,
       t.tradeGrade,
-      `"${(t.notes || '').replace(/"/g, '""')}"`
+      `"${(t.notes || '').replace(/"/g, '""')}"`,
+      `"${(t.screenshotUrl || t.imageUrl || '').replace(/"/g, '""')}"`
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

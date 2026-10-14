@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, FileText, RefreshCw, Menu, Clock } from 'lucide-react';
+import { Plus, FileText, RefreshCw, Menu, Clock, Sun, Moon } from 'lucide-react';
 
 const LiveClock = () => {
   const [timeStr, setTimeStr] = useState(() => {
@@ -23,7 +23,7 @@ const LiveClock = () => {
   );
 };
 
-export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar }) => {
+export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar, theme = 'dark', onToggleTheme }) => {
   return (
     <header className="topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -43,6 +43,29 @@ export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset,
       </div>
 
       <div className="topbar-actions">
+        {/* Dark / Light Mode Switcher (placed before time showing on upper) */}
+        {onToggleTheme && (
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={onToggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle Dark and Light Mode"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} className="theme-icon sun" />
+                <span className="theme-text">Light Mode</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="theme-icon moon" />
+                <span className="theme-text">Dark Mode</span>
+              </>
+            )}
+          </button>
+        )}
+
         <LiveClock />
         {(onResetDataset || onRefresh) && (
           <button

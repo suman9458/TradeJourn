@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Target, Edit3, Check, Trophy, ShieldCheck, DollarSign, Calendar, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Target, Edit3, Check, Trophy, ShieldCheck, DollarSign, Calendar, ShieldAlert, CheckCircle2, AlertTriangle, RotateCcw, Clock } from 'lucide-react';
 import { api } from '../services/api';
 
 const getTradeTakeProfitUSD = (t) => {
@@ -52,6 +52,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     isChallengeActive: false,
+    challengeStartedAt: null,
     accountSize: 50000,
     profitTarget: 5000,
     maxLoss: 5000,
@@ -73,8 +74,10 @@ export const GoalsView = ({ stats, trades = [] }) => {
         const hasRule = res.goal.hasConsistencyRule !== undefined
           ? Boolean(res.goal.hasConsistencyRule)
           : (res.goal.consistencyPct > 0);
+        const storedStartTime = res.goal.challengeStartedAt || localStorage.getItem('tradejourn_challenge_started_at');
         setEditForm({
           isChallengeActive: res.goal.isChallengeActive !== undefined ? Boolean(res.goal.isChallengeActive) : false,
+          challengeStartedAt: storedStartTime || null,
           accountSize: res.goal.accountSize || 50000,
           profitTarget: res.goal.profitTarget || 5000,
           maxLoss: res.goal.maxLoss || 5000,
@@ -98,9 +101,20 @@ export const GoalsView = ({ stats, trades = [] }) => {
   };
 
   const toggleChallengeActive = async () => {
-    const nextState = !(goals?.isChallengeActive ?? editForm.isChallengeActive);
-    setGoals(prev => prev ? { ...prev, isChallengeActive: nextState } : { isChallengeActive: nextState });
-    setEditForm(prev => ({ ...prev, isChallengeActive: nextState }));
+    const currentActive = Boolean(goals?.isChallengeActive ?? editForm.isChallengeActive);
+    const nextState = !currentActive;
+
+    // When turning ON, record timestamp so only trades added AFTER turning ON are tracked
+    let nextStartTime = goals?.challengeStartedAt || editForm.challengeStartedAt;
+    if (nextState) {
+      nextStartTime = new Date().toISOString();
+      try {
+        localStorage.setItem('tradejourn_challenge_started_at', nextStartTime);
+      } catch (e) {}
+    }
+
+    setGoals(prev => prev ? { ...prev, isChallengeActive: nextState, challengeStartedAt: nextStartTime } : { isChallengeActive: nextState, challengeStartedAt: nextStartTime });
+    setEditForm(prev => ({ ...prev, isChallengeActive: nextState, challengeStartedAt: nextStartTime }));
     try {
       const payload = {
         accountSize: Number(editForm.accountSize) || 50000,
@@ -112,7 +126,8 @@ export const GoalsView = ({ stats, trades = [] }) => {
           ? (editForm.consistencyPct !== '' && editForm.consistencyPct !== undefined ? Number(editForm.consistencyPct) : 50)
           : 0,
         minTradingDays: Number(editForm.minTradingDays) || 5,
-        isChallengeActive: nextState
+        isChallengeActive: nextState,
+        challengeStartedAt: nextStartTime
       };
       const res = await api.updateGoals(payload);
       if (res.success && res.goal) {
@@ -123,10 +138,45 @@ export const GoalsView = ({ stats, trades = [] }) => {
     }
   };
 
+  const handleResetChallenge = async () => {
+    if (!window.confirm('Reset prop firm challenge tracking? This will start a fresh challenge cycle from right now.')) {
+      return;
+    }
+    const newStartTime = new Date().toISOString();
+    try {
+      localStorage.setItem('tradejourn_challenge_started_at', newStartTime);
+    } catch (e) {}
+
+    setGoals(prev => ({ ...(prev || {}), isChallengeActive: true, challengeStartedAt: newStartTime }));
+    setEditForm(prev => ({ ...prev, isChallengeActive: true, challengeStartedAt: newStartTime }));
+    try {
+      const payload = {
+        accountSize: Number(editForm.accountSize) || 50000,
+        profitTarget: Number(editForm.profitTarget) || 5000,
+        maxLoss: Number(editForm.maxLoss) || 5000,
+        maxDailyLoss: Number(editForm.maxDailyLoss) || 2500,
+        hasConsistencyRule: Boolean(editForm.hasConsistencyRule),
+        consistencyPct: editForm.hasConsistencyRule
+          ? (editForm.consistencyPct !== '' && editForm.consistencyPct !== undefined ? Number(editForm.consistencyPct) : 50)
+          : 0,
+        minTradingDays: Number(editForm.minTradingDays) || 5,
+        isChallengeActive: true,
+        challengeStartedAt: newStartTime
+      };
+      const res = await api.updateGoals(payload);
+      if (res.success && res.goal) {
+        setGoals(res.goal);
+      }
+    } catch (err) {
+      console.error('Failed to reset challenge:', err);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     const payload = {
       isChallengeActive: Boolean(editForm.isChallengeActive),
+      challengeStartedAt: editForm.challengeStartedAt || goals?.challengeStartedAt || null,
       accountSize: Number(editForm.accountSize) || 50000,
       profitTarget: Number(editForm.profitTarget) || 5000,
       maxLoss: Number(editForm.maxLoss) || 5000,
@@ -166,6 +216,8 @@ export const GoalsView = ({ stats, trades = [] }) => {
       ? Boolean(goals.isChallengeActive)
       : Boolean(editForm.isChallengeActive);
 
+    const challengeStartedAt = goals?.challengeStartedAt || editForm.challengeStartedAt || localStorage.getItem('tradejourn_challenge_started_at');
+
     const accountSize = goals?.accountSize || editForm.accountSize || 50000;
     const profitTarget = goals?.profitTarget || editForm.profitTarget || 5000;
     const maxLoss = goals?.maxLoss || editForm.maxLoss || 5000;
@@ -176,18 +228,41 @@ export const GoalsView = ({ stats, trades = [] }) => {
     const consistencyPct = goals?.consistencyPct !== undefined ? goals.consistencyPct : (editForm.consistencyPct || 50);
     const minTradingDays = goals?.minTradingDays || editForm.minTradingDays || 5;
 
-    // Trade calculations - When ON, include ALL trades added to the journal!
-    // When OFF, no trades are included.
+    // Rule: Only trades added AFTER turning ON the challenge button are counted!
+    // When Challenge is OFF, no trades are counted.
+    let challengeTrades = [];
+    if (isChallengeActive) {
+      // 2000ms buffer to ensure trades logged right at start timestamp are captured
+      const startTimeMs = challengeStartedAt ? (new Date(challengeStartedAt).getTime() - 2000) : 0;
+      challengeTrades = trades.filter(t => {
+        if (t.isPropTrade === false) return false;
+        if (!startTimeMs) return true;
+
+        if (t.createdAt) {
+          const cTime = new Date(t.createdAt).getTime();
+          if (!isNaN(cTime)) return cTime >= startTimeMs;
+        }
+
+        if (t.date) {
+          const timeStr = t.time || '00:00';
+          const pDate = new Date(`${t.date}T${timeStr}:00`).getTime();
+          if (!isNaN(pDate)) return pDate >= startTimeMs;
+          const dayStr = t.date.slice(0, 10);
+          const startDayStr = new Date(startTimeMs).toISOString().slice(0, 10);
+          return dayStr >= startDayStr;
+        }
+
+        return false;
+      });
+    }
+
     let totalNetProfitUSD = 0;
     let totalGrossProfit = 0;
     let bestSingleTradeProfit = 0;
     const dailyProfitsMap = {};
-    const challengeTrades = isChallengeActive ? trades : [];
-    const sortedTrades = [...challengeTrades].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+    const dailyTradesCountMap = {};
 
-    let currentBalance = accountSize;
-    let peakBalance = accountSize;
-    let maxDrawdownUSD = 0;
+    const sortedTrades = [...challengeTrades].sort((a, b) => new Date(a.date || a.createdAt || 0) - new Date(b.date || b.createdAt || 0));
 
     sortedTrades.forEach(t => {
       const pnl = getTradeTakeProfitUSD(t);
@@ -200,47 +275,60 @@ export const GoalsView = ({ stats, trades = [] }) => {
         }
       }
 
-      // Equity curve drawdown calculation
-      currentBalance += pnl;
-      if (currentBalance > peakBalance) {
-        peakBalance = currentBalance;
+      // Group by daily date (YYYY-MM-DD)
+      let dateKey = t.date;
+      if (!dateKey && t.createdAt) {
+        dateKey = new Date(t.createdAt).toISOString().slice(0, 10);
       }
-      const dd = peakBalance - currentBalance;
-      if (dd > maxDrawdownUSD) {
-        maxDrawdownUSD = dd;
-      }
+      if (!dateKey) dateKey = 'unknown';
+      else dateKey = dateKey.slice(0, 10);
 
-      // Group by daily date
-      const dateKey = t.date ? t.date.slice(0, 10) : 'unknown';
-      dailyProfitsMap[dateKey] = (dailyProfitsMap[dateKey] || 0) + pnl;
+      if (dateKey !== 'unknown') {
+        dailyProfitsMap[dateKey] = (dailyProfitsMap[dateKey] || 0) + pnl;
+        dailyTradesCountMap[dateKey] = (dailyTradesCountMap[dateKey] || 0) + 1;
+      }
     });
 
     // 1. Target Profit ($)
     const currentTargetProfit = totalNetProfitUSD;
 
-    // 2. Max Loss ($)
-    const currentMaxLoss = maxDrawdownUSD;
+    // 2. Maximum Overall Loss ($)
+    // Rule: Minus krte rehna agar profits ho to, and 0 pe ruk jana aur wapis loss ho to badhana
+    // When totalNetProfitUSD is negative, overall loss is |totalNetProfitUSD|.
+    // When totalNetProfitUSD >= 0, overall loss is 0.00.
+    const currentOverallLoss = Math.max(0, -totalNetProfitUSD);
 
     // 3. Max Daily Loss ($)
+    // Rule: 1 day me jo bhi profits yani 1 day ka +,- krna, aur profits aane pr daily loss kmm krna
+    // For each calendar day, net PnL is sum of all profits (+) and losses (-).
+    // If a day's net is negative, day loss is |dayPnl|. If day is positive, day loss is 0.
     let worstDailyLossUSD = 0;
-    Object.values(dailyProfitsMap).forEach(dayPnl => {
-      if (dayPnl < 0) {
-        const loss = Math.abs(dayPnl);
-        if (loss > worstDailyLossUSD) {
-          worstDailyLossUSD = loss;
-        }
+    let worstDailyLossDate = null;
+    Object.entries(dailyProfitsMap).forEach(([dateKey, dayPnl]) => {
+      const dayLoss = dayPnl < 0 ? Math.abs(dayPnl) : 0;
+      if (dayLoss > worstDailyLossUSD) {
+        worstDailyLossUSD = dayLoss;
+        worstDailyLossDate = dateKey;
       }
     });
 
-    // 4. Consistency (%): (total 1 trade profit / total profit) < % consistency
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayNetPnL = dailyProfitsMap[todayStr] ?? 0;
+    const todayDailyLossUSD = todayNetPnL < 0 ? Math.abs(todayNetPnL) : 0;
+
+    // 4. Consistency (%): (best single trade profit / total gross profit) < % consistency
     const consistencyCurrentPct = totalGrossProfit > 0 ? (bestSingleTradeProfit / totalGrossProfit) * 100 : 0;
 
-    // 5. Min Trading Days
-    const uniqueTradingDays = Object.keys(dailyProfitsMap).filter(d => d !== 'unknown').length;
+    // 5. Minimum Trading Days
+    // Rule: On ho aur trade journal add ho to count krna, jis din add na ho us din no day count
+    // Only unique dates where at least one trade was journaled AFTER challenge started
+    const uniqueTradingDays = isChallengeActive
+      ? Object.keys(dailyTradesCountMap).filter(d => d !== 'unknown' && dailyTradesCountMap[d] > 0).length
+      : 0;
 
     // Challenge Evaluation
     const targetMet = isChallengeActive && totalNetProfitUSD >= profitTarget;
-    const maxLossBreached = isChallengeActive && currentMaxLoss > maxLoss;
+    const maxLossBreached = isChallengeActive && currentOverallLoss > maxLoss;
     const dailyLossBreached = isChallengeActive && worstDailyLossUSD > maxDailyLoss;
     const consistencyBreached = isChallengeActive && hasConsistencyRule && (consistencyCurrentPct > consistencyPct && totalGrossProfit > 0);
     const minDaysMet = isChallengeActive && uniqueTradingDays >= minTradingDays;
@@ -250,6 +338,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
 
     return {
       isChallengeActive,
+      challengeStartedAt,
       accountSize,
       profitTarget,
       maxLoss,
@@ -258,12 +347,16 @@ export const GoalsView = ({ stats, trades = [] }) => {
       consistencyPct,
       minTradingDays,
       totalNetProfitUSD,
-      currentMaxLoss,
+      currentOverallLoss,
       worstDailyLossUSD,
+      worstDailyLossDate,
+      todayNetPnL,
+      todayDailyLossUSD,
       bestSingleTradeProfit,
       totalGrossProfit,
       consistencyCurrentPct,
       uniqueTradingDays,
+      challengeTradesCount: challengeTrades.length,
       targetMet,
       maxLossBreached,
       dailyLossBreached,
@@ -284,6 +377,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
 
   const {
     isChallengeActive,
+    challengeStartedAt,
     accountSize,
     profitTarget,
     maxLoss,
@@ -292,11 +386,13 @@ export const GoalsView = ({ stats, trades = [] }) => {
     consistencyPct,
     minTradingDays,
     totalNetProfitUSD,
-    currentMaxLoss,
+    currentOverallLoss,
     worstDailyLossUSD,
+    todayNetPnL,
     bestSingleTradeProfit,
     consistencyCurrentPct,
     uniqueTradingDays,
+    challengeTradesCount,
     targetMet,
     maxLossBreached,
     dailyLossBreached,
@@ -332,11 +428,11 @@ export const GoalsView = ({ stats, trades = [] }) => {
     {
       id: 'max_loss',
       label: '2. Maximum Overall Loss ($)',
-      currentDisplay: `-$${currentMaxLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      currentDisplay: `-$${currentOverallLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       targetDisplay: `-$${maxLoss.toLocaleString()} Limit`,
-      pct: Math.min(100, Math.max(0, (currentMaxLoss / (maxLoss || 1)) * 100)),
+      pct: Math.min(100, Math.max(0, (currentOverallLoss / (maxLoss || 1)) * 100)),
       isPassed: !maxLossBreached,
-      sub: 'Maximum peak-to-trough account drawdown limit allowed',
+      sub: 'Net account loss (recovers with profits, stops at $0.00)',
       badge: maxLossBreached ? 'MAX LOSS BREACHED' : 'DRAWDOWN WITHIN LIMIT',
       badgeColor: maxLossBreached ? '#ff4d4d' : 'var(--profit)'
     },
@@ -347,7 +443,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
       targetDisplay: `-$${maxDailyLoss.toLocaleString()} Daily Limit`,
       pct: Math.min(100, Math.max(0, (worstDailyLossUSD / (maxDailyLoss || 1)) * 100)),
       isPassed: !dailyLossBreached,
-      sub: 'Worst single-day net loss incurred across trading history',
+      sub: `Worst single-day net loss (Today's Net: ${todayNetPnL >= 0 ? '+' : ''}$${todayNetPnL.toFixed(2)})`,
       badge: dailyLossBreached ? 'DAILY LOSS BREACHED' : 'DAILY LOSS WITHIN LIMIT',
       badgeColor: dailyLossBreached ? '#ff4d4d' : 'var(--profit)'
     },
@@ -371,7 +467,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
       targetDisplay: `${minTradingDays} Days Required`,
       pct: Math.min(100, Math.max(0, (uniqueTradingDays / (minTradingDays || 1)) * 100)),
       isPassed: minDaysMet,
-      sub: 'Total unique active trading days logged in history',
+      sub: `Days with trade entries logged since challenge started (${challengeTradesCount} trades logged)`,
       badge: minDaysMet ? 'DAYS REQUIREMENT MET' : `${Math.max(0, minTradingDays - uniqueTradingDays)} DAYS REMAINING`,
       badgeColor: minDaysMet ? 'var(--profit)' : 'var(--accent-cyan)'
     }
@@ -395,7 +491,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             {/* ON / OFF Toggle Switch */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border-medium)' }}>
+            <div className="prop-toggle-wrap" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: 'var(--radius-pill)' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: '800', color: isChallengeActive ? 'var(--profit)' : 'var(--text-muted)', letterSpacing: '0.04em' }}>
                 CHALLENGE TRACKING: {isChallengeActive ? 'ON' : 'OFF'}
               </span>
@@ -433,6 +529,19 @@ export const GoalsView = ({ stats, trades = [] }) => {
               </button>
             </div>
 
+            {isChallengeActive && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleResetChallenge}
+                title="Restart challenge with a fresh timestamp from right now"
+                style={{ fontSize: '0.84rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RotateCcw size={14} />
+                <span>Reset Challenge</span>
+              </button>
+            )}
+
             <button
               className="btn-secondary"
               onClick={() => setIsEditing(!isEditing)}
@@ -446,15 +555,8 @@ export const GoalsView = ({ stats, trades = [] }) => {
 
         {/* Challenge Overview Banner */}
         <div
+          className={`prop-status-banner ${!isChallengeActive ? 'inactive' : isFailed ? 'failed' : isPassed ? 'passed' : 'active'}`}
           style={{
-            background: !isChallengeActive
-              ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(15, 23, 36, 0.9) 100%)'
-              : isFailed
-              ? 'linear-gradient(135deg, rgba(255, 77, 77, 0.15) 0%, rgba(20, 10, 15, 0.9) 100%)'
-              : isPassed
-              ? 'linear-gradient(135deg, rgba(0, 245, 155, 0.15) 0%, rgba(10, 25, 20, 0.9) 100%)'
-              : 'linear-gradient(135deg, rgba(0, 210, 255, 0.1) 0%, rgba(10, 18, 30, 0.9) 100%)',
-            border: `1px solid ${!isChallengeActive ? 'var(--border-medium)' : isFailed ? 'rgba(255, 77, 77, 0.4)' : isPassed ? 'rgba(0, 245, 155, 0.4)' : 'var(--border-bright)'}`,
             borderRadius: 'var(--radius-md)',
             padding: '20px 24px',
             marginBottom: '24px',
@@ -486,7 +588,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-white)' }}>
                   ${accountSize.toLocaleString()} Challenge Status:
                 </span>
                 <span
@@ -528,15 +630,15 @@ export const GoalsView = ({ stats, trades = [] }) => {
                   ? 'One or more risk limits (Max Loss or Daily Loss) have been breached.'
                   : isPassed
                   ? 'Congratulations! All profit, risk, consistency, and trading day rules are satisfied.'
-                  : `Current Net PnL: ${totalNetProfitUSD >= 0 ? '+' : ''}$${totalNetProfitUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${((totalNetProfitUSD / accountSize) * 100).toFixed(2)}%)`}
+                  : `Challenge Active • Evaluating only trades logged after turning ON • Net PnL: ${totalNetProfitUSD >= 0 ? '+' : ''}$${totalNetProfitUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${((totalNetProfitUSD / accountSize) * 100).toFixed(2)}%)`}
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '20px', background: 'rgba(0,0,0,0.3)', padding: '12px 18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)' }}>
+          <div className="prop-hud-pill-bar" style={{ display: 'flex', gap: '20px', padding: '12px 18px', borderRadius: 'var(--radius-md)', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Size</div>
-              <div style={{ fontSize: '1rem', fontWeight: '800', color: '#fff', marginTop: '2px' }}>${(accountSize / 1000).toFixed(0)}k</div>
+              <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-white)', marginTop: '2px' }}>${(accountSize / 1000).toFixed(0)}k</div>
             </div>
             <div style={{ width: '1px', background: 'var(--border-medium)' }} />
             <div style={{ textAlign: 'center' }}>
@@ -549,7 +651,14 @@ export const GoalsView = ({ stats, trades = [] }) => {
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Max Loss Used</div>
               <div style={{ fontSize: '1rem', fontWeight: '800', color: maxLossBreached ? '#ff4d4d' : 'var(--text-primary)', marginTop: '2px' }}>
-                ${Math.round(currentMaxLoss).toLocaleString()} / ${Math.round(maxLoss).toLocaleString()}
+                ${Math.round(currentOverallLoss).toLocaleString()} / ${Math.round(maxLoss).toLocaleString()}
+              </div>
+            </div>
+            <div style={{ width: '1px', background: 'var(--border-medium)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trading Days</div>
+              <div style={{ fontSize: '1rem', fontWeight: '800', color: minDaysMet ? 'var(--profit)' : 'var(--text-primary)', marginTop: '2px' }}>
+                {uniqueTradingDays} / {minTradingDays}
               </div>
             </div>
           </div>
@@ -557,7 +666,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
 
         {/* Configure Form Section */}
         {isEditing && (
-          <form onSubmit={handleSave} style={{ background: 'rgba(6,12,20,0.95)', padding: '24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--accent-cyan)', marginBottom: '28px', boxShadow: '0 8px 32px rgba(0,210,255,0.15)' }}>
+          <form onSubmit={handleSave} className="prop-config-form">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h4 style={{ fontSize: '0.92rem', color: 'var(--accent-cyan)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Configure Target Milestones
@@ -566,13 +675,13 @@ export const GoalsView = ({ stats, trades = [] }) => {
             </div>
 
             {/* Quick Presets & Account Size Selector */}
-            <div style={{ marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '14px 18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)' }}>
+            <div className="prop-preset-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   CHALLENGE ACCOUNT SIZE PRESET:
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  Selected Capital: <strong style={{ color: '#fff', fontSize: '0.9rem' }}>${Number(editForm.accountSize || 0).toLocaleString()}</strong>
+                  Selected Capital: <strong style={{ color: 'var(--text-white)', fontSize: '0.9rem' }}>${Number(editForm.accountSize || 0).toLocaleString()}</strong>
                 </div>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
@@ -581,18 +690,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
                     key={size}
                     type="button"
                     onClick={() => applyPreset(size)}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '0.84rem',
-                      fontWeight: '800',
-                      borderRadius: 'var(--radius-pill)',
-                      border: Number(editForm.accountSize) === size ? '1px solid var(--accent-cyan)' : '1px solid var(--border-medium)',
-                      background: Number(editForm.accountSize) === size ? 'rgba(0, 210, 255, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                      color: Number(editForm.accountSize) === size ? 'var(--accent-cyan)' : 'var(--text-primary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: Number(editForm.accountSize) === size ? '0 0 12px rgba(0,210,255,0.3)' : 'none'
-                    }}
+                    className={`prop-preset-btn ${Number(editForm.accountSize) === size ? 'active' : ''}`}
                   >
                     ${size >= 1000 ? `${size / 1000}k` : size}
                   </button>
@@ -721,19 +819,12 @@ export const GoalsView = ({ stats, trades = [] }) => {
             return (
               <div
                 key={item.id}
-                style={{
-                  background: 'var(--bg-card)',
-                  padding: '20px 24px',
-                  borderRadius: 'var(--radius-md)',
-                  border: `1px solid ${!isOK ? 'rgba(255,77,77,0.3)' : 'var(--border-medium)'}`,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-                  transition: 'all 0.25s ease'
-                }}
+                className={`prop-milestone-card ${!isOK ? 'failed' : ''}`}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '0.98rem', fontWeight: '800', color: '#fff' }}>{item.label}</span>
+                      <span style={{ fontSize: '0.98rem', fontWeight: '800', color: 'var(--text-white)' }}>{item.label}</span>
                       <span
                         style={{
                           display: 'inline-flex',
@@ -769,7 +860,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
                 </div>
 
                 {/* Progress Bar Track */}
-                <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
+                <div className="prop-progress-track">
                   <div
                     style={{
                       height: '100%',

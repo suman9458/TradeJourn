@@ -1,7 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import richRiskImg from '../assets/rich-risk.jpg';
 import { TradesTableView } from './TradesTableView';
+import { api } from '../services/api';
+import { compressImageFile } from '../utils/imageHelper';
 import {
   BarChart2,
   TrendingUp,
@@ -25,7 +27,11 @@ import {
   Plus,
   Sparkles,
   X,
-  DollarSign
+  DollarSign,
+  Camera,
+  UploadCloud,
+  Trash2,
+  Download
 } from 'lucide-react';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -151,6 +157,79 @@ export const ModernPipsDashboard = ({
   }, [allTrades]);
 
   const [selectedYear, setSelectedYear] = useState(() => availableYears[0] || '2026');
+  const [dashboardLightboxImage, setDashboardLightboxImage] = useState(null);
+  const [activeDashboardChartTrade, setActiveDashboardChartTrade] = useState(null);
+  const [uploadingDashboardChart, setUploadingDashboardChart] = useState(false);
+  const [dashboardChartUrlInput, setDashboardChartUrlInput] = useState('');
+  const [isDashboardChartDragging, setIsDashboardChartDragging] = useState(false);
+  const dashboardChartFileInputRef = useRef(null);
+
+  // Paste screenshot with Ctrl+V while Dashboard Chart Modal is open
+  useEffect(() => {
+    if (!activeDashboardChartTrade) return;
+
+    const handlePaste = async (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleSaveDashboardChart(activeDashboardChartTrade, file);
+          }
+          break;
+        }
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setActiveDashboardChartTrade(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [activeDashboardChartTrade]);
+
+  const handleSaveDashboardChart = async (targetTrade, fileOrUrl) => {
+    if (!targetTrade) return;
+    try {
+      setUploadingDashboardChart(true);
+      let dataUrl = fileOrUrl;
+      if (typeof fileOrUrl !== 'string') {
+        dataUrl = await compressImageFile(fileOrUrl);
+      }
+      const updated = { ...targetTrade, screenshotUrl: dataUrl, imageUrl: dataUrl };
+      await api.updateTrade(targetTrade._id, { screenshotUrl: dataUrl, imageUrl: dataUrl });
+      setActiveDashboardChartTrade(updated);
+      onTradeUpdated && onTradeUpdated();
+    } catch (err) {
+      alert('Failed to save chart image: ' + err.message);
+    } finally {
+      setUploadingDashboardChart(false);
+      if (dashboardChartFileInputRef.current) dashboardChartFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveDashboardChart = async () => {
+    if (!activeDashboardChartTrade) return;
+    try {
+      setUploadingDashboardChart(true);
+      const updated = { ...activeDashboardChartTrade, screenshotUrl: '', imageUrl: '' };
+      await api.updateTrade(activeDashboardChartTrade._id, { screenshotUrl: '', imageUrl: '' });
+      setActiveDashboardChartTrade(updated);
+      onTradeUpdated && onTradeUpdated();
+    } catch (err) {
+      alert('Failed to remove chart: ' + err.message);
+    } finally {
+      setUploadingDashboardChart(false);
+    }
+  };
+
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
@@ -1142,7 +1221,7 @@ export const ModernPipsDashboard = ({
           <div className="chart-canvas-wrap">
             <svg viewBox="0 0 520 220" className="chart-svg">
               {/* Zero baseline */}
-              <line x1="45" y1="110" x2="510" y2="110" stroke="rgba(255,255,255,0.18)" strokeWidth="1.2" />
+              <line x1="45" y1="110" x2="510" y2="110" className="chart-zero-line" strokeWidth="1.2" />
 
               {/* Dynamic Y-Axis Grid & Labels (in P&L $) */}
               {[
@@ -1153,8 +1232,8 @@ export const ModernPipsDashboard = ({
                 { val: formatYAxisUSD(-activeScaleMax), y: 195 }
               ].map((g, idx) => (
                 <g key={idx}>
-                  <line x1="45" y1={g.y} x2="510" y2={g.y} stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
-                  <text x="38" y={g.y + 4} fill="#64748b" fontSize="10" fontFamily="var(--font-mono)" textAnchor="end">
+                  <line x1="45" y1={g.y} x2="510" y2={g.y} className="chart-grid-line" strokeDasharray="3 3" />
+                  <text x="38" y={g.y + 4} className="chart-axis-text" fontSize="10" fontFamily="var(--font-mono)" textAnchor="end">
                     {g.val}
                   </text>
                 </g>
@@ -1228,14 +1307,14 @@ export const ModernPipsDashboard = ({
                           y1="110"
                           x2={x + barWidth}
                           y2="110"
-                          stroke="rgba(255,255,255,0.12)"
+                          className="chart-empty-marker"
                           strokeWidth="2"
                         />
                       )}
                       <text
                         x={plotLeft + i * colWidth + colWidth / 2}
                         y="212"
-                        fill={d.tradesCount > 0 ? '#cbd5e1' : '#64748b'}
+                        className={`chart-month-label ${d.tradesCount > 0 ? 'active' : ''}`}
                         fontSize={numBars > 10 ? '9.5' : '10.5'}
                         fontFamily="var(--font-sans)"
                         fontWeight={d.tradesCount > 0 ? '700' : '400'}
@@ -1311,10 +1390,10 @@ export const ModernPipsDashboard = ({
                   cx="110"
                   cy="110"
                   r={winRadius}
-                  stroke={totalTradesCount > 0 ? '#ff3366' : 'rgba(255,255,255,0.08)'}
+                  stroke={totalTradesCount > 0 ? '#ff3366' : 'var(--border-medium)'}
                   strokeWidth="26"
                   fill="transparent"
-                  opacity={totalTradesCount > 0 ? '0.85' : '0.3'}
+                  opacity={totalTradesCount > 0 ? '0.85' : '0.35'}
                 />
 
                 {/* Win Foreground Ring (Emerald Green) */}
@@ -1336,7 +1415,7 @@ export const ModernPipsDashboard = ({
                 )}
 
                 {/* Center Percentage - Enlarged */}
-                <text x="110" y="113" textAnchor="middle" fill="#ffffff" fontSize="32" fontWeight="800" fontFamily="var(--font-sans)">
+                <text x="110" y="113" textAnchor="middle" className="donut-center-num" fontSize="32" fontWeight="800" fontFamily="var(--font-sans)">
                   {winRateVal}%
                 </text>
                 <text x="110" y="136" textAnchor="middle" fill="#94a3b8" fontSize="13" fontWeight="700">
@@ -1404,7 +1483,7 @@ export const ModernPipsDashboard = ({
                     onMouseLeave={() => setHoveredAsset(null)}
                   />
                 ))}
-                <text x="85" y="80" textAnchor="middle" fill="#ffffff" fontSize="20" fontWeight="800" fontFamily="var(--font-sans)">
+                <text x="85" y="80" textAnchor="middle" className="donut-center-num" fontSize="20" fontWeight="800" fontFamily="var(--font-sans)">
                   {totalTradesCount}
                 </text>
                 <text x="85" y="96" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="700">
@@ -1445,7 +1524,7 @@ export const ModernPipsDashboard = ({
                     strokeLinecap="round"
                   />
                 ))}
-                <text x="85" y="80" textAnchor="middle" fill="#ffffff" fontSize="20" fontWeight="800" fontFamily="var(--font-sans)">
+                <text x="85" y="80" textAnchor="middle" className="donut-center-num" fontSize="20" fontWeight="800" fontFamily="var(--font-sans)">
                   {totalTradesCount}
                 </text>
                 <text x="85" y="96" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="700">
@@ -1527,6 +1606,7 @@ export const ModernPipsDashboard = ({
               <table className="modern-table">
                 <thead>
                   <tr>
+                    <th style={{ width: '52px', textAlign: 'center' }}>Chart</th>
                     <th>Date</th>
                     <th>Asset</th>
                     <th>Type</th>
@@ -1540,8 +1620,76 @@ export const ModernPipsDashboard = ({
                 <tbody>
                   {recentTradesList.map((t, i) => (
                     <tr key={i}>
+                      <td className="cell-chart" style={{ width: '52px', padding: '6px 8px', textAlign: 'center' }}>
+                        {(t.screenshotUrl || t.imageUrl) ? (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDashboardChartTrade(t);
+                            }}
+                            title="Click to view chart (only chart)"
+                            style={{
+                              width: '44px',
+                              height: '30px',
+                              borderRadius: '6px',
+                              overflow: 'hidden',
+                              border: '1px solid rgba(0, 210, 255, 0.45)',
+                              background: '#04080e',
+                              cursor: 'pointer',
+                              display: 'inline-block',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                              transition: 'transform 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          >
+                            <img
+                              src={t.screenshotUrl || t.imageUrl}
+                              alt="Chart"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDashboardChartTrade(t);
+                            }}
+                            title="Add chart image"
+                            style={{
+                              width: '44px',
+                              height: '30px',
+                              borderRadius: '6px',
+                              border: '1px dashed rgba(0, 210, 255, 0.45)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '2px',
+                              color: 'var(--accent-cyan)',
+                              cursor: 'pointer',
+                              background: 'rgba(0, 210, 255, 0.05)',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--accent-cyan)';
+                              e.currentTarget.style.background = 'rgba(0, 210, 255, 0.15)';
+                              e.currentTarget.style.transform = 'scale(1.08)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'rgba(0, 210, 255, 0.45)';
+                              e.currentTarget.style.background = 'rgba(0, 210, 255, 0.05)';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                          >
+                            <Camera size={13} />
+                            <Plus size={10} strokeWidth={3} />
+                          </div>
+                        )}
+                      </td>
                       <td className="cell-date">{t.date}</td>
-                      <td className="cell-asset">{t.asset}</td>
+                      <td className="cell-asset">
+                        <span>{t.asset}</span>
+                      </td>
                       <td>
                         <span className={`cell-type-badge ${t.type.toLowerCase()}`}>
                           {t.type}
@@ -1584,12 +1732,11 @@ export const ModernPipsDashboard = ({
 
               <div className="panel-select-wrap">
                 <select
-                  style={{ colorScheme: 'dark' }}
                   value={selectedMonth}
                   onChange={e => setSelectedMonth(e.target.value)}
                 >
                   {availableMonths.map(m => (
-                    <option key={m} value={m} style={{ backgroundColor: '#0d1726', color: '#ffffff' }}>
+                    <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
@@ -1745,6 +1892,232 @@ export const ModernPipsDashboard = ({
                 title="Complete Institutional Trade Journal"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          DEDICATED CHART MODAL - SHOWS ONLY CHART (NO OTHER TRADE DATA)
+          OR CLEAN "ADD CHART" INTERFACE IF NO IMAGE IS ATTACHED
+          ========================================================================= */}
+      {activeDashboardChartTrade && (
+        <div className="modal-overlay" style={{ zIndex: 125000, background: 'rgba(2, 6, 12, 0.92)', backdropFilter: 'blur(10px)' }} onClick={() => setActiveDashboardChartTrade(null)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: (activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl) ? '95vw' : '520px',
+              width: '100%',
+              maxHeight: '94vh',
+              position: 'relative',
+              background: '#060c15',
+              padding: (activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl) ? '14px 18px' : '22px 24px',
+              borderRadius: '16px',
+              border: '1px solid var(--border-bright)',
+              boxShadow: '0 30px 80px rgba(0, 0, 0, 0.95)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Hidden file input for dashboard chart */}
+            <input
+              type="file"
+              ref={dashboardChartFileInputRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => e.target.files?.[0] && handleSaveDashboardChart(activeDashboardChartTrade, e.target.files[0])}
+            />
+
+            {(activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl) ? (
+              /* SHOW ONLY CHART IMAGE - ZERO OTHER TRADE DATA */
+              <>
+                {/* Minimal Top Control Bar (No Trade Metadata) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '10px'
+                  }}
+                >
+                  <a
+                    href={activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl}
+                    download={`trade-chart-${Date.now()}.png`}
+                    className="btn-ghost"
+                    title="Download Chart Screenshot"
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                  >
+                    <Download size={13} /> Download
+                  </a>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => dashboardChartFileInputRef.current?.click()}
+                    disabled={uploadingDashboardChart}
+                    title="Replace Chart Image"
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <UploadCloud size={13} /> {uploadingDashboardChart ? 'Uploading...' : 'Replace'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={handleRemoveDashboardChart}
+                    disabled={uploadingDashboardChart}
+                    title="Remove Chart Image"
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setActiveDashboardChartTrade(null)}
+                    title="Close"
+                    style={{ marginLeft: '4px' }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Pure Chart Viewport */}
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'auto',
+                    background: '#020509',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-subtle)',
+                    padding: '8px'
+                  }}
+                >
+                  <img
+                    src={activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl}
+                    alt="Trade Chart Setup"
+                    style={{
+                      maxWidth: '92vw',
+                      maxHeight: '82vh',
+                      objectFit: 'contain',
+                      borderRadius: '6px',
+                      display: 'block'
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              /* SHOW CLEAN ADD CHART INTERFACE (NO OTHER TRADE DATA) */
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px',
+                    paddingBottom: '10px',
+                    borderBottom: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(0, 210, 255, 0.12)',
+                        color: 'var(--accent-cyan)',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}
+                    >
+                      <Camera size={16} />
+                    </div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#ffffff', fontWeight: '700' }}>
+                      Add Chart Image
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setActiveDashboardChartTrade(null)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Drag & Drop Upload Zone */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDashboardChartDragging(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setIsDashboardChartDragging(false); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDashboardChartDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleSaveDashboardChart(activeDashboardChartTrade, file);
+                    }}
+                    onClick={() => dashboardChartFileInputRef.current?.click()}
+                    style={{
+                      border: `2px dashed ${isDashboardChartDragging ? 'var(--accent-cyan)' : 'rgba(0, 210, 255, 0.45)'}`,
+                      background: isDashboardChartDragging ? 'rgba(0, 210, 255, 0.12)' : 'rgba(10, 19, 30, 0.6)',
+                      borderRadius: '12px',
+                      padding: '36px 20px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '50%',
+                        background: 'rgba(0, 210, 255, 0.12)',
+                        color: 'var(--accent-cyan)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        margin: '0 auto 12px'
+                      }}
+                    >
+                      <UploadCloud size={26} />
+                    </div>
+                    <strong style={{ display: 'block', fontSize: '1rem', color: '#ffffff', marginBottom: '6px' }}>
+                      {uploadingDashboardChart ? 'Uploading chart screenshot...' : 'Click to Upload or Drag & Drop Chart'}
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      PNG, JPG, WebP • Or press <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>Ctrl+V</kbd> to paste
+                    </p>
+                  </div>
+
+                  {/* Direct Image URL Option */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="url"
+                      placeholder="Or paste chart image URL (TradingView, Imgur link)..."
+                      value={dashboardChartUrlInput}
+                      onChange={e => setDashboardChartUrlInput(e.target.value)}
+                      style={{ flex: 1, fontSize: '0.84rem' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={!dashboardChartUrlInput.trim() || uploadingDashboardChart}
+                      onClick={() => {
+                        if (dashboardChartUrlInput.trim()) {
+                          handleSaveDashboardChart(activeDashboardChartTrade, dashboardChartUrlInput.trim());
+                          setDashboardChartUrlInput('');
+                        }
+                      }}
+                      style={{ padding: '0 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                    >
+                      Attach URL
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

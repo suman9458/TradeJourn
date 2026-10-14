@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles, Camera, Image as ImageIcon, UploadCloud, Maximize2, LayoutGrid, List, Plus, Download } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportTradeHistoryPDF } from '../utils/exportPDF';
+import { compressImageFile } from '../utils/imageHelper';
 
 import { getTradeTakeProfitUSD } from './ModernPipsDashboard';
 
@@ -95,7 +96,119 @@ export const TradesTableView = ({
   const [sortBy, setSortBy] = useState('date');
   const [order, setOrder] = useState('desc');
   const [selectedTrade, setSelectedTrade] = useState(null);
+  const [detailZoom, setDetailZoom] = useState(false);
+  const [updatingImage, setUpdatingImage] = useState(false);
+  const [layoutMode, setLayoutMode] = useState('table'); // 'table' | 'gallery'
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const [activeChartTrade, setActiveChartTrade] = useState(null);
+  const [uploadingChart, setUploadingChart] = useState(false);
+  const [chartUrlInput, setChartUrlInput] = useState('');
+  const [isChartDragging, setIsChartDragging] = useState(false);
+  const chartUploadInputRef = useRef(null);
+  const detailFileInputRef = useRef(null);
   const [seeding, setSeeding] = useState(false);
+
+  // Clipboard paste support while Chart Modal is open
+  useEffect(() => {
+    if (!activeChartTrade) return;
+
+    const handleWindowPaste = async (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleSaveChartForTrade(activeChartTrade, file);
+          }
+          break;
+        }
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setActiveChartTrade(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('paste', handleWindowPaste);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('paste', handleWindowPaste);
+    };
+  }, [activeChartTrade]);
+
+  const handleSaveChartForTrade = async (targetTrade, fileOrUrl) => {
+    if (!targetTrade) return;
+    try {
+      setUploadingChart(true);
+      let dataUrl = fileOrUrl;
+      if (typeof fileOrUrl !== 'string') {
+        dataUrl = await compressImageFile(fileOrUrl);
+      }
+      const updated = { ...targetTrade, screenshotUrl: dataUrl, imageUrl: dataUrl };
+      await api.updateTrade(targetTrade._id, { screenshotUrl: dataUrl, imageUrl: dataUrl });
+      setActiveChartTrade(updated);
+      setTrades(prev => prev.map(t => t._id === targetTrade._id ? updated : t));
+      setMasterTrades(prev => prev.map(t => t._id === targetTrade._id ? updated : t));
+    } catch (err) {
+      alert('Failed to save chart image: ' + err.message);
+    } finally {
+      setUploadingChart(false);
+      if (chartUploadInputRef.current) chartUploadInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveActiveChart = async () => {
+    if (!activeChartTrade) return;
+    try {
+      setUploadingChart(true);
+      const updated = { ...activeChartTrade, screenshotUrl: '', imageUrl: '' };
+      await api.updateTrade(activeChartTrade._id, { screenshotUrl: '', imageUrl: '' });
+      setActiveChartTrade(updated);
+      setTrades(prev => prev.map(t => t._id === activeChartTrade._id ? updated : t));
+      setMasterTrades(prev => prev.map(t => t._id === activeChartTrade._id ? updated : t));
+    } catch (err) {
+      alert('Failed to remove chart image: ' + err.message);
+    } finally {
+      setUploadingChart(false);
+    }
+  };
+
+  const handleUpdateTradeImage = async (file) => {
+    if (!file || !selectedTrade) return;
+    try {
+      setUpdatingImage(true);
+      const dataUrl = await compressImageFile(file);
+      const updated = { ...selectedTrade, screenshotUrl: dataUrl, imageUrl: dataUrl };
+      await api.updateTrade(selectedTrade._id, { screenshotUrl: dataUrl, imageUrl: dataUrl });
+      setSelectedTrade(updated);
+      setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+      setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+    } catch (err) {
+      alert('Failed to update trade image: ' + err.message);
+    } finally {
+      setUpdatingImage(false);
+      if (detailFileInputRef.current) detailFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveTradeImage = async () => {
+    if (!selectedTrade) return;
+    try {
+      setUpdatingImage(true);
+      const updated = { ...selectedTrade, screenshotUrl: '', imageUrl: '' };
+      await api.updateTrade(selectedTrade._id, { screenshotUrl: '', imageUrl: '' });
+      setSelectedTrade(updated);
+      setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+      setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+    } catch (err) {
+      alert('Failed to remove trade image: ' + err.message);
+    } finally {
+      setUpdatingImage(false);
+    }
+  };
 
   const views = [
     'All Trades',
@@ -338,6 +451,45 @@ export const TradesTableView = ({
               </button>
             )}
           </div>
+          <div className="ledger-view-switcher">
+            <button
+              type="button"
+              className={layoutMode === 'table' ? 'btn-primary' : 'btn-ghost'}
+              onClick={() => setLayoutMode('table')}
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderRadius: '6px',
+                fontWeight: layoutMode === 'table' ? '700' : '500'
+              }}
+              title="Table Ledger View"
+            >
+              <List size={14} />
+              <span>Ledger</span>
+            </button>
+            <button
+              type="button"
+              className={layoutMode === 'gallery' ? 'btn-primary' : 'btn-ghost'}
+              onClick={() => setLayoutMode('gallery')}
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderRadius: '6px',
+                fontWeight: layoutMode === 'gallery' ? '700' : '500'
+              }}
+              title="Visual Chart Gallery View"
+            >
+              <LayoutGrid size={14} />
+              <span>Visual Gallery</span>
+            </button>
+          </div>
+
           <button
             type="button"
             className="btn-secondary"
@@ -367,30 +519,12 @@ export const TradesTableView = ({
           return (
             <button
               key={v}
-              className={isActive ? 'btn-primary' : 'btn-secondary'}
-              style={{
-                fontSize: '0.8rem',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-pill)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontWeight: isActive ? '700' : '500',
-                transition: 'all 0.15s ease',
-                cursor: 'pointer'
-              }}
+              type="button"
+              className={`ledger-filter-pill ${isActive ? 'active' : ''}`}
               onClick={() => { setViewFilter(v); setPage(1); }}
             >
               <span>{v}</span>
-              <span style={{
-                fontSize: '0.72rem',
-                padding: '1px 7px',
-                borderRadius: '10px',
-                background: isActive ? 'rgba(0, 0, 0, 0.22)' : 'rgba(255, 255, 255, 0.08)',
-                color: isActive ? '#03130d' : 'var(--text-secondary)',
-                fontWeight: '700',
-                letterSpacing: '0.01em'
-              }}>
+              <span className={`ledger-pill-count ${isActive ? 'active' : ''}`}>
                 {count}
               </span>
             </button>
@@ -398,118 +532,332 @@ export const TradesTableView = ({
         })}
       </div>
 
-      {/* Table */}
-      <div className="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th onClick={() => handleSort('tradeName')} style={{ cursor: 'pointer' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  Trade Identifier <ArrowUpDown size={12} />
-                </span>
-              </th>
-              <th onClick={() => handleSort('date')} style={{ cursor: 'pointer' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  Timestamp <ArrowUpDown size={12} />
-                </span>
-              </th>
-              <th onClick={() => handleSort('instrument')} style={{ cursor: 'pointer' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  Ticker <ArrowUpDown size={12} />
-                </span>
-              </th>
-              <th>Session</th>
-              <th>Setup Quality</th>
-              <th onClick={() => handleSort('result')} style={{ cursor: 'pointer' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  Outcome <ArrowUpDown size={12} />
-                </span>
-              </th>
-              <th onClick={() => handleSort('rResult')} style={{ cursor: 'pointer' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  Net R <ArrowUpDown size={12} />
-                </span>
-              </th>
-              <th>Pips</th>
-              <th>P&L ($)</th>
-              <th>Discipline</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="10" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>Querying MongoDB ledger...</td></tr>
-            ) : trades.length === 0 ? (
-              <tr>
-                <td colSpan="10" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <p style={{ margin: 0, fontSize: '0.92rem', color: '#94a3b8' }}>No trade records match your filter criteria.</p>
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={handleSeedSampleTrades}
-                      disabled={seeding}
-                      style={{ fontSize: '0.82rem', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: 'var(--radius-sm)' }}
+      {/* Visual Presentation: Table Ledger OR Visual Gallery */}
+      {layoutMode === 'gallery' ? (
+        <div style={{ marginBottom: '24px' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Querying MongoDB ledger...</div>
+          ) : trades.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+              <p style={{ margin: 0, fontSize: '0.92rem', color: '#94a3b8', marginBottom: '12px' }}>No trade records match your filter criteria.</p>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSeedSampleTrades}
+                disabled={seeding}
+                style={{ fontSize: '0.82rem', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: 'var(--radius-sm)' }}
+              >
+                <Sparkles size={15} />
+                <span>{seeding ? 'Seeding Trades...' : 'Seed Realistic Institutional Trades'}</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
+              {trades.map(trade => {
+                const hasImg = Boolean(trade.screenshotUrl || trade.imageUrl);
+                const isWin = trade.result === 'WIN';
+                const isLoss = trade.result === 'LOSS';
+                return (
+                  <div
+                    key={trade._id}
+                    onClick={() => setSelectedTrade(trade)}
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'var(--border-bright)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* Chart Banner */}
+                    <div
+                      style={{
+                        height: '170px',
+                        position: 'relative',
+                        background: '#04080e',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
                     >
-                      <Sparkles size={15} />
-                      <span>{seeding ? 'Seeding Trades...' : 'Seed Realistic Institutional Trades'}</span>
-                    </button>
+                      {hasImg ? (
+                        <>
+                          <img
+                            src={trade.screenshotUrl || trade.imageUrl}
+                            alt={trade.tradeName}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveChartTrade(trade);
+                            }}
+                            title="Click to view chart (only chart)"
+                            style={{
+                              position: 'absolute',
+                              bottom: '8px',
+                              right: '8px',
+                              background: 'rgba(3, 6, 11, 0.85)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '6px',
+                              color: '#ffffff',
+                              padding: '4px 8px',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backdropFilter: 'blur(4px)'
+                            }}
+                          >
+                            <Maximize2 size={12} /> View Chart
+                          </button>
+                        </>
+                      ) : (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveChartTrade(trade);
+                          }}
+                          style={{ textAlign: 'center', color: 'var(--accent-cyan)', padding: '20px', cursor: 'pointer' }}
+                        >
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px', width: '42px', height: '42px', borderRadius: '50%', background: 'rgba(0, 210, 255, 0.1)', border: '1px dashed var(--accent-cyan)', margin: '0 auto 8px' }}>
+                            <Camera size={16} />
+                            <Plus size={12} strokeWidth={3} />
+                          </div>
+                          <span style={{ fontSize: '0.78rem', display: 'block', fontWeight: '600' }}>+ Add Chart Image</span>
+                        </div>
+                      )}
+
+                      {/* Result Badge */}
+                      <div style={{ position: 'absolute', top: '10px', left: '10px' }}>
+                        <span className={`badge ${isWin ? 'badge-win' : isLoss ? 'badge-loss' : 'badge-be'}`}>
+                          {trade.result} {formatR(trade.rResult)}
+                        </span>
+                      </div>
+
+                      {/* Setup Quality Pill */}
+                      <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                        <span className={`pill-grade ${(trade.setupRating || '').toLowerCase().replace(/[^a-z]/g, '')}`}>
+                          {trade.setupRating}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card Content */}
+                    <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <strong style={{ fontSize: '1rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                            {trade.instrument}
+                          </strong>
+                          <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                            {trade.date} {trade.time}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.86rem', fontWeight: '600', color: 'var(--text-white)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {trade.tradeName}
+                        </p>
+                      </div>
+
+                      {/* Metrics Bar */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: 'rgba(6, 12, 20, 0.6)', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <div>
+                          <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>P&L</span>
+                          <strong style={{ fontSize: '0.84rem', fontFamily: 'var(--font-mono)', color: isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--text-muted)' }}>
+                            {formatPnL(trade)}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>PIPS</span>
+                          <strong style={{ fontSize: '0.84rem', fontFamily: 'var(--font-mono)' }}>
+                            {trade.pips || 0}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>DISCIPLINE</span>
+                          <strong style={{ fontSize: '0.84rem', fontFamily: 'var(--font-mono)', color: trade.disciplineScore >= 75 ? 'var(--profit)' : 'var(--warning)' }}>
+                            {trade.disciplineScore}/100
+                          </strong>
+                        </div>
+                      </div>
+
+                      {/* Notes snippet */}
+                      {trade.notes && (
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: '1.4' }}>
+                          {trade.notes}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </td>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: '58px', textAlign: 'center' }}>Chart</th>
+                <th onClick={() => handleSort('tradeName')} style={{ cursor: 'pointer' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    Trade Identifier <ArrowUpDown size={12} />
+                  </span>
+                </th>
+                <th onClick={() => handleSort('date')} style={{ cursor: 'pointer' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    Timestamp <ArrowUpDown size={12} />
+                  </span>
+                </th>
+                <th onClick={() => handleSort('instrument')} style={{ cursor: 'pointer' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    Ticker <ArrowUpDown size={12} />
+                  </span>
+                </th>
+                <th>Session</th>
+                <th>Setup Quality</th>
+                <th onClick={() => handleSort('result')} style={{ cursor: 'pointer' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    Outcome <ArrowUpDown size={12} />
+                  </span>
+                </th>
+                <th onClick={() => handleSort('rResult')} style={{ cursor: 'pointer' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    Net R <ArrowUpDown size={12} />
+                  </span>
+                </th>
+                <th>Pips</th>
+                <th>P&L ($)</th>
+                <th>Discipline</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
-            ) : (
-              trades.map(trade => (
-                <tr
-                  key={trade._id}
-                  onClick={() => setSelectedTrade(trade)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td style={{ fontWeight: '700', color: 'var(--text-white)' }}>{trade.tradeName}</td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{trade.date} {trade.time}</td>
-                  <td>
-                    <span style={{ fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-                      {trade.instrument}
-                    </span>
-                  </td>
-                  <td>{trade.session}</td>
-                  <td>
-                    <span className={`pill-grade ${(trade.setupRating || '').toLowerCase().replace(/[^a-z]/g, '')}`}>
-                      {trade.setupRating}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`badge ${trade.result === 'WIN' ? 'badge-win' : trade.result === 'LOSS' ? 'badge-loss' : 'badge-be'}`}>
-                      {trade.result}
-                    </span>
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: trade.rResult >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
-                    {formatR(trade.rResult)}
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{trade.pips}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: trade.result === 'WIN' ? 'var(--profit)' : trade.result === 'LOSS' ? 'var(--loss)' : 'var(--text-muted)' }}>
-                    {formatPnL(trade)}
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.82rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: trade.disciplineScore >= 75 ? 'var(--profit)' : 'var(--warning)' }}>
-                      {trade.disciplineScore}/100
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      className="btn-ghost"
-                      onClick={(e) => handleDelete(trade._id, e)}
-                      style={{ padding: '6px', color: 'var(--text-muted)' }}
-                      title="Delete Trade"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="12" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>Querying MongoDB ledger...</td></tr>
+              ) : trades.length === 0 ? (
+                <tr>
+                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                      <p style={{ margin: 0, fontSize: '0.92rem', color: '#94a3b8' }}>No trade records match your filter criteria.</p>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={handleSeedSampleTrades}
+                        disabled={seeding}
+                        style={{ fontSize: '0.82rem', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: 'var(--radius-sm)' }}
+                      >
+                        <Sparkles size={15} />
+                        <span>{seeding ? 'Seeding Trades...' : 'Seed Realistic Institutional Trades'}</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                trades.map(trade => (
+                  <tr
+                    key={trade._id}
+                    onClick={() => setSelectedTrade(trade)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Dedicated Chart Column: Only chart view or add icon */}
+                    <td style={{ width: '58px', padding: '6px 8px', textAlign: 'center' }}>
+                      {(trade.screenshotUrl || trade.imageUrl) ? (
+                        <div
+                          className="table-chart-thumb"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveChartTrade(trade);
+                          }}
+                          title="Click to view chart (only chart)"
+                        >
+                          <img
+                            src={trade.screenshotUrl || trade.imageUrl}
+                            alt="Trade Chart"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="table-chart-add-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveChartTrade(trade);
+                          }}
+                          title="Add chart image"
+                        >
+                          <Camera size={13} />
+                          <Plus size={10} strokeWidth={3} />
+                        </div>
+                      )}
+                    </td>
+
+                    <td style={{ fontWeight: '700', color: 'var(--text-white)' }}>
+                      {trade.tradeName}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{trade.date} {trade.time}</td>
+                    <td>
+                      <span style={{ fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                        {trade.instrument}
+                      </span>
+                    </td>
+                    <td>{trade.session}</td>
+                    <td>
+                      <span className={`pill-grade ${(trade.setupRating || '').toLowerCase().replace(/[^a-z]/g, '')}`}>
+                        {trade.setupRating}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${trade.result === 'WIN' ? 'badge-win' : trade.result === 'LOSS' ? 'badge-loss' : 'badge-be'}`}>
+                        {trade.result}
+                      </span>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: trade.rResult >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
+                      {formatR(trade.rResult)}
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{trade.pips}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: trade.result === 'WIN' ? 'var(--profit)' : trade.result === 'LOSS' ? 'var(--loss)' : 'var(--text-muted)' }}>
+                      {formatPnL(trade)}
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.82rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: trade.disciplineScore >= 75 ? 'var(--profit)' : 'var(--warning)' }}>
+                        {trade.disciplineScore}/100
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        className="btn-ghost"
+                        onClick={(e) => handleDelete(trade._id, e)}
+                        style={{ padding: '6px', color: 'var(--text-muted)' }}
+                        title="Delete Trade"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Pagination Footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -556,21 +904,21 @@ export const TradesTableView = ({
 
             {/* Quick Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '20px' }}>
-              <div style={{ background: 'var(--bg-card)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+              <div className="detail-stat-card">
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>PnL Return</span>
                 <p style={{ fontSize: '1.15rem', fontWeight: '800', color: selectedTrade.result === 'WIN' ? 'var(--profit)' : selectedTrade.result === 'LOSS' ? 'var(--loss)' : 'var(--text-muted)' }}>
                   {selectedTrade.result} ({formatR(selectedTrade.rResult)}) • {formatPnL(selectedTrade)}
                 </p>
               </div>
 
-              <div style={{ background: 'var(--bg-card)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+              <div className="detail-stat-card">
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Discipline Audit</span>
                 <p style={{ fontSize: '1.3rem', fontWeight: '800', color: selectedTrade.disciplineScore >= 75 ? 'var(--profit)' : 'var(--warning)' }}>
                   {selectedTrade.disciplineScore}/100 ({selectedTrade.tradeGrade})
                 </p>
               </div>
 
-              <div style={{ background: 'var(--bg-card)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+              <div className="detail-stat-card">
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Setup & Emotion</span>
                 <p style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-white)' }}>
                   {selectedTrade.setupRating} • {selectedTrade.emotion}
@@ -579,7 +927,7 @@ export const TradesTableView = ({
             </div>
 
             {/* Comprehensive Execution Breakdown */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.88rem', background: 'rgba(6,12,20,0.6)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+            <div className="detail-breakdown-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.88rem', padding: '16px', borderRadius: '10px' }}>
               <p><strong>Session:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.session}</span></p>
               <p><strong>Technical Level:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.levelTraded || '-'}</span></p>
               <p><strong>Entry Trigger:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.entryType}</span></p>
@@ -602,7 +950,7 @@ export const TradesTableView = ({
             </div>
 
             {/* Notes Section */}
-            <div style={{ marginTop: '16px', background: 'rgba(4,9,15,0.7)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+            <div className="detail-notes-card" style={{ marginTop: '16px', padding: '14px', borderRadius: '10px' }}>
               <p style={{ color: 'var(--accent-cyan)', fontSize: '0.74rem', textTransform: 'uppercase', fontWeight: '800', marginBottom: '6px' }}>
                 Trader Execution Notes
               </p>
@@ -610,6 +958,384 @@ export const TradesTableView = ({
                 {selectedTrade.notes || 'No execution notes entered for this trade.'}
               </p>
             </div>
+
+            {/* Chart Screenshot & Technical Execution Card */}
+            <div className="detail-chart-card" style={{ marginTop: '16px', padding: '16px', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Camera size={16} style={{ color: 'var(--accent-cyan)' }} />
+                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: '800' }}>
+                    Chart Screenshot & Technical Execution
+                  </span>
+                  <span style={{ fontSize: '0.68rem', background: 'rgba(148, 163, 184, 0.14)', color: 'var(--text-secondary)', padding: '2px 6px', borderRadius: 'var(--radius-pill)', fontWeight: '600' }}>
+                    Optional
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="file"
+                    ref={detailFileInputRef}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => e.target.files?.[0] && handleUpdateTradeImage(e.target.files[0])}
+                  />
+                  {(selectedTrade.screenshotUrl || selectedTrade.imageUrl) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        onClick={() => setDetailZoom(true)}
+                      >
+                        <Maximize2 size={13} /> Fullscreen
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-cyan)' }}
+                        onClick={() => detailFileInputRef.current?.click()}
+                        disabled={updatingImage}
+                      >
+                        <UploadCloud size={13} /> Replace
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--loss)' }}
+                        onClick={handleRemoveTradeImage}
+                        disabled={updatingImage}
+                      >
+                        <Trash2 size={13} /> Remove
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-cyan)' }}
+                      onClick={() => detailFileInputRef.current?.click()}
+                      disabled={updatingImage}
+                    >
+                      <UploadCloud size={13} /> {updatingImage ? 'Attaching...' : '+ Attach Chart Image'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {(selectedTrade.screenshotUrl || selectedTrade.imageUrl) ? (
+                <div
+                  style={{
+                    position: 'relative',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-bright)',
+                    cursor: 'pointer',
+                    background: '#04080e',
+                    textAlign: 'center'
+                  }}
+                  onClick={() => setDetailZoom(true)}
+                >
+                  <img
+                    src={selectedTrade.screenshotUrl || selectedTrade.imageUrl}
+                    alt="Trade Chart Setup"
+                    style={{
+                      width: '100%',
+                      maxHeight: '320px',
+                      objectFit: 'contain',
+                      display: 'block'
+                    }}
+                  />
+                  <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.7)', padding: '3px 8px', borderRadius: '4px', fontSize: '0.7rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Maximize2 size={11} /> Click to expand
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="detail-chart-empty"
+                  onClick={() => detailFileInputRef.current?.click()}
+                  style={{
+                    borderRadius: '8px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Camera size={22} style={{ color: 'var(--text-muted)', margin: '0 auto 6px', display: 'block' }} />
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    No chart image attached yet. Click to attach an optional screenshot.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal for Detail Zoom */}
+      {detailZoom && selectedTrade && (selectedTrade.screenshotUrl || selectedTrade.imageUrl) && (
+        <div className="modal-overlay" style={{ zIndex: 120000 }} onClick={() => setDetailZoom(false)}>
+          <div
+            style={{
+              maxWidth: '92vw',
+              maxHeight: '92vh',
+              position: 'relative',
+              background: '#04080e',
+              padding: '12px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-bright)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.9)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setDetailZoom(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                zIndex: 2,
+                background: 'rgba(0,0,0,0.7)',
+                borderRadius: '50%'
+              }}
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={selectedTrade.screenshotUrl || selectedTrade.imageUrl}
+              alt="Trade Chart Setup Enlarged"
+              style={{
+                maxWidth: '90vw',
+                maxHeight: '88vh',
+                objectFit: 'contain',
+                display: 'block',
+                borderRadius: '8px'
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          DEDICATED CHART MODAL - SHOWS ONLY CHART (NO OTHER TRADE DATA)
+          OR CLEAN "ADD CHART" INTERFACE IF NO IMAGE IS ATTACHED
+          ========================================================================= */}
+      {activeChartTrade && (
+        <div className="modal-overlay" style={{ zIndex: 125000 }} onClick={() => setActiveChartTrade(null)}>
+          <div
+            className="chart-preview-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: (activeChartTrade.screenshotUrl || activeChartTrade.imageUrl) ? '95vw' : '520px',
+              width: '100%',
+              maxHeight: '94vh',
+              position: 'relative',
+              padding: (activeChartTrade.screenshotUrl || activeChartTrade.imageUrl) ? '14px 18px' : '22px 24px',
+              borderRadius: '16px',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Hidden file input for this trade */}
+            <input
+              type="file"
+              ref={chartUploadInputRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => e.target.files?.[0] && handleSaveChartForTrade(activeChartTrade, e.target.files[0])}
+            />
+
+            {(activeChartTrade.screenshotUrl || activeChartTrade.imageUrl) ? (
+              /* SHOW ONLY CHART IMAGE - ZERO OTHER TRADE DATA */
+              <>
+                {/* Minimal Top Control Bar (No Trade Metadata) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '10px'
+                  }}
+                >
+                  <a
+                    href={activeChartTrade.screenshotUrl || activeChartTrade.imageUrl}
+                    download={`trade-chart-${Date.now()}.png`}
+                    className="btn-ghost"
+                    title="Download Chart Screenshot"
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                  >
+                    <Download size={13} /> Download
+                  </a>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => chartUploadInputRef.current?.click()}
+                    disabled={uploadingChart}
+                    title="Replace Chart Image"
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <UploadCloud size={13} /> {uploadingChart ? 'Uploading...' : 'Replace'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={handleRemoveActiveChart}
+                    disabled={uploadingChart}
+                    title="Remove Chart Image"
+                    style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setActiveChartTrade(null)}
+                    title="Close"
+                    style={{ marginLeft: '4px' }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Pure Chart Viewport */}
+                <div
+                  className="chart-preview-viewport"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'auto',
+                    borderRadius: '10px',
+                    padding: '8px'
+                  }}
+                >
+                  <img
+                    src={activeChartTrade.screenshotUrl || activeChartTrade.imageUrl}
+                    alt="Trade Chart"
+                    style={{
+                      maxWidth: '92vw',
+                      maxHeight: '82vh',
+                      objectFit: 'contain',
+                      borderRadius: '6px',
+                      display: 'block'
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              /* SHOW CLEAN ADD CHART INTERFACE (NO OTHER TRADE DATA) */
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px',
+                    paddingBottom: '10px',
+                    borderBottom: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(0, 210, 255, 0.12)',
+                        color: 'var(--accent-cyan)',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}
+                    >
+                      <Camera size={16} />
+                    </div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-white)', fontWeight: '700' }}>
+                      Add Chart Image
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setActiveChartTrade(null)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Drag & Drop Upload Zone */}
+                  <div
+                    className="chart-upload-dropzone"
+                    onDragOver={(e) => { e.preventDefault(); setIsChartDragging(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setIsChartDragging(false); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsChartDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleSaveChartForTrade(activeChartTrade, file);
+                    }}
+                    onClick={() => chartUploadInputRef.current?.click()}
+                    style={{
+                      borderRadius: '12px',
+                      padding: '36px 20px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '50%',
+                        background: 'rgba(0, 210, 255, 0.12)',
+                        color: 'var(--accent-cyan)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        margin: '0 auto 12px'
+                      }}
+                    >
+                      <UploadCloud size={26} />
+                    </div>
+                    <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--text-white)', marginBottom: '6px' }}>
+                      {uploadingChart ? 'Uploading chart screenshot...' : 'Click to Upload or Drag & Drop Chart'}
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      PNG, JPG, WebP • Or press <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>Ctrl+V</kbd> to paste
+                    </p>
+                  </div>
+
+                  {/* Direct Image URL Option */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="url"
+                      placeholder="Or paste chart image URL (TradingView, Imgur link)..."
+                      value={chartUrlInput}
+                      onChange={e => setChartUrlInput(e.target.value)}
+                      style={{ flex: 1, fontSize: '0.84rem' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={!chartUrlInput.trim() || uploadingChart}
+                      onClick={() => {
+                        if (chartUrlInput.trim()) {
+                          handleSaveChartForTrade(activeChartTrade, chartUrlInput.trim());
+                          setChartUrlInput('');
+                        }
+                      }}
+                      style={{ padding: '0 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                    >
+                      Attach URL
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

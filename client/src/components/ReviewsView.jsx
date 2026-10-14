@@ -135,14 +135,14 @@ export const ReviewsView = ({ reviews }) => {
 
           {/* Trade Highlights: Best vs Worst */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
-            <div className="dashboard-panel" style={{ marginBottom: 0, borderLeft: '4px solid var(--profit)', background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.04) 0%, rgba(10, 18, 28, 0.8) 100%)' }}>
+            <div className="dashboard-panel review-highlight-card best" style={{ marginBottom: 0 }}>
               <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--profit)', fontSize: '0.95rem', marginBottom: '14px', fontWeight: '800' }}>
                 <ThumbsUp size={18} />
                 Highlight: Best Trade of Period
               </h4>
               {reviewData.bestTrade ? (
                 <div>
-                  <p style={{ fontWeight: '800', fontSize: '1.2rem', color: '#fff' }}>{reviewData.bestTrade.tradeName}</p>
+                  <p style={{ fontWeight: '800', fontSize: '1.2rem', color: 'var(--text-white)' }}>{reviewData.bestTrade.tradeName}</p>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
                     {reviewData.bestTrade.date} • {reviewData.bestTrade.instrument} • {reviewData.bestTrade.session}
                   </p>
@@ -158,14 +158,14 @@ export const ReviewsView = ({ reviews }) => {
               ) : <p style={{ color: 'var(--text-muted)' }}>None</p>}
             </div>
 
-            <div className="dashboard-panel" style={{ marginBottom: 0, borderLeft: '4px solid var(--loss)', background: 'linear-gradient(135deg, rgba(255, 51, 102, 0.04) 0%, rgba(10, 18, 28, 0.8) 100%)' }}>
+            <div className="dashboard-panel review-highlight-card worst" style={{ marginBottom: 0 }}>
               <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--loss)', fontSize: '0.95rem', marginBottom: '14px', fontWeight: '800' }}>
                 <ThumbsDown size={18} />
                 Friction: Worst Trade of Period
               </h4>
               {reviewData.worstTrade ? (
                 <div>
-                  <p style={{ fontWeight: '800', fontSize: '1.2rem', color: '#fff' }}>{reviewData.worstTrade.tradeName}</p>
+                  <p style={{ fontWeight: '800', fontSize: '1.2rem', color: 'var(--text-white)' }}>{reviewData.worstTrade.tradeName}</p>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
                     {reviewData.worstTrade.date} • {reviewData.worstTrade.instrument} • {reviewData.worstTrade.session}
                   </p>
@@ -173,7 +173,7 @@ export const ReviewsView = ({ reviews }) => {
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: 'var(--loss)', fontSize: '1.4rem' }}>
                       {formatUSD(getTradeProfitUSD(reviewData.worstTrade))}
                     </span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: '#ff6685', opacity: 0.9, fontSize: '0.95rem' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: 'var(--loss)', opacity: 0.9, fontSize: '0.95rem' }}>
                       ({formatPipsStr(reviewData.worstTrade)})
                     </span>
                   </div>
@@ -191,7 +191,7 @@ export const ReviewsView = ({ reviews }) => {
               </h3>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
-              <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div className="behavioral-audit-card" style={{ padding: '16px', borderRadius: 'var(--radius-md)' }}>
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700' }}>
                   Dominant Emotional State
                 </p>
@@ -203,11 +203,11 @@ export const ReviewsView = ({ reviews }) => {
                 </p>
               </div>
 
-              <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div className="behavioral-audit-card" style={{ padding: '16px', borderRadius: 'var(--radius-md)' }}>
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700' }}>
                   Primary Execution Friction
                 </p>
-                <p style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ff6685' }}>
+                <p style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--loss)' }}>
                   {reviewData.topMistakes.length ? `${reviewData.topMistakes[0][0]} (${reviewData.topMistakes[0][1]}x)` : 'None'}
                 </p>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
@@ -215,7 +215,7 @@ export const ReviewsView = ({ reviews }) => {
                 </p>
               </div>
 
-              <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div className="behavioral-audit-card" style={{ padding: '16px', borderRadius: 'var(--radius-md)' }}>
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700' }}>
                   Actionable Period Focus
                 </p>

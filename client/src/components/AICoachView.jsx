@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bot, Send, Sparkles, CheckCircle2, AlertOctagon, RefreshCw, Key, Copy, Check } from 'lucide-react';
+import { Bot, Send, Sparkles, CheckCircle2, AlertOctagon, RefreshCw, Key, Copy, Check, ExternalLink } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const AICoachView = () => {
   const { user, updateUserSettings } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [ruleCoach, setRuleCoach] = useState(null);
   const [loadingRule, setLoadingRule] = useState(true);
 
@@ -12,14 +13,41 @@ export const AICoachView = () => {
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isAsking, setIsAsking] = useState(false);
-  const [apiKey, setApiKey] = useState(user?.settings?.aiApiKey || '');
-  const [model, setModel] = useState(user?.settings?.aiModel || 'gpt-4o-mini');
+  const [provider, setProvider] = useState(isAdmin ? (user?.settings?.aiProvider || 'gemini') : 'gemini');
+  const [geminiKey, setGeminiKey] = useState(user?.settings?.geminiApiKey || '');
+  const [openAiKey, setOpenAiKey] = useState(user?.settings?.aiApiKey || '');
+  const [model, setModel] = useState(
+    (!isAdmin || !user?.settings?.aiModel || user?.settings?.aiModel?.startsWith('gpt'))
+      ? 'gemini-3.8-flash'
+      : (user?.settings?.aiModel || 'gemini-3.8-flash')
+  );
   const [saveKeyNotice, setSaveKeyNotice] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
   useEffect(() => {
     loadRuleCoach();
   }, []);
+
+  useEffect(() => {
+    if (user?.settings) {
+      if (isAdmin && user.settings.aiProvider) {
+        setProvider(user.settings.aiProvider);
+      } else {
+        setProvider('gemini');
+      }
+
+      if (user.settings.geminiApiKey !== undefined) setGeminiKey(user.settings.geminiApiKey);
+      if (user.settings.aiApiKey !== undefined) setOpenAiKey(user.settings.aiApiKey);
+
+      if (user.settings.aiModel) {
+        if (!isAdmin && user.settings.aiModel.startsWith('gpt')) {
+          setModel('gemini-3.8-flash');
+        } else {
+          setModel(user.settings.aiModel);
+        }
+      }
+    }
+  }, [user, isAdmin]);
 
   const loadRuleCoach = async () => {
     try {
@@ -44,16 +72,25 @@ export const AICoachView = () => {
     setChatHistory(prev => [...prev, { sender: 'user', text: userQ }]);
     setIsAsking(true);
 
+    const activeProvider = !isAdmin ? 'gemini' : (model.startsWith('gemini') ? 'gemini' : provider);
+    const activeModel = (!isAdmin && model.startsWith('gpt')) ? 'gemini-3.8-flash' : model;
+
     try {
       const res = await api.askAiCoach({
         question: userQ,
-        userApiKey: apiKey,
-        userModel: model
+        userProvider: activeProvider,
+        userApiKey: isAdmin ? (activeProvider === 'gemini' ? geminiKey : openAiKey) : undefined,
+        userModel: activeModel
       });
 
       setChatHistory(prev => [
         ...prev,
-        { sender: 'ai', text: res.answer || 'No response returned.' }
+        {
+          sender: 'ai',
+          text: res.answer || 'No response returned.',
+          model: res.model,
+          provider: res.provider
+        }
       ]);
     } catch (err) {
       setChatHistory(prev => [
@@ -72,7 +109,12 @@ export const AICoachView = () => {
   };
 
   const saveSettings = async () => {
-    await updateUserSettings({ aiApiKey: apiKey, aiModel: model });
+    await updateUserSettings({
+      aiProvider: provider,
+      geminiApiKey: geminiKey,
+      aiApiKey: openAiKey,
+      aiModel: model
+    });
     setSaveKeyNotice(true);
     setTimeout(() => setSaveKeyNotice(false), 2500);
   };
@@ -86,131 +128,206 @@ export const AICoachView = () => {
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
-      {/* Grounded Rule-Based Institutional AI Audit */}
+      {/* Grounded Rule-Based Institutional AI Audit (Admin only) */}
+      {isAdmin && (
+        <div className="dashboard-panel">
+          {loadingRule ? (
+            <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Auditing trading records...</p>
+          ) : !ruleCoach ? (
+            <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Not enough data yet. Log more trades to unlock the audit.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '18px' }}>
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, rgba(10, 18, 28, 0.7) 100%)',
+                  padding: '20px 22px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid rgba(0, 210, 255, 0.25)',
+                  borderLeft: '4px solid var(--accent-cyan)',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+                }}
+              >
+                <h4 style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', fontWeight: '800' }}>
+                  Statistical Expectation & Edge Diagnosis
+                </h4>
+                <p style={{ fontSize: '0.94rem', color: 'var(--text-white)', lineHeight: '1.65', fontStyle: 'italic', margin: 0 }}>
+                  “<strong>FACT:</strong> {ruleCoach.summary.totalTrades} trades audited, achieving a <strong>{ruleCoach.summary.winRate}% win rate</strong> with <strong>{ruleCoach.summary.totalR} total R</strong> (mean expectancy of {ruleCoach.summary.avgR}/trade).<br />
+                  <strong>PATTERN:</strong> {ruleCoach.summary.tone === 'positive' ? 'Positive mathematical expectancy demonstrated across trade sequence.' : 'Expectancy is currently negative due to risk drag or low win rate.'}”
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '18px' }}>
+                <div style={{ background: 'var(--bg-card)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                  <h4 style={{ fontSize: '0.84rem', color: 'var(--profit)', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
+                    <CheckCircle2 size={16} />
+                    Verified Trading Strengths
+                  </h4>
+                  <ul style={{ paddingLeft: '18px', display: 'grid', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                    {ruleCoach.strengths.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div style={{ background: 'var(--bg-card)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                  <h4 style={{ fontSize: '0.84rem', color: 'var(--loss)', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
+                    <AlertOctagon size={16} />
+                    Mistakes
+                  </h4>
+                  <ul style={{ paddingLeft: '18px', display: 'grid', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                    {ruleCoach.repeatedMistakes.length === 0 ? (
+                      <li style={{ color: 'var(--profit)' }}>Zero repeated mistakes logged. Excellent discipline adherence!</li>
+                    ) : (
+                      ruleCoach.repeatedMistakes.map((m, i) => (
+                        <li key={i}><strong>{m.name}:</strong> {m.count} logged occurrences</li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Live AI Coach Chat */}
       <div className="dashboard-panel">
-        {loadingRule ? (
-          <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Auditing trading records...</p>
-        ) : !ruleCoach ? (
-          <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Not enough data yet. Log more trades to unlock the audit.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: '18px' }}>
-            {/* Quoted Stylish Performance Summary & Suggestion Box */}
-            <div
+        <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={20} color="var(--accent-cyan)" />
+            <h3 style={{ margin: 0 }}>AI Coach</h3>
+            {isAdmin && (
+              <span className={`badge ${provider === 'gemini' ? 'badge-win' : 'badge-be'}`} style={{ fontSize: '0.72rem' }}>
+                {provider === 'gemini' ? '👑 Admin (Gemini)' : '👑 Admin (OpenAI)'}
+              </span>
+            )}
+          </div>
+
+          {/* Model Choose Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '700', whiteSpace: 'nowrap' }}>Choose Model:</span>
+            <select
+              value={model}
+              onChange={async (e) => {
+                const newModel = e.target.value;
+                setModel(newModel);
+                try {
+                  await updateUserSettings({ aiModel: newModel });
+                } catch (err) {}
+              }}
               style={{
-                background: 'linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, rgba(10, 18, 28, 0.7) 100%)',
-                padding: '20px 22px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid rgba(0, 210, 255, 0.25)',
-                borderLeft: '4px solid var(--accent-cyan)',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+                minWidth: '220px',
+                padding: '7px 12px',
+                fontSize: '0.82rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-medium)',
+                cursor: 'pointer'
               }}
             >
-              <h4 style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', fontWeight: '800' }}>
-                Statistical Expectation & Edge Diagnosis
-              </h4>
-              <p style={{ fontSize: '0.94rem', color: 'var(--text-white)', lineHeight: '1.65', fontStyle: 'italic', margin: 0 }}>
-                “<strong>FACT:</strong> {ruleCoach.summary.totalTrades} trades audited, achieving a <strong>{ruleCoach.summary.winRate}% win rate</strong> with <strong>{ruleCoach.summary.totalR} total R</strong> (mean expectancy of {ruleCoach.summary.avgR}/trade).<br />
-                <strong>PATTERN:</strong> {ruleCoach.summary.tone === 'positive' ? 'Positive mathematical expectancy demonstrated across trade sequence.' : 'Expectancy is currently negative due to risk drag or low win rate.'}”
-              </p>
+              <option value="gemini-3.8-flash">⚡ gemini-3.8-flash (Recommended)</option>
+              <option value="gemini-3.8-pro">🧠 gemini-3.8-pro (Deep Reasoning)</option>
+              <option value="gemini-3.5-flash">⚡ gemini-3.5-flash (High Speed)</option>
+              <option value="auto">🔄 Auto-Detect</option>
+              {isAdmin && provider === 'openai' && (
+                <>
+                  <option value="gpt-4o-mini">gpt-4o-mini</option>
+                  <option value="gpt-4o">gpt-4o</option>
+                </>
+              )}
+            </select>
+          </div>
+        </div>
+
+        {/* ADMIN ONLY: Global API Key & Engine Config */}
+        {isAdmin && (
+          <div style={{ background: 'rgba(6, 12, 20, 0.75)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 'var(--radius-md)', padding: '16px', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: '0.62rem',
+                  fontWeight: '900',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  letterSpacing: '0.06em',
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  color: '#f59e0b',
+                  border: '1px solid rgba(245, 158, 11, 0.45)'
+                }}>
+                  ADMIN SETTINGS
+                </span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '700' }}>AI ENGINE:</span>
+                <button
+                  type="button"
+                  className={provider === 'gemini' ? 'btn-primary' : 'btn-secondary'}
+                  onClick={() => {
+                    setProvider('gemini');
+                    if (!model.startsWith('gemini') && model !== 'auto') setModel('gemini-3.8-flash');
+                  }}
+                  style={{ fontSize: '0.78rem', padding: '5px 12px', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <Sparkles size={12} /> Google Gemini (Free)
+                </button>
+                <button
+                  type="button"
+                  className={provider === 'openai' ? 'btn-primary' : 'btn-secondary'}
+                  onClick={() => {
+                    setProvider('openai');
+                    if (model.startsWith('gemini')) setModel('gpt-4o-mini');
+                  }}
+                  style={{ fontSize: '0.78rem', padding: '5px 12px', borderRadius: 'var(--radius-pill)' }}
+                >
+                  OpenAI (GPT-4o)
+                </button>
+              </div>
+
+              {provider === 'gemini' && (
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    fontSize: '0.78rem',
+                    color: 'var(--accent-cyan)',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontWeight: '600',
+                    background: 'rgba(0, 210, 255, 0.08)',
+                    padding: '5px 11px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(0, 210, 255, 0.25)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  ✨ Get 100% Free Gemini API Key <ExternalLink size={12} />
+                </a>
+              )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '18px' }}>
-              {/* Strengths */}
-              <div style={{ background: 'var(--bg-card)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <h4 style={{ fontSize: '0.84rem', color: 'var(--profit)', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
-                  <CheckCircle2 size={16} />
-                  Verified Trading Strengths
-                </h4>
-                <ul style={{ paddingLeft: '18px', display: 'grid', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                  {ruleCoach.strengths.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Mistakes */}
-              <div style={{ background: 'var(--bg-card)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <h4 style={{ fontSize: '0.84rem', color: 'var(--loss)', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
-                  <AlertOctagon size={16} />
-                  Mistakes
-                </h4>
-                <ul style={{ paddingLeft: '18px', display: 'grid', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                  {ruleCoach.repeatedMistakes.length === 0 ? (
-                    <li style={{ color: 'var(--profit)' }}>Zero repeated mistakes logged. Excellent discipline adherence!</li>
-                  ) : (
-                    ruleCoach.repeatedMistakes.map((m, i) => (
-                      <li key={i}><strong>{m.name}:</strong> {m.count} logged occurrences</li>
-                    ))
-                  )}
-                </ul>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '14px', alignItems: 'end' }}>
+              <label>
+                <span>{provider === 'gemini' ? 'Google Gemini API Key (Global for all users)' : 'OpenAI API Key (Global for all users)'}</span>
+                <input
+                  type="password"
+                  placeholder={provider === 'gemini' ? 'AIzaSy... (Paste free Gemini key)' : 'sk-proj-...'}
+                  value={provider === 'gemini' ? geminiKey : openAiKey}
+                  onChange={e => provider === 'gemini' ? setGeminiKey(e.target.value) : setOpenAiKey(e.target.value)}
+                />
+              </label>
+              <button className="btn-secondary" onClick={saveSettings} style={{ height: '42px', whiteSpace: 'nowrap' }}>
+                <Key size={14} />
+                <span>{saveKeyNotice ? 'Key Saved!' : 'Save Key'}</span>
+              </button>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Live AI Coach Chat (OpenAI GPT-4o Integration) */}
-      <div className="dashboard-panel">
-        <div className="panel-header">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={20} color="var(--accent-cyan)" />
-              <h3>Conversational Institutional AI Coach (GPT-4o)</h3>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
-              Direct conversational interrogation of your recent trades with anti-hallucination guardrails
-            </p>
-          </div>
-        </div>
-
-        {/* API Settings Config Toggle */}
-        <div style={{ background: 'rgba(6, 12, 20, 0.7)', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-md)', padding: '16px', marginBottom: '18px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px auto', gap: '14px', alignItems: 'end' }}>
-            <label>
-              <span>OpenAI API Key (Optional)</span>
-              <input
-                type="password"
-                placeholder="sk-proj-... (Leave blank to use grounded offline coach)"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-              />
-            </label>
-            <label>
-              <span>Selected AI Model</span>
-              <select value={model} onChange={e => setModel(e.target.value)}>
-                <option value="gpt-4o-mini">gpt-4o-mini (Fast & efficient)</option>
-                <option value="gpt-4o">gpt-4o (Deep hedge-fund reasoning)</option>
-                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-              </select>
-            </label>
-            <button className="btn-secondary" onClick={saveSettings} style={{ height: '42px' }}>
-              <Key size={14} />
-              <span>{saveKeyNotice ? 'Key Saved!' : 'Save Key'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Prompt Chips */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '18px' }}>
-          {quickPrompts.map((p, idx) => (
-            <button
-              key={idx}
-              className="btn-secondary"
-              style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: 'var(--radius-pill)' }}
-              onClick={() => { setQuestion(p); }}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
 
         {/* Chat History Container */}
-        <div style={{ maxHeight: '380px', overflowY: 'auto', display: 'grid', gap: '14px', marginBottom: '18px', paddingRight: '6px' }}>
-          {chatHistory.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)', fontSize: '0.9rem', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-subtle)' }}>
-              Ask any specific question about your trading execution, discipline, session timing, or setup statistics.
-            </div>
-          ) : (
+        <div style={{ maxHeight: '420px', minHeight: chatHistory.length > 0 ? '120px' : 'auto', overflowY: 'auto', display: 'grid', gap: '14px', marginBottom: '18px', paddingRight: '6px' }}>
+          {chatHistory.length === 0 ? null : (
             chatHistory.map((msg, i) => (
               <div
                 key={i}

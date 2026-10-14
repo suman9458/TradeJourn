@@ -50,8 +50,10 @@ const userSchema = new mongoose.Schema(
       currency: { type: String, default: 'USD' },
       riskPerTrade: { type: Number, default: 1 },
       defaultInstrument: { type: String, default: 'EURUSD' },
+      aiProvider: { type: String, default: 'gemini' },
+      geminiApiKey: { type: String, default: '' },
       aiApiKey: { type: String, default: '' },
-      aiModel: { type: String, default: 'gpt-4o-mini' }
+      aiModel: { type: String, default: 'gemini-3.8-flash' }
     }
   },
   {

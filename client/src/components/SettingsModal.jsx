@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck } from 'lucide-react';
+import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const SettingsModal = ({ isOpen, onClose }) => {
   const { user, updateUserSettings } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   // Profile Fields
   const [name, setName] = useState('');
@@ -16,8 +17,10 @@ export const SettingsModal = ({ isOpen, onClose }) => {
   const [currency, setCurrency] = useState('USD');
   const [riskPerTrade, setRiskPerTrade] = useState(1);
   const [defaultInstrument, setDefaultInstrument] = useState('EURUSD');
+  const [aiProvider, setAiProvider] = useState('gemini');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [aiApiKey, setAiApiKey] = useState('');
-  const [aiModel, setAiModel] = useState('gpt-4o-mini');
+  const [aiModel, setAiModel] = useState('gemini-3.8-flash');
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'trading' | 'ai'
   const [saving, setSaving] = useState(false);
@@ -35,8 +38,10 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setCurrency(user.settings?.currency || 'USD');
       setRiskPerTrade(user.settings?.riskPerTrade ?? 1);
       setDefaultInstrument(user.settings?.defaultInstrument || 'EURUSD');
+      setAiProvider(user.settings?.aiProvider || 'gemini');
+      setGeminiApiKey(user.settings?.geminiApiKey || '');
       setAiApiKey(user.settings?.aiApiKey || '');
-      setAiModel(user.settings?.aiModel || 'gpt-4o-mini');
+      setAiModel(user.settings?.aiModel || 'gemini-3.8-flash');
       setErrorMsg('');
     }
   }, [user, isOpen]);
@@ -49,19 +54,26 @@ export const SettingsModal = ({ isOpen, onClose }) => {
     setErrorMsg('');
 
     try {
+      const updatedSettings = {
+        currency,
+        riskPerTrade: Number(riskPerTrade),
+        defaultInstrument,
+        aiModel
+      };
+
+      if (isAdmin) {
+        updatedSettings.aiProvider = aiProvider;
+        updatedSettings.geminiApiKey = geminiApiKey;
+        updatedSettings.aiApiKey = aiApiKey;
+      }
+
       await updateUserSettings({
         name: name.trim(),
         userId: userId.trim(),
         dob: dob.trim(),
         email: email.trim(),
         tradingExperience,
-        settings: {
-          currency,
-          riskPerTrade: Number(riskPerTrade),
-          defaultInstrument,
-          aiApiKey,
-          aiModel
-        }
+        settings: updatedSettings
       });
 
       setSaved(true);
@@ -295,22 +307,94 @@ export const SettingsModal = ({ isOpen, onClose }) => {
           {/* TAB 3: AI Coach Settings */}
           {activeTab === 'ai' && (
             <div style={{ display: 'grid', gap: '14px' }}>
-              <label>
-                <span>OpenAI API Key (Optional)</span>
-                <input
-                  type="password"
-                  placeholder="sk-proj-... (Leave blank to use grounded offline coach)"
-                  value={aiApiKey}
-                  onChange={e => setAiApiKey(e.target.value)}
-                />
-              </label>
+              {isAdmin ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '700' }}>AI Provider:</span>
+                      <button
+                        type="button"
+                        className={aiProvider === 'gemini' ? 'btn-primary' : 'btn-secondary'}
+                        onClick={() => {
+                          setAiProvider('gemini');
+                          if (!aiModel.startsWith('gemini')) setAiModel('gemini-3.8-flash');
+                        }}
+                        style={{ fontSize: '0.78rem', padding: '4px 12px', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Sparkles size={12} /> Google Gemini (Free)
+                      </button>
+                      <button
+                        type="button"
+                        className={aiProvider === 'openai' ? 'btn-primary' : 'btn-secondary'}
+                        onClick={() => {
+                          setAiProvider('openai');
+                          if (aiModel.startsWith('gemini')) setAiModel('gpt-4o-mini');
+                        }}
+                        style={{ fontSize: '0.78rem', padding: '4px 12px', borderRadius: 'var(--radius-pill)' }}
+                      >
+                        OpenAI (GPT-4o)
+                      </button>
+                    </div>
+
+                    {aiProvider === 'gemini' && (
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: '0.76rem', color: 'var(--accent-cyan)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                      >
+                        Get Free Gemini Key <ExternalLink size={11} />
+                      </a>
+                    )}
+                  </div>
+
+                  <label>
+                    <span>{aiProvider === 'gemini' ? 'Google Gemini API Key (Global Admin Key)' : 'OpenAI API Key (Global Admin Key)'}</span>
+                    <input
+                      type="password"
+                      placeholder={aiProvider === 'gemini' ? 'AIzaSy... (Paste free Gemini key)' : 'sk-proj-...'}
+                      value={aiProvider === 'gemini' ? geminiApiKey : aiApiKey}
+                      onChange={e => aiProvider === 'gemini' ? setGeminiApiKey(e.target.value) : setAiApiKey(e.target.value)}
+                    />
+                  </label>
+                </>
+              ) : (
+                <div
+                  style={{
+                    background: 'rgba(0, 245, 155, 0.08)',
+                    border: '1px solid rgba(0, 245, 155, 0.25)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  <Sparkles size={18} color="var(--profit)" />
+                  <div>
+                    <div style={{ fontSize: '0.84rem', fontWeight: '700', color: 'var(--text-white)' }}>
+                      Managed AI Coaching Enabled
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      AI service is pre-configured by administrators. Select your preferred model below.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <label>
                 <span>Selected AI Model</span>
                 <select value={aiModel} onChange={e => setAiModel(e.target.value)}>
-                  <option value="gpt-4o-mini">gpt-4o-mini (Faster, cost-effective)</option>
-                  <option value="gpt-4o">gpt-4o (Deep hedge-fund reasoning)</option>
-                  <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                  <option value="gemini-3.8-flash">⚡ gemini-3.8-flash (Latest Fast & Free - Recommended)</option>
+                  <option value="gemini-3.8-pro">🧠 gemini-3.8-pro (Deep Institutional Reasoning)</option>
+                  <option value="gemini-3.5-flash">⚡ gemini-3.5-flash (High Speed)</option>
+                  <option value="auto">🔄 Auto-Detect (Best Available for Engine)</option>
+                  {isAdmin && (
+                    <>
+                      <option value="gpt-4o-mini">gpt-4o-mini (Faster, cost-effective)</option>
+                      <option value="gpt-4o">gpt-4o (Deep hedge-fund reasoning)</option>
+                    </>
+                  )}
                 </select>
               </label>
             </div>

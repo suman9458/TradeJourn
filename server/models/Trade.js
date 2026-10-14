@@ -151,6 +151,10 @@ const tradeSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    imageUrl: {
+      type: String,
+      default: ''
+    },
     // Derived Analytics & Scores
     disciplineScore: {
       type: Number,
@@ -193,6 +197,12 @@ tradeSchema.pre('save', function (next) {
   this.lossFlag = result === 'LOSS' ? 1 : 0;
   this.earlyExitFlag = this.reasonEarlyExit && this.reasonEarlyExit !== 'None' ? 1 : 0;
   this.emotionalTradeFlag = emotionalRiskSet.has(emotion) ? 1 : 0;
+
+  if (this.screenshotUrl && !this.imageUrl) {
+    this.imageUrl = this.screenshotUrl;
+  } else if (this.imageUrl && !this.screenshotUrl) {
+    this.screenshotUrl = this.imageUrl;
+  }
 
   if (this.takeProfit !== undefined && this.takeProfit !== null) {
     this.takeProfit = Number(this.takeProfit) || 0;

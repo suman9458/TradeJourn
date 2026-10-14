@@ -742,131 +742,61 @@ export const EquityChart = ({ curve = [] }) => {
 
 
           </div>
-        </div>
-
-        {/* Super Box HUD Container - Full Row Width */}
-        <div
-          className="hud-super-box"
-          style={{
-            width: '100%',
-            marginTop: '16px',
-            background: 'rgba(10, 18, 30, 0.75)',
-            border: '1px solid rgba(0, 245, 155, 0.2)',
-            borderRadius: '16px',
-            padding: '14px',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05)'
-          }}
-        >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '12px',
-              width: '100%'
-            }}
-          >
+        </div>        {/* Super Box HUD Container - Full Row Width */}
+        <div className="hud-super-box">
+          <div className="hud-super-grid">
             {/* Box 1: NET PIPS */}
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+            <div className={`hud-stat-box ${isPipsProfitable ? 'profit' : 'loss'}`}>
+              <span className="hud-stat-title">
                 Net Pips
               </span>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: isPipsProfitable ? 'var(--profit)' : 'var(--loss)', margin: '4px 0 0' }}>
+              <p className={`hud-stat-value ${isPipsProfitable ? 'profit' : 'loss'}`}>
                 {netPips >= 0 ? '+' : ''}{netPips.toFixed(1)} <span style={{ fontSize: '0.74rem', fontWeight: '600' }}>PIPS</span>
               </p>
             </div>
 
             {/* Box 2: PIPS GAIN */}
-            <div
-              style={{
-                background: 'rgba(0, 245, 155, 0.05)',
-                border: '1px solid rgba(0, 245, 155, 0.22)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
+            <div className="hud-stat-box profit">
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ArrowUpRight size={13} color="var(--profit)" />
-                <span style={{ fontSize: '0.68rem', color: 'var(--profit)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+                <span className="hud-stat-title profit">
                   Pips Gain
                 </span>
               </div>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--profit)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value profit">
                 +{totalPipsGain.toFixed(1)}
               </p>
             </div>
 
             {/* Box 3: LOOSE PIPS */}
-            <div
-              style={{
-                background: 'rgba(255, 51, 102, 0.05)',
-                border: '1px solid rgba(255, 51, 102, 0.22)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
+            <div className="hud-stat-box loss">
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ArrowDownRight size={13} color="var(--loss)" />
-                <span style={{ fontSize: '0.68rem', color: 'var(--loss)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+                <span className="hud-stat-title loss">
                   Loose Pips
                 </span>
               </div>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--loss)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value loss">
                 -{totalLoosePips.toFixed(1)}
               </p>
             </div>
 
             {/* Box 4: PEAK HIGH */}
-            <div
-              style={{
-                background: 'rgba(0, 210, 255, 0.05)',
-                border: '1px solid rgba(0, 210, 255, 0.22)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+            <div className="hud-stat-box cyan">
+              <span className="hud-stat-title">
                 Peak High
               </span>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value cyan">
                 +{peakPips.toFixed(1)}
               </p>
             </div>
 
             {/* Box 5: MAX DRAWDOWN */}
-            <div
-              style={{
-                background: 'rgba(255, 51, 102, 0.04)',
-                border: '1px solid rgba(255, 51, 102, 0.18)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+            <div className="hud-stat-box loss">
+              <span className="hud-stat-title">
                 Max Drawdown
               </span>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--loss)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value loss">
                 -{maxPipsDD.toFixed(1)}
               </p>
             </div>
@@ -876,15 +806,15 @@ export const EquityChart = ({ curve = [] }) => {
         {/* Visual Legend Bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#00f59b', boxShadow: '0 0 8px rgba(0,245,155,0.6)' }} />
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
             <span><strong>Pips Gain</strong> (Winning Trades)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff3366', boxShadow: '0 0 8px rgba(255,51,102,0.6)' }} />
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
             <span><strong>Loose Pips</strong> (Losing Trades)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '18px', height: '1px', background: isPipsProfitable ? '#00f59b' : '#ff3366', borderRadius: '1px' }} />
+            <span style={{ width: '18px', height: '2px', background: isPipsProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
             <span><strong>Cumulative Net Pips</strong> Trajectory</span>
           </div>
           <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -962,19 +892,19 @@ export const EquityChart = ({ curve = [] }) => {
               return (
                 <g key={`pips-hgrid-${i}`}>
                   <line
+                    className="chart-grid-line"
                     x1={paddingX}
                     y1={y}
                     x2={width - paddingX}
                     y2={y}
-                    stroke="rgba(255, 255, 255, 0.05)"
                     strokeWidth="1"
                     strokeDasharray="3 3"
                   />
                   {!hideText && (
                     <text
+                      className="chart-axis-text"
                       x={paddingX - 10}
                       y={y + 3}
-                      fill="rgba(255, 255, 255, 0.35)"
                       fontSize="10"
                       textAnchor="end"
                       fontFamily="var(--font-mono)"
@@ -993,12 +923,11 @@ export const EquityChart = ({ curve = [] }) => {
               return (
                 <line
                   key={`pips-vgrid-${i}`}
+                  className={`chart-vgrid-line ${isHovered ? 'hovered' : ''}`}
                   x1={cx}
                   y1={paddingY}
                   x2={cx}
                   y2={height - paddingY}
-                  stroke={isHovered ? "rgba(0, 210, 255, 0.4)" : "rgba(255, 255, 255, 0.05)"}
-                  strokeWidth={isHovered ? "1.5" : "1"}
                   strokeDasharray={isHovered ? "none" : "3 3"}
                 />
               );
@@ -1006,11 +935,11 @@ export const EquityChart = ({ curve = [] }) => {
 
             {/* Zero Pips Reference Baseline */}
             <line
+              className="chart-zero-line"
               x1={paddingX}
               y1={pipsZeroY}
               x2={width - paddingX}
               y2={pipsZeroY}
-              stroke="rgba(0, 210, 255, 0.35)"
               strokeDasharray="4 4"
               strokeWidth="1.2"
             />
@@ -1047,7 +976,7 @@ export const EquityChart = ({ curve = [] }) => {
                   fontFamily="var(--font-mono)"
                   fontWeight="800"
                 >
-                  +{Math.round(maxPipsVal)} Pips
+                  +{Math.round(maxPipsVal)}
                 </text>
               </>
             )}
@@ -1073,7 +1002,7 @@ export const EquityChart = ({ curve = [] }) => {
                   fontFamily="var(--font-mono)"
                   fontWeight="800"
                 >
-                  {Math.round(minPipsVal)} Pips
+                  {Math.round(minPipsVal)}
                 </text>
               </>
             )}
@@ -1116,10 +1045,11 @@ export const EquityChart = ({ curve = [] }) => {
 
             {/* Cumulative Pips Smooth Thin Blue Curve */}
             <path
+              className="chart-curve-path"
               d={pipsPathD}
               fill="none"
-              stroke="#00d2ff"
-              strokeWidth="1.6"
+              stroke="var(--accent-cyan)"
+              strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -1140,11 +1070,11 @@ export const EquityChart = ({ curve = [] }) => {
                   style={{ cursor: !isBaseline ? 'pointer' : 'default' }}
                 >
                   <circle
+                    className="chart-data-dot"
                     cx={cx}
                     cy={cy}
                     r={isHovered ? 6.5 : isBaseline ? 3 : 4}
-                    fill={isBaseline ? '#00d2ff' : isWin ? '#00f59b' : isLoss ? '#ff3366' : '#f59e0b'}
-                    stroke="#060c14"
+                    fill={isBaseline ? 'var(--accent-cyan)' : isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--warning)'}
                     strokeWidth={isHovered ? 2 : 1.2}
                     style={{ transition: 'all 0.15s ease' }}
                   />
@@ -1184,7 +1114,7 @@ export const EquityChart = ({ curve = [] }) => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: '800', color: '#fff' }}>{hoveredPipsPoint.tradeName}</span>
+                <span style={{ fontWeight: '800', color: 'var(--text-white)' }}>{hoveredPipsPoint.tradeName}</span>
                 <span
                   style={{
                     fontSize: '0.68rem',
@@ -1198,11 +1128,11 @@ export const EquityChart = ({ curve = [] }) => {
                   {hoveredPipsPoint.result}
                 </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                 {hoveredPipsPoint.date} • {hoveredPipsPoint.instrument}
               </div>
               <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-                Outcome Pips: <span style={{ color: hoveredPipsPoint.pips >= 0 ? '#00f59b' : '#ff3366' }}>{hoveredPipsPoint.pips >= 0 ? '+' : ''}{hoveredPipsPoint.pips}</span>
+                Outcome Pips: <span style={{ color: hoveredPipsPoint.pips >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{hoveredPipsPoint.pips >= 0 ? '+' : ''}{hoveredPipsPoint.pips}</span>
               </div>
               <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
                 Cumulative Pips: {hoveredPipsPoint.cumulativePips >= 0 ? '+' : ''}{hoveredPipsPoint.cumulativePips}
@@ -1282,128 +1212,60 @@ export const EquityChart = ({ curve = [] }) => {
         </div>
 
         {/* Super Box HUD Container - Full Row Width */}
-        <div
-          className="hud-super-box"
-          style={{
-            width: '100%',
-            marginTop: '16px',
-            background: 'rgba(10, 18, 30, 0.75)',
-            border: '1px solid rgba(0, 245, 155, 0.2)',
-            borderRadius: '16px',
-            padding: '14px',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05)'
-          }}
-        >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '12px',
-              width: '100%'
-            }}
-          >
+        <div className="hud-super-box">
+          <div className="hud-super-grid">
             {/* Box 1: NET LOSS / PROFIT */}
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+            <div className={`hud-stat-box ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
+              <span className="hud-stat-title">
                 Net Loss / Profit
               </span>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: isProfitUSDProfitable ? 'var(--profit)' : 'var(--loss)', margin: '4px 0 0' }}>
+              <p className={`hud-stat-value ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
                 {formatUSDMetric(netProfitUSD, true)}
               </p>
             </div>
 
             {/* Box 2: TOTAL PROFIT */}
-            <div
-              style={{
-                background: 'rgba(0, 245, 155, 0.05)',
-                border: '1px solid rgba(0, 245, 155, 0.22)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
+            <div className="hud-stat-box profit">
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ArrowUpRight size={13} color="var(--profit)" />
-                <span style={{ fontSize: '0.68rem', color: 'var(--profit)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+                <span className="hud-stat-title profit">
                   Total Profit
                 </span>
               </div>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--profit)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value profit">
                 +{formatUSDMetric(totalGrossProfitUSD, false)}
               </p>
             </div>
 
             {/* Box 3: TOTAL LOSS */}
-            <div
-              style={{
-                background: 'rgba(255, 51, 102, 0.05)',
-                border: '1px solid rgba(255, 51, 102, 0.22)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
+            <div className="hud-stat-box loss">
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ArrowDownRight size={13} color="var(--loss)" />
-                <span style={{ fontSize: '0.68rem', color: 'var(--loss)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+                <span className="hud-stat-title loss">
                   Total Loss
                 </span>
               </div>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--loss)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value loss">
                 -{formatUSDMetric(totalGrossLossUSD, false)}
               </p>
             </div>
 
             {/* Box 4: MAX PROFIT */}
-            <div
-              style={{
-                background: 'rgba(0, 210, 255, 0.05)',
-                border: '1px solid rgba(0, 210, 255, 0.22)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+            <div className="hud-stat-box cyan">
+              <span className="hud-stat-title">
                 Max Profit
               </span>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value cyan">
                 +{formatUSDMetric(peakProfitUSD, false)}
               </p>
             </div>
 
             {/* Box 5: MAX LOSS */}
-            <div
-              style={{
-                background: 'rgba(255, 51, 102, 0.04)',
-                border: '1px solid rgba(255, 51, 102, 0.18)',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em' }}>
+            <div className="hud-stat-box loss">
+              <span className="hud-stat-title">
                 Max Loss
               </span>
-              <p style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--loss)', margin: '4px 0 0' }}>
+              <p className="hud-stat-value loss">
                 -{formatUSDMetric(maxProfitDD, false)}
               </p>
             </div>
@@ -1413,15 +1275,15 @@ export const EquityChart = ({ curve = [] }) => {
         {/* Visual Legend Bar for Profit Curve */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#00f59b', boxShadow: '0 0 8px rgba(0,245,155,0.6)' }} />
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
             <span><strong>Profit Gain ($)</strong> (Winning Trades)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff3366', boxShadow: '0 0 8px rgba(255,51,102,0.6)' }} />
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
             <span><strong>Loss Drag ($)</strong> (Losing Trades)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '18px', height: '1px', background: isProfitUSDProfitable ? '#00f59b' : '#ff3366', borderRadius: '1px' }} />
+            <span style={{ width: '18px', height: '2px', background: isProfitUSDProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
             <span><strong>Cumulative Net Profit (USD)</strong> Trajectory</span>
           </div>
           <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -1487,19 +1349,19 @@ export const EquityChart = ({ curve = [] }) => {
               return (
                 <g key={`profit-hgrid-${i}`}>
                   <line
+                    className="chart-grid-line"
                     x1={paddingX}
                     y1={y}
                     x2={width - paddingX}
                     y2={y}
-                    stroke="rgba(255, 255, 255, 0.05)"
                     strokeWidth="1"
                     strokeDasharray="3 3"
                   />
                   {!hideText && (
                     <text
+                      className="chart-axis-text"
                       x={paddingX - 10}
                       y={y + 3}
-                      fill="rgba(255, 255, 255, 0.35)"
                       fontSize="10"
                       textAnchor="end"
                       fontFamily="var(--font-mono)"
@@ -1518,12 +1380,11 @@ export const EquityChart = ({ curve = [] }) => {
               return (
                 <line
                   key={`profit-vgrid-${i}`}
+                  className={`chart-vgrid-line ${isHovered ? 'hovered' : ''}`}
                   x1={cx}
                   y1={paddingY}
                   x2={cx}
                   y2={height - paddingY}
-                  stroke={isHovered ? "rgba(0, 210, 255, 0.4)" : "rgba(255, 255, 255, 0.05)"}
-                  strokeWidth={isHovered ? "1.5" : "1"}
                   strokeDasharray={isHovered ? "none" : "3 3"}
                 />
               );
@@ -1531,11 +1392,11 @@ export const EquityChart = ({ curve = [] }) => {
 
             {/* Zero USD Reference Baseline */}
             <line
+              className="chart-zero-line"
               x1={paddingX}
               y1={profitZeroY}
               x2={width - paddingX}
               y2={profitZeroY}
-              stroke="rgba(0, 210, 255, 0.35)"
               strokeDasharray="4 4"
               strokeWidth="1.2"
             />
@@ -1641,10 +1502,11 @@ export const EquityChart = ({ curve = [] }) => {
 
             {/* Cumulative USD Profit Smooth Thin Blue Curve */}
             <path
+              className="chart-curve-path"
               d={profitPathD}
               fill="none"
-              stroke="#00d2ff"
-              strokeWidth="1.6"
+              stroke="var(--accent-cyan)"
+              strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -1665,11 +1527,11 @@ export const EquityChart = ({ curve = [] }) => {
                   style={{ cursor: !isBaseline ? 'pointer' : 'default' }}
                 >
                   <circle
+                    className="chart-data-dot"
                     cx={cx}
                     cy={cy}
                     r={isHovered ? 6.5 : isBaseline ? 3 : 4}
-                    fill={isBaseline ? '#00d2ff' : isWin ? '#00f59b' : isLoss ? '#ff3366' : '#f59e0b'}
-                    stroke="#060c14"
+                    fill={isBaseline ? 'var(--accent-cyan)' : isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--warning)'}
                     strokeWidth={isHovered ? 2 : 1.2}
                     style={{ transition: 'all 0.15s ease' }}
                   />
@@ -1709,7 +1571,7 @@ export const EquityChart = ({ curve = [] }) => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: '800', color: '#fff' }}>{hoveredProfitPoint.tradeName}</span>
+                <span style={{ fontWeight: '800', color: 'var(--text-white)' }}>{hoveredProfitPoint.tradeName}</span>
                 <span
                   style={{
                     fontSize: '0.68rem',
@@ -1723,11 +1585,11 @@ export const EquityChart = ({ curve = [] }) => {
                   {hoveredProfitPoint.result}
                 </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                 {hoveredProfitPoint.date} • {hoveredProfitPoint.instrument}
               </div>
               <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-                Trade Profit: <span style={{ color: hoveredProfitPoint.profitUSD >= 0 ? '#00f59b' : '#ff3366' }}>{formatUSDMetric(hoveredProfitPoint.profitUSD, true)}</span>
+                Trade Profit: <span style={{ color: hoveredProfitPoint.profitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSDMetric(hoveredProfitPoint.profitUSD, true)}</span>
               </div>
               <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
                 Cumulative Profit: {formatUSDMetric(hoveredProfitPoint.cumulativeProfitUSD, true)}

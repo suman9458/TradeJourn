@@ -344,7 +344,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <td style={{ fontWeight: '600' }}>{s.count}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${s.winRate}%`, background: s.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
                         </div>
                         <span style={{ fontWeight: '700', color: s.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}>
@@ -395,7 +395,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <td style={{ fontWeight: '600' }}>{s.count}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${s.winRate}%`, background: s.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
                         </div>
                         <span style={{ fontWeight: '700', color: s.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}>
@@ -492,7 +492,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
               <tbody>
                 {emotionStats.map((e, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: '600', color: ['Fear', 'FOMO', 'Revenge', 'Greed'].includes(e.emotion) ? '#ff6685' : 'var(--text-white)' }}>
+                    <td style={{ fontWeight: '600', color: ['Fear', 'FOMO', 'Revenge', 'Greed'].includes(e.emotion) ? 'var(--loss)' : 'var(--text-white)' }}>
                       {e.emotion}
                     </td>
                     <td>{e.count}</td>
@@ -520,7 +520,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
       <div className="dashboard-panel">
         <div className="panel-header">
           <div>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ff6685' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--loss)' }}>
               <AlertOctagon size={20} />
               Capital Drain Analysis: Execution Mistakes
             </h3>
@@ -551,7 +551,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
               ) : (
                 mistakeStats.map((m, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: '700', color: '#ff6685' }}>{m.mistake}</td>
+                    <td style={{ fontWeight: '700', color: 'var(--loss)' }}>{m.mistake}</td>
                     <td style={{ fontWeight: '600' }}>{m.count}</td>
                     <td style={{ color: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
                       {m.winRate.toFixed(1)}%

@@ -61,8 +61,6 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(5, 10, 20, 0.85)',
-        backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -71,19 +69,15 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
       }}
     >
       <div
-        className="modal-card"
+        className="pdf-modal-card"
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: '620px',
           maxHeight: '90vh',
-          background: '#0d1726',
-          border: '1px solid rgba(0, 245, 155, 0.3)',
           borderRadius: '16px',
           padding: '28px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 245, 155, 0.12)',
           position: 'relative',
-          color: '#f8fafc',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -117,23 +111,21 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
           <div
+            className="pdf-icon-badge"
             style={{
               width: '48px',
               height: '48px',
               borderRadius: '14px',
-              background: 'rgba(0, 245, 155, 0.12)',
-              border: '1px solid rgba(0, 245, 155, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--profit)',
               flexShrink: 0
             }}
           >
             <FileText size={24} />
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff', letterSpacing: '-0.01em' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-white)', letterSpacing: '-0.01em' }}>
               Export PDF Configuration
             </h3>
             <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
@@ -145,7 +137,7 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
         {/* Modal Scrollable Body */}
         <div style={{ overflowY: 'auto', paddingRight: '4px', flex: 1, margin: '8px 0 20px' }}>
           {/* Timeframe Filter Section */}
-          <div style={{ marginBottom: '20px', background: 'rgba(255, 255, 255, 0.03)', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-medium)' }}>
+          <div className="pdf-timeframe-box" style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: '12px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {[
                 { id: 'ALL', label: 'All Trades' },
@@ -157,14 +149,12 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
                   key={tf.id}
                   type="button"
                   onClick={() => setTimeframe(tf.id)}
+                  className={`pdf-tf-btn ${timeframe === tf.id ? 'active' : ''}`}
                   style={{
                     padding: '6px 14px',
                     fontSize: '0.78rem',
                     borderRadius: '8px',
                     fontWeight: '700',
-                    border: timeframe === tf.id ? '1px solid var(--profit)' : '1px solid var(--border-medium)',
-                    background: timeframe === tf.id ? 'rgba(0, 245, 155, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                    color: timeframe === tf.id ? 'var(--profit)' : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}
@@ -179,7 +169,7 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={15} color="var(--profit)" />
-              <span style={{ fontSize: '0.88rem', fontWeight: '700', color: '#fff' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-white)' }}>
                 Select Table Columns to Include ({selectedColumns.length} of {AVAILABLE_COLUMNS.length})
               </span>
             </div>
@@ -226,14 +216,13 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
                 <div
                   key={col.id}
                   onClick={() => toggleColumn(col.id)}
+                  className={`pdf-col-checkbox-card ${isChecked ? 'active' : ''}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    background: isChecked ? 'rgba(0, 245, 155, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                    border: isChecked ? '1px solid rgba(0, 245, 155, 0.35)' : '1px solid rgba(255, 255, 255, 0.07)',
                     cursor: 'pointer',
                     userSelect: 'none',
                     transition: 'all 0.15s ease'
@@ -243,7 +232,7 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
                     {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.84rem', fontWeight: '700', color: isChecked ? '#fff' : 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: '0.84rem', fontWeight: '700', color: isChecked ? 'var(--text-white)' : 'var(--text-secondary)' }}>
                       {col.label}
                     </div>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{col.category}</span>
@@ -256,23 +245,23 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
           {/* Executive Summary Checkbox Option */}
           <div
             onClick={() => setIncludeSummary(!includeSummary)}
+            className={`pdf-summary-opt-card ${includeSummary ? 'active' : ''}`}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
               padding: '12px 16px',
               borderRadius: '12px',
-              background: includeSummary ? 'rgba(0, 210, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-              border: includeSummary ? '1px solid rgba(0, 210, 255, 0.35)' : '1px solid rgba(255, 255, 255, 0.07)',
               cursor: 'pointer',
-              userSelect: 'none'
+              userSelect: 'none',
+              transition: 'all 0.15s ease'
             }}
           >
             <div style={{ color: includeSummary ? 'var(--accent-cyan)' : 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
               {includeSummary ? <CheckSquare size={20} /> : <Square size={20} />}
             </div>
             <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: '700', color: '#fff' }}>
+              <div style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-white)' }}>
                 Include Executive Performance Summary HUD
               </div>
               <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
@@ -283,7 +272,7 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
         </div>
 
         {/* Modal Action Buttons */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '14px', borderTop: '1px solid var(--border-medium)' }}>
+        <div className="pdf-modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '14px' }}>
           <button
             type="button"
             className="btn-secondary"

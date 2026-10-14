@@ -46,6 +46,20 @@ const DashboardContent = () => {
   const [allTrades, setAllTrades] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Global Theme State: dark | light
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('tradejourn_theme') || 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('tradejourn_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   const fetchDashboardData = async () => {
     if (!token) return;
     try {
@@ -208,6 +222,8 @@ const DashboardContent = () => {
           onRefresh={() => setIsResetModalOpen(true)}
           onResetDataset={() => setIsResetModalOpen(true)}
           onToggleSidebar={() => setIsMobileNavOpen(prev => !prev)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
         <ErrorBoundary key={activeTab}>

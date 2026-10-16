@@ -6,6 +6,7 @@ const AVAILABLE_COLUMNS = [
   { id: 'instrument', label: 'Ticker / Instrument', category: 'General' },
   { id: 'tradeName', label: 'Trade Name / Setup', category: 'General' },
   { id: 'session', label: 'Session', category: 'Market' },
+  { id: 'direction', label: 'Trade Side (BUY / SELL)', category: 'Market' },
   { id: 'bias', label: 'Market Bias', category: 'Market' },
   { id: 'result', label: 'Outcome (WIN/LOSS/BE)', category: 'Performance' },
   { id: 'rr', label: 'Net R-Multiple', category: 'Performance' },

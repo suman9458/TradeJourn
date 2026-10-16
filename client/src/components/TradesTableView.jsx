@@ -230,17 +230,24 @@ export const TradesTableView = ({
   useEffect(() => {
     if (Array.isArray(initialTrades) && initialTrades.length > 0) {
       setMasterTrades(initialTrades);
+      setTrades(prev => (prev.length === 0 && viewFilter === 'All Trades' && !search) ? initialTrades.slice(0, isFullScreen ? 20 : 15) : prev);
+      setTotalCount(prev => prev === 0 ? initialTrades.length : prev);
+      setTotalPages(prev => prev <= 1 ? Math.ceil(initialTrades.length / (isFullScreen ? 20 : 15)) : prev);
     }
-  }, [initialTrades]);
+  }, [initialTrades, isFullScreen, viewFilter, search]);
 
   // Load master pool once if initialTrades is empty
   useEffect(() => {
+    let isSubscribed = true;
     const loadMasterList = async () => {
       try {
         if (!initialTrades || initialTrades.length === 0) {
           const res = await api.getTrades({ limit: 1000 });
-          if (res?.success && Array.isArray(res.trades)) {
+          if (isSubscribed && res?.success && Array.isArray(res.trades)) {
             setMasterTrades(res.trades);
+            setTrades(prev => (prev.length === 0 && viewFilter === 'All Trades' && !search) ? res.trades.slice(0, isFullScreen ? 20 : 15) : prev);
+            setTotalCount(prev => prev === 0 ? res.trades.length : prev);
+            setTotalPages(prev => prev <= 1 ? Math.ceil(res.trades.length / (isFullScreen ? 20 : 15)) : prev);
           }
         }
       } catch (err) {
@@ -248,7 +255,8 @@ export const TradesTableView = ({
       }
     };
     loadMasterList();
-  }, []);
+    return () => { isSubscribed = false; };
+  }, [initialTrades, isFullScreen]);
 
   const pool = useMemo(() => {
     if (Array.isArray(masterTrades) && masterTrades.length > 0) return masterTrades;
@@ -298,10 +306,14 @@ export const TradesTableView = ({
         page,
         limit: isFullScreen ? 20 : 15,
         sortBy,
-        order,
-        search: search.trim() || undefined,
-        view: viewFilter !== 'All Trades' ? viewFilter : undefined
+        order
       };
+      if (search && search.trim()) {
+        params.search = search.trim();
+      }
+      if (viewFilter && viewFilter !== 'All Trades') {
+        params.view = viewFilter;
+      }
 
       const res = await api.getTrades(params);
       if (res && res.success) {
@@ -314,7 +326,8 @@ export const TradesTableView = ({
           }
         } else {
           // If server returned 0 results or filter has local pool matches, fallback cleanly
-          const localFiltered = pool.filter(t => {
+          const availablePool = (Array.isArray(masterTrades) && masterTrades.length > 0) ? masterTrades : pool;
+          const localFiltered = availablePool.filter(t => {
             const matchesV = matchesViewFilter(t, viewFilter);
             if (!matchesV) return false;
             if (search.trim()) {
@@ -322,7 +335,8 @@ export const TradesTableView = ({
               return (
                 (t.tradeName || '').toLowerCase().includes(q) ||
                 (t.instrument || '').toLowerCase().includes(q) ||
-                (t.notes || '').toLowerCase().includes(q)
+                (t.notes || '').toLowerCase().includes(q) ||
+                (t.levelTraded || '').toLowerCase().includes(q)
               );
             }
             return true;
@@ -431,21 +445,19 @@ export const TradesTableView = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', minWidth: '240px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <div className="ledger-header-controls">
+          <div className="ledger-search-box">
+            <Search size={16} className="search-icon" />
             <input
               type="text"
               placeholder="Search ticker, level, notes..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              style={{ paddingLeft: '38px', paddingRight: search ? '32px' : '14px' }}
             />
             {search && (
               <button
-                className="btn-ghost"
+                className="btn-ghost search-clear-btn"
                 onClick={() => setSearch('')}
-                style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', padding: '4px' }}
               >
                 <X size={14} />
               </button>
@@ -492,7 +504,7 @@ export const TradesTableView = ({
 
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary ledger-pdf-btn"
             onClick={handleExportPDF}
             style={{ fontSize: '0.82rem', padding: '7px 14px', whiteSpace: 'nowrap' }}
             title="Download full audited trade history as PDF with proper columns & rows"
@@ -504,15 +516,7 @@ export const TradesTableView = ({
       </div>
 
       {/* Filter Quick Chips */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        flexWrap: 'wrap',
-        marginBottom: '20px',
-        paddingBottom: '16px',
-        borderBottom: '1px solid var(--border-subtle)',
-        alignItems: 'center'
-      }}>
+      <div className="ledger-filter-chips-container">
         {views.map(v => {
           const isActive = viewFilter === v;
           const count = viewCounts[v] ?? 0;
@@ -731,6 +735,7 @@ export const TradesTableView = ({
                     Ticker <ArrowUpDown size={12} />
                   </span>
                 </th>
+                <th>Side</th>
                 <th>Session</th>
                 <th>Setup Quality</th>
                 <th onClick={() => handleSort('result')} style={{ cursor: 'pointer' }}>
@@ -751,10 +756,10 @@ export const TradesTableView = ({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="12" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>Querying MongoDB ledger...</td></tr>
+                <tr><td colSpan="13" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>Querying MongoDB ledger...</td></tr>
               ) : trades.length === 0 ? (
                 <tr>
-                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                  <td colSpan="13" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                       <p style={{ margin: 0, fontSize: '0.92rem', color: '#94a3b8' }}>No trade records match your filter criteria.</p>
                       <button
@@ -816,6 +821,14 @@ export const TradesTableView = ({
                     <td>
                       <span style={{ fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
                         {trade.instrument}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${trade.direction === 'Sell' || (!trade.direction && trade.bias === 'Bearish') ? 'badge-loss' : 'badge-win'}`}
+                        style={{ fontSize: '0.72rem', padding: '2px 7px', fontWeight: '800', letterSpacing: '0.02em' }}
+                      >
+                        {trade.direction === 'Sell' || (!trade.direction && trade.bias === 'Bearish') ? '▼ SELL' : '▲ BUY'}
                       </span>
                     </td>
                     <td>{trade.session}</td>
@@ -928,6 +941,39 @@ export const TradesTableView = ({
 
             {/* Comprehensive Execution Breakdown */}
             <div className="detail-breakdown-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.88rem', padding: '16px', borderRadius: '10px' }}>
+              <p>
+                <strong>Trade Side:</strong>{' '}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const isCurrentlySell = selectedTrade.direction === 'Sell' || (!selectedTrade.direction && selectedTrade.bias === 'Bearish');
+                    const newDir = isCurrentlySell ? 'Buy' : 'Sell';
+                    const newBias = isCurrentlySell ? 'Bullish' : 'Bearish';
+                    try {
+                      await api.updateTrade(selectedTrade._id, { direction: newDir, bias: newBias });
+                      const updated = { ...selectedTrade, direction: newDir, bias: newBias };
+                      setSelectedTrade(updated);
+                      setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+                      setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+                    } catch (e) {
+                      alert('Failed to update direction: ' + e.message);
+                    }
+                  }}
+                  title="Click to toggle BUY / SELL"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    marginLeft: '4px'
+                  }}
+                >
+                  <span className={`badge ${selectedTrade.direction === 'Sell' || (!selectedTrade.direction && selectedTrade.bias === 'Bearish') ? 'badge-loss' : 'badge-win'}`} style={{ cursor: 'pointer', padding: '3px 8px' }}>
+                    {selectedTrade.direction === 'Sell' || (!selectedTrade.direction && selectedTrade.bias === 'Bearish') ? '▼ SELL (Click to switch)' : '▲ BUY (Click to switch)'}
+                  </span>
+                </button>
+              </p>
+              <p><strong>Macro Bias:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.bias || 'Bullish'}</span></p>
               <p><strong>Session:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.session}</span></p>
               <p><strong>Technical Level:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.levelTraded || '-'}</span></p>
               <p><strong>Entry Trigger:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.entryType}</span></p>

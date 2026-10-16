@@ -476,7 +476,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
   return (
     <div style={{ display: 'grid', gap: '22px' }}>
       <div className="dashboard-panel">
-        <div className="panel-header" style={{ flexWrap: 'wrap', gap: '14px', marginBottom: '20px' }}>
+        <div className="panel-header prop-tracker-header" style={{ flexWrap: 'wrap', gap: '14px', marginBottom: '20px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Target size={24} color={isChallengeActive ? 'var(--profit)' : 'var(--text-muted)'} />
@@ -489,7 +489,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="prop-tracker-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             {/* ON / OFF Toggle Switch */}
             <div className="prop-toggle-wrap" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: 'var(--radius-pill)' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: '800', color: isChallengeActive ? 'var(--profit)' : 'var(--text-muted)', letterSpacing: '0.04em' }}>

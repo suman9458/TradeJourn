@@ -13,10 +13,10 @@ export const SummaryCards = ({ stats, trades = [] }) => {
 
   const totalProfit = Math.round(stats.totalProfit !== undefined ? stats.totalProfit : (stats.totalR || 0) * 100);
   const avgProfit = Math.round(stats.avgProfit !== undefined ? stats.avgProfit : (stats.avgR || 0) * 100);
-  const avgWinUSD = Math.round((stats.avgWin || 0) * 100);
-  const avgLossUSD = Math.round((stats.avgLoss || 0) * 100);
-  const bestTradeUSD = Math.round((stats.bestTrade || 0) * 100);
-  const worstTradeUSD = Math.round((stats.worstTrade || 0) * 100);
+  const avgWinUSD = Math.round(stats.avgWinUSD !== undefined ? stats.avgWinUSD : (stats.avgWin || 0) * 100);
+  const avgLossUSD = Math.round(stats.avgLossUSD !== undefined ? stats.avgLossUSD : (stats.avgLoss || 0) * 100);
+  const bestTradeUSD = Math.round(stats.bestTradeUSD !== undefined ? stats.bestTradeUSD : (stats.bestTrade || 0) * 100);
+  const worstTradeUSD = Math.round(stats.worstTradeUSD !== undefined ? stats.worstTradeUSD : (stats.worstTrade || 0) * 100);
 
   const performance = [
     ['Total Trades Audited', stats.totalTrades],

@@ -772,14 +772,29 @@ export const ModernPipsDashboard = ({
     let sellCount = 0;
 
     allTrades.forEach(t => {
+      // 1. Explicit trade direction if set
+      const dir = String(t.direction || t.side || '').toLowerCase();
+      if (dir === 'buy' || dir === 'long') {
+        buyCount++;
+        return;
+      }
+      if (dir === 'sell' || dir === 'short') {
+        sellCount++;
+        return;
+      }
+
+      // 2. Fallback to bias / entryType / name
       const bias = String(t.bias || '').toLowerCase();
       const entryType = String(t.entryType || '').toLowerCase();
       const name = String(t.tradeName || '').toLowerCase();
 
-      if (bias === 'bullish' || bias === 'buy' || entryType.includes('buy') || name.includes('buy')) {
+      if (bias === 'bullish' || bias === 'buy' || entryType.includes('buy') || name.includes('buy') || name.includes('long')) {
         buyCount++;
-      } else {
+      } else if (bias === 'bearish' || bias === 'sell' || entryType.includes('sell') || name.includes('sell') || name.includes('short')) {
         sellCount++;
+      } else {
+        // Default to Buy if neutral or unspecified
+        buyCount++;
       }
     });
 

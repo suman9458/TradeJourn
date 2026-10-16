@@ -88,28 +88,28 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
 
         <div className="quick-metric">
           <span>Discipline Score</span>
-          <strong style={{ color: discipline >= 75 ? 'var(--profit)' : 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
+          <strong style={{ color: discipline >= 75 ? 'var(--profit)' : 'var(--warning)', fontVariantNumeric: 'tabular-nums', fontWeight: '700' }}>
             {discipline}/100
           </strong>
         </div>
 
         <div className="quick-metric">
           <span>Win Rate</span>
-          <strong style={{ color: 'var(--text-white)', fontFamily: 'var(--font-mono)' }}>
+          <strong style={{ color: 'var(--text-white)', fontVariantNumeric: 'tabular-nums', fontWeight: '700' }}>
             {(stats?.winRate || 0).toFixed(1)}%
           </strong>
         </div>
 
         <div className="quick-metric">
-          <span>Highest Yield Setup</span>
-          <strong style={{ color: 'var(--profit)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
+          <span>Top Setup</span>
+          <strong style={{ color: 'var(--profit)', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
             {stats?.bestSetup || '-'}
           </strong>
         </div>
 
         <div className="quick-metric">
           <span>Dominant Session</span>
-          <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
+          <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
             {stats?.bestSession || '-'}
           </strong>
         </div>

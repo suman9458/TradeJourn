@@ -65,7 +65,7 @@ const getKPIs = async (req, res, next) => {
 
     // Fetch all user trades with only required projection fields for performance
     const trades = await Trade.find({ userId })
-      .select('date time result rr rResult pips takeProfit takeProfitUSD setupRating session emotion reasonEarlyExit earlyExitFlag emotionalTradeFlag disciplineScore')
+      .select('date time result rr rResult pips takeProfit takeProfitUSD setupRating session emotion reasonEarlyExit earlyExitFlag emotionalTradeFlag disciplineScore direction bias')
       .lean();
 
     const totalTrades = trades.length;
@@ -137,14 +137,36 @@ const getKPIs = async (req, res, next) => {
 
     // Helper to extract dollar profit for each trade
     const getTradeTakeProfitUSD = (t) => {
-      if (t.takeProfitUSD !== undefined && t.takeProfitUSD !== null && t.takeProfitUSD !== '') {
-        return Number(t.takeProfitUSD);
+      let rawTp = (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== '')
+        ? Number(t.takeProfit)
+        : (t.takeProfitUSD !== undefined && t.takeProfitUSD !== null && t.takeProfitUSD !== '' ? Number(t.takeProfitUSD) : null);
+
+      if (rawTp !== null && !isNaN(rawTp) && rawTp !== 0) {
+        if (t.result === 'WIN') return Math.abs(rawTp);
+        if (t.result === 'LOSS') return rawTp < 0 ? rawTp : -rawTp;
+        if (t.result === 'BE') return 0;
+        return rawTp;
       }
-      if (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== '') {
-        return Number(t.takeProfit);
+
+      const pips = Number(t.pips || 0);
+      if (pips !== 0) {
+        if (t.result === 'LOSS' && pips > 0) return -pips;
+        if (t.result === 'WIN' && pips < 0) return Math.abs(pips);
+        if (t.result === 'BE') return 0;
+        return pips;
       }
+
       return (t.rResult || 0) * 100;
     };
+
+    const totalProfit = trades.reduce((sum, t) => sum + getTradeTakeProfitUSD(t), 0);
+    const avgProfit = totalTrades ? totalProfit / totalTrades : 0;
+    const winProfitUSD = winningTrades.reduce((sum, t) => sum + getTradeTakeProfitUSD(t), 0);
+    const lossProfitUSD = losingTrades.reduce((sum, t) => sum + Math.abs(getTradeTakeProfitUSD(t)), 0);
+    const avgWinUSD = winningTrades.length ? winProfitUSD / winningTrades.length : 0;
+    const avgLossUSD = losingTrades.length ? -(lossProfitUSD / losingTrades.length) : 0;
+    const bestTradeUSD = winningTrades.length ? Math.max(...winningTrades.map(t => getTradeTakeProfitUSD(t))) : (trades.length ? Math.max(...trades.map(t => getTradeTakeProfitUSD(t))) : 0);
+    const worstTradeUSD = losingTrades.length ? Math.min(...losingTrades.map(t => getTradeTakeProfitUSD(t))) : 0;
 
     // Best setup and best session by total dollar Profit
     const setupProfitMap = {};
@@ -180,8 +202,14 @@ const getKPIs = async (req, res, next) => {
         lossRate: (losingTrades.length / totalTrades) * 100,
         totalR,
         avgR,
+        totalProfit,
+        avgProfit,
         avgWin,
         avgLoss,
+        avgWinUSD,
+        avgLossUSD,
+        bestTradeUSD,
+        worstTradeUSD,
         profitFactor,
         totalPips,
         pipsGain: totalPipsGain,

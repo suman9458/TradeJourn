@@ -15,7 +15,7 @@ const seedDemoData = async () => {
         { userId: 'suman9458' },
         { email: adminEmail }
       ]
-    });
+    }).select('+password');
 
     if (!adminUser) {
       adminUser = await User.create({
@@ -31,10 +31,18 @@ const seedDemoData = async () => {
       await Goal.create({ userId: adminUser._id });
       console.log('✅ Created Admin user (@suman9458).');
     } else {
-      adminUser.role = 'admin';
-      adminUser.userId = adminUserId;
-      adminUser.password = 'Skumar9458@';
-      await adminUser.save();
+      let needsSave = false;
+      if (adminUser.role !== 'admin') {
+        adminUser.role = 'admin';
+        needsSave = true;
+      }
+      if (adminUser.userId !== adminUserId) {
+        adminUser.userId = adminUserId;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await adminUser.save();
+      }
       console.log('✅ Admin user (@suman9458) verified with admin privileges.');
     }
 

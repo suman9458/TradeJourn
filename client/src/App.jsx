@@ -200,7 +200,7 @@ const DashboardContent = () => {
   }
 
   if (!token) {
-    return <AuthPage onDemoAccess={fetchDashboardData} />;
+    return <AuthPage onDemoAccess={fetchDashboardData} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   return (
@@ -261,7 +261,11 @@ const DashboardContent = () => {
           )}
 
           {activeTab === 'database' && (
-            <TradesTableView onTradeDeleted={handleRefresh} title="Database Views & Complete Trade Ledger" />
+            <TradesTableView
+              initialTrades={allTrades}
+              onTradeDeleted={handleRefresh}
+              title="Database Views & Complete Trade Ledger"
+            />
           )}
         </ErrorBoundary>
       </main>

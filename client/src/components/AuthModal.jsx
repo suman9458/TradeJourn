@@ -76,18 +76,6 @@ export const AuthModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleAdminQuickLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await login({ userId: '@suman9458', password: 'Skumar9458@' });
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Admin login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -237,7 +225,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
 
         <div style={{ margin: '18px 0', textAlign: 'center', position: 'relative' }}>
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-medium)' }} />
-          <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#0c1622', padding: '0 12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-card)', padding: '0 12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             OR
           </span>
         </div>
@@ -252,17 +240,6 @@ export const AuthModal = ({ isOpen, onClose }) => {
           >
             <Play size={16} />
             <span>Instant 1-Click Demo Access (@protrader)</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleAdminQuickLogin}
-            style={{ width: '100%', borderColor: '#f59e0b', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)' }}
-            disabled={loading}
-          >
-            <ShieldCheck size={16} />
-            <span>1-Click Admin Access (@suman9458)</span>
           </button>
         </div>
 

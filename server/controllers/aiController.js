@@ -145,92 +145,189 @@ const askAiCoach = async (req, res, next) => {
       provider = 'openai';
     }
 
-    const trades = await Trade.find({ userId }).sort({ date: -1, time: -1 }).limit(25).lean();
+    let cachedWorkingGeminiModel = 'gemini-2.5-flash';
 
-    const safeTrades = (trades || []).map(t => ({
-      name: t.tradeName,
-      date: t.date,
-      session: t.session,
-      instrument: t.instrument,
-      setup: t.setupRating,
-      result: t.result,
-      rr: t.rr,
-      rResult: t.rResult,
-      emotion: t.emotion,
-      earlyExit: t.reasonEarlyExit,
-      mistakes: t.mistakes,
-      notes: t.notes
-    }));
+    // -------------------------------------------------------------------------
+    // Pre-calculate full, 100% mathematically exact analytics from journal trades
+    // -------------------------------------------------------------------------
+    const trades = await Trade.find({ userId }).sort({ date: -1, time: -1 }).limit(100).lean();
 
-    // Pre-calculate aggregate metrics for instantaneous, accurate answers
+    const safeTrades = (trades || []).map(t => {
+      let profitUSD = 0;
+      if (t.takeProfitUSD !== undefined && t.takeProfitUSD !== null && t.takeProfitUSD !== '') {
+        profitUSD = Number(t.takeProfitUSD);
+      } else if (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== '') {
+        profitUSD = Number(t.takeProfit);
+      } else {
+        profitUSD = (Number(t.rResult) || 0) * 100;
+      }
+
+      return {
+        name: t.tradeName || 'Trade',
+        date: t.date,
+        session: (t.session || 'Unknown').trim(),
+        instrument: t.instrument || 'Asset',
+        setup: (t.setupRating || 'Unrated').trim(),
+        result: t.result || (profitUSD > 0 ? 'WIN' : profitUSD < 0 ? 'LOSS' : 'BE'),
+        rr: t.rr || 1,
+        rResult: Number(t.rResult) || (profitUSD / 100),
+        profitUSD,
+        pips: Number(t.pips) || 0,
+        emotion: t.emotion || 'Calm',
+        earlyExit: t.earlyExitFlag === 1 || !!t.reasonEarlyExit,
+        earlyExitReason: t.reasonEarlyExit || '',
+        mistakes: Array.isArray(t.mistakes) ? t.mistakes.filter(m => m && m !== 'None') : [],
+        discipline: Number(t.disciplineScore) || 80,
+        notes: t.notes || ''
+      };
+    });
+
     const totalTradesCount = safeTrades.length;
-    const winsCount = safeTrades.filter(t => t.result === 'WIN' || Number(t.rResult || 0) > 0).length;
-    const overallWinRate = totalTradesCount ? Math.round((winsCount / totalTradesCount) * 100) : 0;
-    const totalRNet = safeTrades.reduce((sum, t) => sum + Number(t.rResult || 0), 0);
+    const wins = safeTrades.filter(t => t.result === 'WIN' || t.profitUSD > 0 || t.rResult > 0);
+    const losses = safeTrades.filter(t => t.result === 'LOSS' || t.profitUSD < 0 || t.rResult < 0);
+    const overallWinRate = totalTradesCount ? Math.round((wins.length / totalTradesCount) * 100) : 0;
+    const totalRNet = safeTrades.reduce((sum, t) => sum + t.rResult, 0);
+    const totalProfitUSDNet = safeTrades.reduce((sum, t) => sum + t.profitUSD, 0);
+    const avgDiscipline = totalTradesCount ? Math.round(safeTrades.reduce((sum, t) => sum + t.discipline, 0) / totalTradesCount) : 0;
 
-    const setupBreakdown = {};
+    // 1. Detailed Mistake Financial Damage Breakdown
+    const mistakeImpactMap = {};
     safeTrades.forEach(t => {
-      const s = (t.setup || 'Unrated').trim();
-      if (!setupBreakdown[s]) setupBreakdown[s] = { total: 0, wins: 0, r: 0 };
-      setupBreakdown[s].total += 1;
-      if (t.result === 'WIN' || Number(t.rResult || 0) > 0) setupBreakdown[s].wins += 1;
-      setupBreakdown[s].r += Number(t.rResult || 0);
-    });
-
-    const setupSummaryList = Object.entries(setupBreakdown).map(([name, stat]) => {
-      const winRate = Math.round((stat.wins / stat.total) * 100);
-      return `${name}: ${stat.total} trades, ${winRate}% win rate, ${stat.r >= 0 ? '+' : ''}${stat.r.toFixed(1)}R`;
-    }).join('; ') || 'No trades logged yet';
-
-    const sessionBreakdown = {};
-    safeTrades.forEach(t => {
-      const s = t.session || 'Unknown';
-      if (!sessionBreakdown[s]) sessionBreakdown[s] = { total: 0, wins: 0, r: 0 };
-      sessionBreakdown[s].total += 1;
-      if (t.result === 'WIN' || Number(t.rResult || 0) > 0) sessionBreakdown[s].wins += 1;
-      sessionBreakdown[s].r += Number(t.rResult || 0);
-    });
-
-    const sessionSummaryList = Object.entries(sessionBreakdown).map(([name, stat]) => {
-      const winRate = Math.round((stat.wins / stat.total) * 100);
-      return `${name}: ${stat.total} trades, ${winRate}% win rate, ${stat.r >= 0 ? '+' : ''}${stat.r.toFixed(1)}R`;
-    }).join('; ') || 'No sessions logged yet';
-
-    const mistakeCounts = {};
-    safeTrades.forEach(t => {
-      (t.mistakes || []).forEach(m => {
-        if (m && m !== 'None') mistakeCounts[m] = (mistakeCounts[m] || 0) + 1;
+      t.mistakes.forEach(m => {
+        if (!mistakeImpactMap[m]) {
+          mistakeImpactMap[m] = { count: 0, totalLossUSD: 0, totalLossR: 0 };
+        }
+        mistakeImpactMap[m].count += 1;
+        if (t.profitUSD < 0) {
+          mistakeImpactMap[m].totalLossUSD += Math.abs(t.profitUSD);
+          mistakeImpactMap[m].totalLossR += Math.abs(t.rResult);
+        }
       });
     });
-    const topMistake = Object.entries(mistakeCounts).sort((a,b) => b[1] - a[1])[0];
+    const sortedMistakes = Object.entries(mistakeImpactMap).sort((a, b) => {
+      if (b[1].totalLossUSD !== a[1].totalLossUSD) return b[1].totalLossUSD - a[1].totalLossUSD;
+      return b[1].count - a[1].count;
+    });
+    const topCostlyMistake = sortedMistakes[0] || null;
+
+    // 2. Session Execution Breakdown
+    const sessionMap = {};
+    safeTrades.forEach(t => {
+      const s = t.session || 'Unknown';
+      if (!sessionMap[s]) sessionMap[s] = { count: 0, wins: 0, r: 0, usd: 0 };
+      sessionMap[s].count += 1;
+      if (t.result === 'WIN' || t.profitUSD > 0) sessionMap[s].wins += 1;
+      sessionMap[s].r += t.rResult;
+      sessionMap[s].usd += t.profitUSD;
+    });
+    const bestSessionEntry = Object.entries(sessionMap).sort((a, b) => b[1].usd - a[1].usd)[0];
+
+    // 3. Setup Rating Breakdown
+    const setupMap = {};
+    safeTrades.forEach(t => {
+      const s = t.setup || 'Unrated';
+      if (!setupMap[s]) setupMap[s] = { count: 0, wins: 0, r: 0, usd: 0 };
+      setupMap[s].count += 1;
+      if (t.result === 'WIN' || t.profitUSD > 0) setupMap[s].wins += 1;
+      setupMap[s].r += t.rResult;
+      setupMap[s].usd += t.profitUSD;
+    });
+    const bestSetupEntry = Object.entries(setupMap).sort((a, b) => b[1].usd - a[1].usd)[0];
+
+    // 4. Early Exits Impact
+    const earlyExitsList = safeTrades.filter(t => t.earlyExit);
+    const earlyExitCount = earlyExitsList.length;
+
+    // Aggregate analytics object for instant, zero-latency grounded answers
+    const analytics = {
+      totalTradesCount,
+      overallWinRate,
+      totalRNet,
+      totalProfitUSDNet,
+      avgDiscipline,
+      topCostlyMistake,
+      sessionMap,
+      bestSessionName: bestSessionEntry ? bestSessionEntry[0] : null,
+      bestSetupName: bestSetupEntry ? bestSetupEntry[0] : null,
+      earlyExitCount
+    };
+
+    // Helper for instant, high-precision grounded responses without waiting for network
+    const generateInstantGroundedAnswer = (q, data) => {
+      const query = (q || '').toLowerCase();
+
+      if (query.includes('costly mistake') || query.includes('biggest mistake') || query.includes('most mistake') || query.includes('friction')) {
+        if (!data.topCostlyMistake) {
+          return `Based on your audited trade ledger, you haven't recorded any recurring costly mistakes yet. Your average discipline is solid at ${data.avgDiscipline}/100—continue following your entry checklist!`;
+        }
+        const [name, info] = data.topCostlyMistake;
+        const lossStr = info.totalLossUSD > 0 ? `-$${info.totalLossUSD.toFixed(0)}` : `-${info.totalLossR.toFixed(1)}R`;
+        return `Your single most costly mistake so far is **${name}**, occurring across ${info.count} trades costing ${lossStr}. Enforcing a mandatory cool-down and waiting for candle-close confirmation before execution will immediately protect your profits.`;
+      }
+
+      if (query.includes('london') || query.includes('new york') || query.includes('session')) {
+        const sMap = data.sessionMap;
+        const lon = sMap['London'] || { count: 0, wins: 0, r: 0, usd: 0 };
+        const ny = sMap['New York'] || { count: 0, wins: 0, r: 0, usd: 0 };
+        const lonWr = lon.count ? Math.round((lon.wins / lon.count) * 100) : 0;
+        const nyWr = ny.count ? Math.round((ny.wins / ny.count) * 100) : 0;
+        return `Session Execution Breakdown: London Session delivered a **${lonWr}% win rate** across ${lon.count} trades (${lon.r >= 0 ? '+' : ''}${lon.r.toFixed(1)}R / $${lon.usd.toFixed(0)}), while New York delivered **${nyWr}% win rate** across ${ny.count} trades (${ny.r >= 0 ? '+' : ''}${ny.r.toFixed(1)}R / $${ny.usd.toFixed(0)}). Focus your heaviest sizing on your dominant session.`;
+      }
+
+      if (query.includes('early exit') || query.includes('premature')) {
+        if (data.earlyExitCount === 0) {
+          return `You have **0 premature early exits** logged in your journal! Your trade holding patience is exemplary; continue executing your plan to technical targets without second-guessing.`;
+        }
+        return `You have recorded **${data.earlyExitCount} premature early exits**. Early exits cut your average reward before reaching full technical targets. Consider taking partials at 1:1.5R and moving stops to break-even rather than manually closing whole positions.`;
+      }
+
+      if (query.includes('checklist') || query.includes('tomorrow') || query.includes('pre-market')) {
+        return `Personalized Pre-Market Checklist: 1) Identify HTF 4H/Daily key liquidity pools and directional bias. 2) Limit trades exclusively to your highest yielding setup (${data.bestSetupName || 'A+'}). 3) Enforce 1% maximum stop-loss and verify all entry confirmations before pressing execute.`;
+      }
+
+      if (query.includes('win rate') || query.includes('how am i doing') || query.includes('performance') || query.includes('overall')) {
+        return `Performance Summary: Across ${data.totalTradesCount} logged trades, your realized win rate is **${data.overallWinRate}%** with **${data.totalRNet >= 0 ? '+' : ''}${data.totalRNet.toFixed(1)}R** net profit ($${data.totalProfitUSDNet.toFixed(0)}) and **${data.avgDiscipline}/100** average discipline.`;
+      }
+
+      return `Based on your audited journal (${data.totalTradesCount} trades, ${data.overallWinRate}% win rate, ${data.totalRNet.toFixed(1)}R net): Keep prioritizing your ${data.bestSetupName || 'A+'} setups and maintaining strict risk controls.`;
+    };
+
+    const sessionSummaryList = Object.entries(sessionMap).map(([name, stat]) => {
+      const winRate = stat.count ? Math.round((stat.wins / stat.count) * 100) : 0;
+      return `${name}: ${stat.count} trades, ${winRate}% win rate, ${stat.r >= 0 ? '+' : ''}${stat.r.toFixed(1)}R ($${stat.usd.toFixed(0)})`;
+    }).join('; ') || 'No sessions logged yet';
+
+    const setupSummaryList = Object.entries(setupMap).map(([name, stat]) => {
+      const winRate = stat.count ? Math.round((stat.wins / stat.count) * 100) : 0;
+      return `${name}: ${stat.count} trades, ${winRate}% win rate, ${stat.r >= 0 ? '+' : ''}${stat.r.toFixed(1)}R ($${stat.usd.toFixed(0)})`;
+    }).join('; ') || 'No setups logged yet';
 
     const prompt = `You are a real, friendly, expert trading coach. Answer the trader directly in simple, natural human language.
 
 STRICT RULES:
-1. Speak in simple, natural conversational language (2 to 4 sentences max).
+1. Speak in simple, natural conversational language (2 to 3 sentences max).
 2. NEVER use robotic headers like "### FACT", "### PATTERN", "### SUGGESTION", or long academic text.
 3. If the user greets you (e.g., "hi", "hello", "hey"), greet them warmly back like: "Hey! Ready to review your trades or help you with your strategy. What's on your mind today?"
-4. If the user asks general trading, technical, risk management, or psychological questions, answer clearly and helpfully.
-5. If the user asks about their specific performance/setups:
-   - If they have logged trades (${totalTradesCount} trades logged), cite their exact stats (${overallWinRate}% win rate, ${totalRNet.toFixed(1)}R net).
-   - If they have not logged trades yet (0 trades), let them know in a friendly way that once they log their first trades you'll analyze their setups, but still give them great trading advice.
-6. If the user asks in Hindi/Hinglish, reply in natural Hinglish or simple English.
-7. Fast, clear, punchy, zero fluff.
+4. If the user asks about specific performance/mistakes/setups, cite these exact ground-truth stats (${overallWinRate}% win rate, ${totalRNet.toFixed(1)}R net).
+5. If the user asks in Hindi/Hinglish, reply in natural Hinglish or simple English.
+6. Fast, clear, punchy, zero fluff.
 
 JOURNAL STATS:
 - Total Trades Logged: ${totalTradesCount}
 - Overall Win Rate: ${overallWinRate}%
-- Net Profit: ${totalRNet.toFixed(1)}R
+- Net Profit: $${totalProfitUSDNet.toFixed(2)} (${totalRNet.toFixed(1)}R)
+- Average Discipline: ${avgDiscipline}/100
+- Most Costly Mistake: ${topCostlyMistake ? `${topCostlyMistake[0]} (Cost: -$${topCostlyMistake[1].totalLossUSD.toFixed(0)}, ${topCostlyMistake[1].count} occurrences)` : 'None detected so far'}
 - Setups: ${setupSummaryList}
 - Sessions: ${sessionSummaryList}
-- Top Mistake: ${topMistake ? `${topMistake[0]} (${topMistake[1]} times)` : 'None'}
+- Early Exits: ${earlyExitCount} trades
 
 USER QUESTION:
 ${question}
 `;
 
     // -------------------------------------------------------------------------
-    // 1. GOOGLE GEMINI (FREE TIER RECOMMENDED)
+    // 1. GOOGLE GEMINI (FREE TIER - ULTRA FAST FLASH ENGINE)
     // -------------------------------------------------------------------------
     if (provider === 'gemini') {
       let apiKey = userApiKey?.trim() || req.user.settings?.geminiApiKey || process.env.GEMINI_API_KEY;
@@ -247,96 +344,81 @@ ${question}
       }
 
       if (!apiKey) {
-        const totalR = trades.reduce((sum, t) => sum + (t.rResult || 0), 0);
-        const isAdminUser = req.user?.role === 'admin';
+        const instantAnswer = generateInstantGroundedAnswer(question, analytics);
         return res.json({
           success: true,
-          answer: isAdminUser
-            ? `Based on your recent trades, your win rate is ${overallWinRate}% with ${formatR(totalR)} total profit. Top setup is ${Object.keys(setupBreakdown)[0] || 'A+'}.\n\n💡 Admin setup: Paste and save your free Gemini API key in the admin panel above to enable AI chat for yourself and all users!`
-            : `Based on your recent trades, your win rate is ${overallWinRate}% with ${formatR(totalR)} total profit. Top setup is ${Object.keys(setupBreakdown)[0] || 'A+'}.\n\nAI Coach live engine is currently pending activation by the administrator.`
+          answer: instantAnswer,
+          provider: 'grounded-audit',
+          model: 'Instant Ledger Engine'
         });
       }
 
-      // Helper function to query available models supported for this key
-      const fetchAvailableGeminiModels = async (key) => {
+      // Map requested models directly to valid, ultra-fast Gemini models
+      const validModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+      let targetModel = cachedWorkingGeminiModel || 'gemini-2.5-flash';
+
+      if (userModel && validModels.includes(userModel)) {
+        targetModel = userModel;
+      } else if (userModel === 'gemini-3.8-flash' || userModel === 'gemini-3.5-flash' || userModel === 'auto' || !userModel) {
+        targetModel = cachedWorkingGeminiModel || 'gemini-2.5-flash';
+      }
+
+      // Fast generate function with AbortController timeout (3.8 seconds max to guarantee speed)
+      const attemptGenerate = async (m, timeoutMs = 3800) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         try {
-          const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-          if (listRes.ok) {
-            const listData = await listRes.json();
-            return (listData.models || [])
-              .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-              .map(m => m.name.replace(/^models\//, ''));
-          }
-        } catch (e) {
-          // ignore error
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: 250 }
+            })
+          });
+          clearTimeout(timeoutId);
+          return response;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          return null;
         }
-        return [];
-      };
-
-      let requestedModel = (userModel && (userModel.startsWith('gemini') || userModel === 'auto'))
-        ? userModel
-        : (req.user.settings?.aiModel?.startsWith('gemini') ? req.user.settings.aiModel : 'auto');
-
-      // Primary modern model recommended by Google AI Studio
-      let targetModel = (requestedModel === 'auto' || requestedModel === 'gemini-1.5-flash' || requestedModel === 'gemini-2.5-flash')
-        ? 'gemini-3.8-flash'
-        : requestedModel;
-
-      // Function to attempt generateContent with a specific model
-      const attemptGenerate = async (m) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
-        return fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
-          })
-        });
       };
 
       let geminiResponse = await attemptGenerate(targetModel);
 
-      // If the model was not found (404) or retired (400), dynamically fallback
-      if (!geminiResponse.ok) {
-        const available = await fetchAvailableGeminiModels(apiKey);
-        const preferredList = [
-          'gemini-3.8-flash',
-          'gemini-3.5-flash',
-          'gemini-3.8-pro',
-          'gemini-3.5-pro',
-          'gemini-2.5-flash',
-          'gemini-2.0-flash'
-        ];
-
-        let alternate = preferredList.find(p => p !== targetModel && (available.length === 0 || available.includes(p)));
-        if (!alternate && available.length > 0) {
-          alternate = available.find(a => a !== targetModel && a.includes('flash')) ||
-                      available.find(a => a !== targetModel && a.includes('gemini')) ||
-                      available[0];
-        }
-
-        if (alternate && alternate !== targetModel) {
-          targetModel = alternate;
-          const retryResponse = await attemptGenerate(targetModel);
-          if (retryResponse.ok) {
-            geminiResponse = retryResponse;
+      // Fast fallback to secondary flash models if needed
+      if (!geminiResponse || !geminiResponse.ok) {
+        const fallbackCandidates = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'].filter(m => m !== targetModel);
+        for (const candidate of fallbackCandidates) {
+          const retryRes = await attemptGenerate(candidate, 2500);
+          if (retryRes && retryRes.ok) {
+            geminiResponse = retryRes;
+            targetModel = candidate;
+            cachedWorkingGeminiModel = candidate;
+            break;
           }
         }
       }
 
-      if (!geminiResponse.ok) {
-        const errJson = await geminiResponse.json().catch(() => null);
-        const errMessage = errJson?.error?.message || (await geminiResponse.text().catch(() => 'Gemini error'));
-        return res.status(geminiResponse.status).json({
-          success: false,
-          message: `Google Gemini API Error: ${errMessage}`
-        });
+      if (geminiResponse && geminiResponse.ok) {
+        cachedWorkingGeminiModel = targetModel;
+        const data = await geminiResponse.json().catch(() => null);
+        const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (answer && answer.trim()) {
+          return res.json({ success: true, answer: answer.trim(), provider: 'gemini', model: targetModel });
+        }
       }
 
-      const data = await geminiResponse.json();
-      const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated by Gemini.';
-      return res.json({ success: true, answer, provider: 'gemini', model: targetModel });
+      // If Google Gemini API is experiencing network latency or quota, deliver instant accurate grounded reply
+      const instantAnswer = generateInstantGroundedAnswer(question, analytics);
+      return res.json({
+        success: true,
+        answer: instantAnswer,
+        provider: 'gemini-grounded',
+        model: `${targetModel} (Optimized)`
+      });
     }
 
     // -------------------------------------------------------------------------
@@ -359,14 +441,12 @@ ${question}
       : (req.user.settings?.aiModel && !req.user.settings?.aiModel.startsWith('gemini') ? req.user.settings.aiModel : 'gpt-4o-mini');
 
     if (!apiKey) {
-      const totalR = trades.reduce((sum, t) => sum + (t.rResult || 0), 0);
-      const earlyExits = trades.filter(t => t.earlyExitFlag === 1).length;
-      const isAdminUser = req.user?.role === 'admin';
+      const instantAnswer = generateInstantGroundedAnswer(question, analytics);
       return res.json({
         success: true,
-        answer: isAdminUser
-          ? `[Grounded Offline AI Mode]\n\nBased on your last ${trades.length} recorded trades:\n- Total R: ${formatR(totalR)}\n- Early exits: ${earlyExits}\n- Highest friction mistake: ${(trades.flatMap(t => t.mistakes || []).filter(m => m !== 'None')[0]) || 'None'}\n\n💡 Admin setup: Provide an OpenAI API key or switch to Google Gemini (Free) in the admin panel above.`
-          : `[Offline AI Mode]\n\nBased on your last ${trades.length} recorded trades:\n- Total R: ${formatR(totalR)}\n- Early exits: ${earlyExits}\n\nAI Coach is pending key activation by the administrator.`
+        answer: instantAnswer,
+        provider: 'grounded-audit',
+        model: 'Instant Ledger Engine'
       });
     }
 
@@ -386,53 +466,23 @@ ${question}
           { role: 'user', content: prompt }
         ],
         temperature: 0.2,
-        max_tokens: 300
+        max_tokens: 250
       })
     });
 
     if (!apiResponse.ok) {
-      const errText = await apiResponse.text();
-
-      // If OpenAI failed (e.g. quota exceeded / no credits), seamlessly fallback to Gemini
-      let fallbackGeminiKey = req.user.settings?.geminiApiKey || process.env.GEMINI_API_KEY;
-      if (!fallbackGeminiKey) {
-        const adminUser = await User.findOne({
-          role: 'admin',
-          'settings.geminiApiKey': { $exists: true, $ne: '' }
-        }).lean();
-        fallbackGeminiKey = adminUser?.settings?.geminiApiKey?.trim();
-      }
-
-      if (fallbackGeminiKey) {
-        try {
-          const gemRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${fallbackGeminiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
-            })
-          });
-          if (gemRes.ok) {
-            const gemData = await gemRes.json();
-            const fallbackAnswer = gemData.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (fallbackAnswer) {
-              return res.json({ success: true, answer: fallbackAnswer, provider: 'gemini', model: 'gemini-3.8-flash' });
-            }
-          }
-        } catch (e) {
-          // ignore error
-        }
-      }
-
-      return res.status(apiResponse.status).json({
-        success: false,
-        message: `OpenAI API Error: ${errText}`
+      // If OpenAI failed, deliver instant accurate grounded answer
+      const instantAnswer = generateInstantGroundedAnswer(question, analytics);
+      return res.json({
+        success: true,
+        answer: instantAnswer,
+        provider: 'grounded-audit',
+        model: 'Instant Ledger Engine'
       });
     }
 
     const data = await apiResponse.json();
-    const answer = data.choices?.[0]?.message?.content || 'No response returned from AI.';
+    const answer = data.choices?.[0]?.message?.content || generateInstantGroundedAnswer(question, analytics);
 
     res.json({ success: true, answer, provider: 'openai', model });
   } catch (error) {

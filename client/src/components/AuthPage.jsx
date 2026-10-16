@@ -15,12 +15,37 @@ import {
   Sparkles,
   Award,
   TrendingUp,
-  BarChart2
+  BarChart2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export const AuthPage = ({ onDemoAccess }) => {
+export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propToggleTheme }) => {
   const { login, register, demoLogin } = useAuth();
+
+  const [localTheme, setLocalTheme] = useState(() => {
+    return propTheme || localStorage.getItem('tradejourn_theme') || 'dark';
+  });
+
+  useEffect(() => {
+    if (propTheme) {
+      setLocalTheme(propTheme);
+    }
+  }, [propTheme]);
+
+  const activeTheme = propTheme || localTheme;
+
+  const handleToggleTheme = () => {
+    if (propToggleTheme) {
+      propToggleTheme();
+    } else {
+      const next = activeTheme === 'dark' ? 'light' : 'dark';
+      setLocalTheme(next);
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('tradejourn_theme', next);
+    }
+  };
 
   useEffect(() => {
     document.title = 'TradeJourn';
@@ -168,7 +193,7 @@ export const AuthPage = ({ onDemoAccess }) => {
         {/* Brand Header */}
         <div className="auth-brand-header">
           <div className="brand-badge-large">TJ</div>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="auth-institutional-tag">
               <Zap size={12} color="var(--profit)" />
               <span>INSTITUTIONAL TRADER PORTAL</span>
@@ -178,6 +203,25 @@ export const AuthPage = ({ onDemoAccess }) => {
               Proprietary execution analytics, psychology auditing & encrypted journal ledger
             </p>
           </div>
+          <button
+            type="button"
+            className="theme-toggle-btn auth-theme-toggle"
+            onClick={handleToggleTheme}
+            title={activeTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle Dark and Light Mode"
+          >
+            {activeTheme === 'dark' ? (
+              <>
+                <Sun size={15} className="theme-icon sun" />
+                <span className="theme-text">Light</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="theme-icon moon" />
+                <span className="theme-text">Dark</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Auth Mode Tabs */}
@@ -355,7 +399,7 @@ export const AuthPage = ({ onDemoAccess }) => {
                       onClick={() => setRegExperience(tier.id)}
                     >
                       <div className="exp-top">
-                        <span className="exp-title" style={{ color: isSelected ? tier.color : '#fff' }}>
+                        <span className="exp-title" style={{ color: isSelected ? tier.color : 'var(--text-white)' }}>
                           {tier.title}
                         </span>
                         <span className="exp-timeline">{tier.timeline}</span>

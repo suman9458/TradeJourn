@@ -24,66 +24,71 @@ const getTrades = async (req, res, next) => {
     const query = { userId: req.user._id };
 
     // Search query
-    if (search) {
+    if (search && search !== 'undefined' && search !== 'null' && search.trim()) {
+      const cleanSearch = search.trim();
       query.$or = [
-        { tradeName: { $regex: search, $options: 'i' } },
-        { instrument: { $regex: search, $options: 'i' } },
-        { notes: { $regex: search, $options: 'i' } },
-        { levelTraded: { $regex: search, $options: 'i' } }
+        { tradeName: { $regex: cleanSearch, $options: 'i' } },
+        { instrument: { $regex: cleanSearch, $options: 'i' } },
+        { notes: { $regex: cleanSearch, $options: 'i' } },
+        { levelTraded: { $regex: cleanSearch, $options: 'i' } }
       ];
     }
 
     // Filters
-    if (session) query.session = session;
-    if (setupRating) query.setupRating = setupRating;
-    if (result) query.result = result;
-    if (instrument) query.instrument = instrument;
-    if (emotion) query.emotion = emotion;
+    const isValidParam = (v) => v && v !== 'undefined' && v !== 'null' && v !== 'All' && v.trim() !== '';
+
+    if (isValidParam(session)) query.session = session.trim();
+    if (isValidParam(setupRating)) query.setupRating = setupRating.trim();
+    if (isValidParam(result)) query.result = result.trim();
+    if (isValidParam(instrument)) query.instrument = instrument.trim();
+    if (isValidParam(emotion)) query.emotion = emotion.trim();
 
     // Date range
-    if (startDate || endDate) {
+    if (isValidParam(startDate) || isValidParam(endDate)) {
       query.date = {};
-      if (startDate) query.date.$gte = startDate;
-      if (endDate) query.date.$lte = endDate;
+      if (isValidParam(startDate)) query.date.$gte = startDate.trim();
+      if (isValidParam(endDate)) query.date.$lte = endDate.trim();
     }
 
     // Pre-defined quick view filters
     const now = new Date();
-    if (view === 'Today') {
-      const todayStr = now.toISOString().slice(0, 10);
-      query.date = todayStr;
-    } else if (view === 'This Week') {
-      const past7 = new Date();
-      past7.setDate(now.getDate() - 7);
-      query.date = { $gte: past7.toISOString().slice(0, 10) };
-    } else if (view === 'This Month') {
-      const past30 = new Date();
-      past30.setDate(now.getDate() - 30);
-      query.date = { $gte: past30.toISOString().slice(0, 10) };
-    } else if (view === 'Winning Trades') {
-      query.result = 'WIN';
-    } else if (view === 'Losing Trades') {
-      query.result = 'LOSS';
-    } else if (view === 'A+ Trades') {
-      query.setupRating = 'A+';
-    } else if (view === 'Early Exits') {
-      query.$or = [
-        { reasonEarlyExit: { $nin: ['None', '', null] } },
-        { mistakes: { $in: ['Early Exit', 'Moved SL', 'Cut Winner Early'] } }
-      ];
-    } else if (view === 'Emotional Trades') {
-      query.$or = [
-        { emotion: { $in: ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Overconfident', 'Frustrated', 'Anxious', 'Hesitant', 'Bored'] } },
-        { mistakes: { $in: ['FOMO', 'Revenge Trading', 'Emotional Execution', 'Greed'] } }
-      ];
-    } else if (view === 'Mistake Trades') {
-      query.mistakes = { $elemMatch: { $nin: ['None', ''] } };
-    } else if (view === 'London Session') {
-      query.session = { $in: ['London', 'London + New York'] };
-    } else if (view === 'New York Session') {
-      query.session = { $in: ['New York', 'London + New York'] };
-    } else if (view === 'Asian Session') {
-      query.session = 'Asian';
+    if (view && view !== 'undefined' && view !== 'null' && view !== 'All Trades') {
+      if (view === 'Today') {
+        const todayStr = now.toISOString().slice(0, 10);
+        query.date = todayStr;
+      } else if (view === 'This Week') {
+        const past7 = new Date();
+        past7.setDate(now.getDate() - 7);
+        query.date = { $gte: past7.toISOString().slice(0, 10) };
+      } else if (view === 'This Month') {
+        const past30 = new Date();
+        past30.setDate(now.getDate() - 30);
+        query.date = { $gte: past30.toISOString().slice(0, 10) };
+      } else if (view === 'Winning Trades') {
+        query.result = 'WIN';
+      } else if (view === 'Losing Trades') {
+        query.result = 'LOSS';
+      } else if (view === 'A+ Trades') {
+        query.setupRating = 'A+';
+      } else if (view === 'Early Exits') {
+        query.$or = [
+          { reasonEarlyExit: { $nin: ['None', '', null] } },
+          { mistakes: { $in: ['Early Exit', 'Moved SL', 'Cut Winner Early'] } }
+        ];
+      } else if (view === 'Emotional Trades') {
+        query.$or = [
+          { emotion: { $in: ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Overconfident', 'Frustrated', 'Anxious', 'Hesitant', 'Bored'] } },
+          { mistakes: { $in: ['FOMO', 'Revenge Trading', 'Emotional Execution', 'Greed'] } }
+        ];
+      } else if (view === 'Mistake Trades') {
+        query.mistakes = { $elemMatch: { $nin: ['None', ''] } };
+      } else if (view === 'London Session') {
+        query.session = { $in: ['London', 'London + New York'] };
+      } else if (view === 'New York Session') {
+        query.session = { $in: ['New York', 'London + New York'] };
+      } else if (view === 'Asian Session') {
+        query.session = 'Asian';
+      }
     }
 
     const sortOptions = {};

@@ -124,7 +124,13 @@ export const api = {
 
   // Trades
   getTrades: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const cleanParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null') {
+        cleanParams.append(key, val);
+      }
+    });
+    const query = cleanParams.toString();
     return request(`/trades${query ? `?${query}` : ''}`);
   },
   getTradeById: (id) => request(`/trades/${id}`),

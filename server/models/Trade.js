@@ -51,6 +51,12 @@ const tradeSchema = new mongoose.Schema(
       default: 'London',
       index: true
     },
+    direction: {
+      type: String,
+      enum: ['Buy', 'Sell'],
+      default: 'Buy',
+      index: true
+    },
     bias: {
       type: String,
       enum: ['Bullish', 'Bearish', 'Neutral'],

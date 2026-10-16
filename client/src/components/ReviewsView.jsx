@@ -69,30 +69,59 @@ export const ReviewsView = ({ reviews }) => {
 
   const reviewData = reviews[subTab];
 
+  const totalProfitUSD = reviewData?.totalProfitUSD !== undefined
+    ? reviewData.totalProfitUSD
+    : (reviewData?.bestTrade && !reviewData?.worstTrade && reviewData?.tradeCount === 1
+        ? getTradeProfitUSD(reviewData.bestTrade)
+        : (reviewData?.totalR || 0) * 100);
+
+  const avgProfitUSD = reviewData?.avgProfitUSD !== undefined
+    ? reviewData.avgProfitUSD
+    : (reviewData?.tradeCount ? totalProfitUSD / reviewData.tradeCount : 0);
+
+  const hasLosingTrade = Boolean(
+    reviewData?.worstTrade && (
+      reviewData.worstTrade.result === 'LOSS' ||
+      getTradeProfitUSD(reviewData.worstTrade) < 0 ||
+      (reviewData.worstTrade.rResult !== undefined && reviewData.worstTrade.rResult < 0)
+    )
+  );
+
+  const hasWinningTrade = Boolean(
+    reviewData?.bestTrade && (
+      reviewData.bestTrade.result === 'WIN' ||
+      getTradeProfitUSD(reviewData.bestTrade) > 0 ||
+      (reviewData.bestTrade.rResult !== undefined && reviewData.bestTrade.rResult > 0)
+    )
+  );
+
   return (
     <div style={{ display: 'grid', gap: '22px' }}>
       {/* Review Timeframe Switcher */}
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div className="reviews-timeframe-bar">
         <button
           className={subTab === 'daily' ? 'btn-primary' : 'btn-secondary'}
           onClick={() => setSubTab('daily')}
         >
-          <Calendar size={16} />
-          <span>Daily Performance Review</span>
+          <Calendar size={15} />
+          <span className="review-btn-full">Daily Performance Review</span>
+          <span className="review-btn-short">Daily</span>
         </button>
         <button
           className={subTab === 'weekly' ? 'btn-primary' : 'btn-secondary'}
           onClick={() => setSubTab('weekly')}
         >
-          <CalendarDays size={16} />
-          <span>Weekly Rolling Audit (7 Days)</span>
+          <CalendarDays size={15} />
+          <span className="review-btn-full">Weekly Rolling Audit (7 Days)</span>
+          <span className="review-btn-short">Weekly (7D)</span>
         </button>
         <button
           className={subTab === 'monthly' ? 'btn-primary' : 'btn-secondary'}
           onClick={() => setSubTab('monthly')}
         >
-          <CalendarRange size={16} />
-          <span>Monthly Macro Audit (30 Days)</span>
+          <CalendarRange size={15} />
+          <span className="review-btn-full">Monthly Macro Audit (30 Days)</span>
+          <span className="review-btn-short">Monthly (30D)</span>
         </button>
       </div>
 
@@ -116,10 +145,10 @@ export const ReviewsView = ({ reviews }) => {
               <div className="kpi-value">{reviewData.winRate.toFixed(1)}%</div>
               <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>Target hit consistency</p>
             </div>
-            <div className={`kpi-card ${reviewData.totalR >= 0 ? 'positive' : 'negative'}`}>
+            <div className={`kpi-card ${totalProfitUSD >= 0 ? 'positive' : 'negative'}`}>
               <div className="kpi-top"><span>Net Period Profit</span><span>💰</span></div>
-              <div className="kpi-value">{formatUSD(reviewData.totalR * 100)}</div>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>{formatUSD(reviewData.avgR * 100)} avg / trade</p>
+              <div className="kpi-value">{formatUSD(totalProfitUSD)}</div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>{formatUSD(avgProfitUSD)} avg / trade</p>
             </div>
             <div className="kpi-card positive">
               <div className="kpi-top"><span>Discipline Rating</span><span>⭐</span></div>
@@ -140,7 +169,7 @@ export const ReviewsView = ({ reviews }) => {
                 <ThumbsUp size={18} />
                 Highlight: Best Trade of Period
               </h4>
-              {reviewData.bestTrade ? (
+              {hasWinningTrade ? (
                 <div>
                   <p style={{ fontWeight: '800', fontSize: '1.2rem', color: 'var(--text-white)' }}>{reviewData.bestTrade.tradeName}</p>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
@@ -155,30 +184,55 @@ export const ReviewsView = ({ reviews }) => {
                     </span>
                   </div>
                 </div>
-              ) : <p style={{ color: 'var(--text-muted)' }}>None</p>}
+              ) : (
+                <div style={{ padding: '6px 0' }}>
+                  <p style={{ fontWeight: '700', fontSize: '1.05rem', color: 'var(--text-white)' }}>No Winning Trades</p>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    No profitable executions logged in this period.
+                  </p>
+                </div>
+              )}
             </div>
 
-            <div className="dashboard-panel review-highlight-card worst" style={{ marginBottom: 0 }}>
-              <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--loss)', fontSize: '0.95rem', marginBottom: '14px', fontWeight: '800' }}>
-                <ThumbsDown size={18} />
-                Friction: Worst Trade of Period
-              </h4>
-              {reviewData.worstTrade ? (
-                <div>
-                  <p style={{ fontWeight: '800', fontSize: '1.2rem', color: 'var(--text-white)' }}>{reviewData.worstTrade.tradeName}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
-                    {reviewData.worstTrade.date} • {reviewData.worstTrade.instrument} • {reviewData.worstTrade.session}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: 'var(--loss)', fontSize: '1.4rem' }}>
-                      {formatUSD(getTradeProfitUSD(reviewData.worstTrade))}
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: 'var(--loss)', opacity: 0.9, fontSize: '0.95rem' }}>
-                      ({formatPipsStr(reviewData.worstTrade)})
-                    </span>
+            <div className={`dashboard-panel review-highlight-card ${hasLosingTrade ? 'worst' : 'clean'}`} style={{ marginBottom: 0 }}>
+              {hasLosingTrade ? (
+                <>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--loss)', fontSize: '0.95rem', marginBottom: '14px', fontWeight: '800' }}>
+                    <ThumbsDown size={18} />
+                    Friction: Worst Trade of Period
+                  </h4>
+                  <div>
+                    <p style={{ fontWeight: '800', fontSize: '1.2rem', color: 'var(--text-white)' }}>{reviewData.worstTrade.tradeName}</p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
+                      {reviewData.worstTrade.date} • {reviewData.worstTrade.instrument} • {reviewData.worstTrade.session}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '800', color: 'var(--loss)', fontSize: '1.4rem' }}>
+                        {formatUSD(getTradeProfitUSD(reviewData.worstTrade))}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: 'var(--loss)', opacity: 0.9, fontSize: '0.95rem' }}>
+                        ({formatPipsStr(reviewData.worstTrade)})
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ) : <p style={{ color: 'var(--text-muted)' }}>None</p>}
+                </>
+              ) : (
+                <>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--profit)', fontSize: '0.95rem', marginBottom: '14px', fontWeight: '800' }}>
+                    <Sparkles size={18} />
+                    Zero Friction: No Losses Logged
+                  </h4>
+                  <div>
+                    <p style={{ fontWeight: '800', fontSize: '1.15rem', color: 'var(--text-white)' }}>100% Capital Preservation</p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 10px' }}>
+                      Zero losing trades recorded in this period. Every execution closed in profit or breakeven!
+                    </p>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 245, 155, 0.1)', border: '1px solid rgba(0, 245, 155, 0.25)', padding: '5px 12px', borderRadius: '6px', color: 'var(--profit)', fontSize: '0.82rem', fontWeight: '700' }}>
+                      🛡️ Zero Negative Friction
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

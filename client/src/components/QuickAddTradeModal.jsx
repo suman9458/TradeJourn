@@ -30,6 +30,7 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
     tradeName: '',
     date: todayStr,
     time: timeStr,
+    direction: 'Buy',
     instrument: 'EURUSD',
     levelTraded: 'Support',
     session: 'London',
@@ -397,6 +398,62 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
                 value={form.levelTraded}
                 onChange={e => setForm({ ...form, levelTraded: e.target.value })}
               />
+            </label>
+
+            <label>
+              <span>Trade Direction *</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({
+                    ...prev,
+                    direction: 'Buy',
+                    bias: prev.bias === 'Bearish' ? 'Bullish' : prev.bias
+                  }))}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: (form.direction === 'Buy' || !form.direction) ? '2px solid var(--profit)' : '1px solid var(--border-medium)',
+                    background: (form.direction === 'Buy' || !form.direction) ? 'rgba(0, 245, 155, 0.15)' : 'var(--bg-input)',
+                    color: (form.direction === 'Buy' || !form.direction) ? 'var(--profit)' : 'var(--text-secondary)',
+                    fontWeight: '800',
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  ▲ BUY (Long)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({
+                    ...prev,
+                    direction: 'Sell',
+                    bias: prev.bias === 'Bullish' ? 'Bearish' : prev.bias
+                  }))}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: form.direction === 'Sell' ? '2px solid var(--loss)' : '1px solid var(--border-medium)',
+                    background: form.direction === 'Sell' ? 'rgba(255, 51, 102, 0.15)' : 'var(--bg-input)',
+                    color: form.direction === 'Sell' ? 'var(--loss)' : 'var(--text-secondary)',
+                    fontWeight: '800',
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  ▼ SELL (Short)
+                </button>
+              </div>
             </label>
 
             <label>

@@ -5,6 +5,34 @@ const formatR = (value) => {
   return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}R`;
 };
 
+const getTradeProfitUSD = (t) => {
+  if (!t) return 0;
+  let rawTp = (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== '')
+    ? t.takeProfit
+    : (t.takeProfitUSD !== undefined && t.takeProfitUSD !== null && t.takeProfitUSD !== '' ? t.takeProfitUSD : null);
+
+  if (rawTp !== null && rawTp !== undefined && rawTp !== '') {
+    const tp = Number(rawTp);
+    if (!isNaN(tp) && tp !== 0) {
+      if (t.result === 'WIN') return Math.abs(tp);
+      if (t.result === 'LOSS') return tp < 0 ? tp : -tp;
+      if (t.result === 'BE') return 0;
+      return tp;
+    }
+  }
+
+  const pips = Number(t.pips || 0);
+  if (pips !== 0) {
+    if (t.result === 'LOSS' && pips > 0) return -pips;
+    if (t.result === 'WIN' && pips < 0) return Math.abs(pips);
+    if (t.result === 'BE') return 0;
+    return pips;
+  }
+
+  const rResult = Number(t.rResult !== undefined ? t.rResult : (t.result === 'WIN' ? (t.rr || 1.5) : t.result === 'LOSS' ? -1 : 0));
+  return Math.round(rResult * 100);
+};
+
 // @desc    Get Daily, Weekly, and Monthly reviews computed from recorded data
 // @route   GET /api/reviews
 // @access  Private
@@ -42,6 +70,10 @@ const getReviews = async (req, res, next) => {
       const earlyExits = items.filter(t => t.earlyExitFlag === 1).length;
       const avgDiscipline = items.reduce((sum, t) => sum + (t.disciplineScore || 0), 0) / count;
 
+      // Dollar profit calculations using actual trade takeProfit/loss
+      const totalProfitUSD = items.reduce((sum, t) => sum + getTradeProfitUSD(t), 0);
+      const avgProfitUSD = count ? totalProfitUSD / count : 0;
+
       const mistakeMap = {};
       items.flatMap(t => t.mistakes || []).filter(m => m && m !== 'None').forEach(m => {
         mistakeMap[m] = (mistakeMap[m] || 0) + 1;
@@ -54,8 +86,17 @@ const getReviews = async (req, res, next) => {
       });
       const topEmotion = Object.entries(emotionMap).sort((a, b) => b[1] - a[1])[0];
 
-      const bestTrade = [...items].sort((a, b) => b.rResult - a.rResult)[0];
-      const worstTrade = [...items].sort((a, b) => a.rResult - b.rResult)[0];
+      // Winning trades for best trade
+      const winningTrades = items.filter(t => t.result === 'WIN' || getTradeProfitUSD(t) > 0);
+      const bestTrade = winningTrades.length > 0
+        ? [...winningTrades].sort((a, b) => getTradeProfitUSD(b) - getTradeProfitUSD(a))[0]
+        : (items.length ? [...items].sort((a, b) => getTradeProfitUSD(b) - getTradeProfitUSD(a))[0] : null);
+
+      // Only consider actual losing trades for worst trade
+      const losingTrades = items.filter(t => t.result === 'LOSS' || getTradeProfitUSD(t) < 0 || (t.rResult !== undefined && t.rResult < 0));
+      const worstTrade = losingTrades.length > 0
+        ? [...losingTrades].sort((a, b) => getTradeProfitUSD(a) - getTradeProfitUSD(b))[0]
+        : null;
 
       return {
         hasData: true,
@@ -63,11 +104,14 @@ const getReviews = async (req, res, next) => {
         winRate,
         totalR,
         avgR,
+        totalProfitUSD,
+        avgProfitUSD,
         earlyExits,
         earlyExitPct: (earlyExits / count) * 100,
         avgDiscipline,
         bestTrade,
         worstTrade,
+        hasLosses: losingTrades.length > 0,
         topMistakes,
         topEmotion: topEmotion ? topEmotion[0] : 'None'
       };

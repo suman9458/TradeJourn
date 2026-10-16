@@ -30,18 +30,42 @@ const connectDB = async () => {
       fs.mkdirSync(dataDir, { recursive: true });
     }
 
-    // Clean stale empty lock file if left over from previous abnormal shutdown
+    // Clean stale lock files (PID-aware) from previous abnormal shutdown
     const lockFile = path.join(dataDir, 'mongod.lock');
     if (fs.existsSync(lockFile)) {
       try {
-        const stats = fs.statSync(lockFile);
-        if (stats.size === 0) {
+        const lockContent = fs.readFileSync(lockFile, 'utf8').trim();
+        const pid = parseInt(lockContent, 10);
+        let isRunning = false;
+        if (!isNaN(pid) && pid > 0) {
+          try {
+            process.kill(pid, 0); // Check if process with PID exists
+            isRunning = true;
+          } catch (e) {
+            isRunning = false;
+          }
+        }
+        if (!isRunning) {
           fs.unlinkSync(lockFile);
-          console.log('Cleaned stale zero-byte mongod.lock file.');
+          console.log(`Cleaned stale mongod.lock file (PID ${pid || 'empty'} was not running).`);
+        } else {
+          console.log(`Lock file held by running process PID ${pid}.`);
         }
       } catch (e) {
-        console.warn('Could not inspect lock file:', e.message);
+        try {
+          fs.unlinkSync(lockFile);
+          console.log('Unlinked mongod.lock during clean-up.');
+        } catch (err) {}
       }
+    }
+
+    // Clean WiredTiger.lock if mongod.lock was removed
+    const wtLock = path.join(dataDir, 'WiredTiger.lock');
+    if (fs.existsSync(wtLock) && !fs.existsSync(lockFile)) {
+      try {
+        fs.unlinkSync(wtLock);
+        console.log('Cleaned stale WiredTiger.lock file.');
+      } catch (e) {}
     }
 
     console.log(`Initializing embedded MongoDB (database stored in ${dataDir})...`);
@@ -52,7 +76,7 @@ const connectDB = async () => {
           dbPath: dataDir,
           storageEngine: 'wiredTiger'
         },
-        spawnTimeoutMS: 60000
+        spawnTimeoutMS: 30000
       });
     } catch (persistentErr) {
       console.warn(`Persistent database storage init failed (${persistentErr.message}).`);
@@ -61,12 +85,18 @@ const connectDB = async () => {
         instance: {
           dbName: 'tradejourn'
         },
-        spawnTimeoutMS: 60000
+        spawnTimeoutMS: 30000
       });
     }
 
     const memoryUri = memoryServer.getUri('tradejourn');
-    const conn = await mongoose.connect(memoryUri);
+    const conn = await mongoose.connect(memoryUri, {
+      maxPoolSize: 25,
+      minPoolSize: 5,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000
+    });
     console.log(`Connected to persistent MongoDB at: ${conn.connection.host}`);
     console.log('Your accounts, trades, and settings are saved permanently in server/data/db.');
   } catch (error) {

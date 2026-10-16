@@ -26,70 +26,77 @@ const LiveClock = () => {
 export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar, theme = 'dark', onToggleTheme }) => {
   return (
     <header className="topbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {onToggleSidebar && (
+      <div className="topbar-main-row">
+        <div className="topbar-left">
+          {onToggleSidebar && (
+            <button
+              type="button"
+              className="mobile-menu-trigger"
+              onClick={onToggleSidebar}
+              aria-label="Open Navigation Menu"
+            >
+              <Menu size={20} />
+            </button>
+          )}
+          <div className="topbar-title">
+            <h2>TradeJourn</h2>
+          </div>
+        </div>
+
+        <div className="topbar-utility-actions">
+          {onToggleTheme && (
+            <button
+              type="button"
+              className="theme-toggle-btn navbar-theme-btn"
+              onClick={onToggleTheme}
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle Dark and Light Mode"
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun size={15} className="theme-icon sun" />
+                  <span className="theme-text">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={15} className="theme-icon moon" />
+                  <span className="theme-text">Dark</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Desktop-only Live Clock - completely hidden on phone view */}
+          <div className="clock-wrapper-desktop">
+            <LiveClock />
+          </div>
+
+          {(onResetDataset || onRefresh) && (
+            <button
+              type="button"
+              className="btn-secondary topbar-icon-btn"
+              onClick={onResetDataset || onRefresh}
+              title="Reset All Dataset Entries"
+              aria-label="Reset All Dataset Entries"
+            >
+              <RefreshCw size={15} />
+            </button>
+          )}
+
           <button
             type="button"
-            className="mobile-menu-trigger"
-            onClick={onToggleSidebar}
-            aria-label="Open Navigation Menu"
+            className="btn-secondary topbar-pdf-btn"
+            onClick={onExportPDF}
+            title="Download Trade History PDF with proper columns & rows"
           >
-            <Menu size={20} />
+            <FileText size={15} />
+            <span className="pdf-btn-label">Export PDF</span>
           </button>
-        )}
-        <div className="topbar-title">
-          <h2>TradeJourn</h2>
         </div>
       </div>
 
-      <div className="topbar-actions">
-        {/* Dark / Light Mode Switcher (placed before time showing on upper) */}
-        {onToggleTheme && (
-          <button
-            type="button"
-            className="theme-toggle-btn"
-            onClick={onToggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle Dark and Light Mode"
-          >
-            {theme === 'dark' ? (
-              <>
-                <Sun size={15} className="theme-icon sun" />
-                <span className="theme-text">Light Mode</span>
-              </>
-            ) : (
-              <>
-                <Moon size={15} className="theme-icon moon" />
-                <span className="theme-text">Dark Mode</span>
-              </>
-            )}
-          </button>
-        )}
-
-        <LiveClock />
-        {(onResetDataset || onRefresh) && (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={onResetDataset || onRefresh}
-            title="Reset All Dataset Entries"
-            aria-label="Reset All Dataset Entries"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '8px 12px',
-              cursor: 'pointer'
-            }}
-          >
-            <RefreshCw size={15} />
-          </button>
-        )}
-        <button className="btn-secondary" onClick={onExportPDF} title="Download Trade History PDF with proper columns & rows">
-          <FileText size={15} />
-          <span>Export PDF</span>
-        </button>
-        <button className="btn-primary" onClick={onOpenAddTrade}>
+      <div className="topbar-cta-row">
+        <button type="button" className="btn-primary topbar-add-trade-btn" onClick={onOpenAddTrade}>
           <Plus size={18} />
           <span>Quick Add Trade</span>
         </button>

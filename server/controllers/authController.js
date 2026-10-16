@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Playbook = require('../models/Playbook');
 const Goal = require('../models/Goal');
@@ -126,7 +127,13 @@ const loginUser = async (req, res, next) => {
       ]
     }).select('+password');
 
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user) {
+      await bcrypt.compare(password, '$2a$10$e8O6nB55N3l3sA7Hj2z79e5Z0u4U9i0k4W7y3Q5e7u1I3o5q7y9W2').catch(() => {});
+      return res.status(401).json({ success: false, message: 'Invalid User ID or password' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid User ID or password' });
     }
 

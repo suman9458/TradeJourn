@@ -47,7 +47,8 @@ const getReviews = async (req, res, next) => {
         reviews: {
           daily: { hasData: false, message: 'No trades recorded yet for review.' },
           weekly: { hasData: false, message: 'No trades recorded yet for review.' },
-          monthly: { hasData: false, message: 'No trades recorded yet for review.' }
+          monthly: { hasData: false, message: 'No trades recorded yet for review.' },
+          yearly: { hasData: false, message: 'No trades recorded yet for review.' }
         }
       });
     }
@@ -55,10 +56,12 @@ const getReviews = async (req, res, next) => {
     const todayStr = new Date().toISOString().slice(0, 10);
     const past7Str = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const past30Str = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const past365Str = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     const dailyTrades = trades.filter(t => t.date === todayStr);
     const weeklyTrades = trades.filter(t => t.date >= past7Str);
     const monthlyTrades = trades.filter(t => t.date >= past30Str);
+    const yearlyTrades = trades.filter(t => t.date >= past365Str);
 
     const buildReviewStats = (items) => {
       if (!items.length) return null;
@@ -122,7 +125,8 @@ const getReviews = async (req, res, next) => {
       reviews: {
         daily: buildReviewStats(dailyTrades) || { hasData: false, message: 'No trades recorded today.' },
         weekly: buildReviewStats(weeklyTrades) || { hasData: false, message: 'No trades recorded in the past 7 days.' },
-        monthly: buildReviewStats(monthlyTrades) || { hasData: false, message: 'No trades recorded in the past 30 days.' }
+        monthly: buildReviewStats(monthlyTrades) || { hasData: false, message: 'No trades recorded in the past 30 days.' },
+        yearly: buildReviewStats(yearlyTrades) || { hasData: false, message: 'No trades recorded in the past 365 days.' }
       }
     });
   } catch (error) {

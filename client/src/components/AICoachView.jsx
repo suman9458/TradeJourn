@@ -3,7 +3,16 @@ import { Bot, Send, Sparkles, CheckCircle2, AlertOctagon, RefreshCw, Key, Copy, 
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export const AICoachView = () => {
+const cleanAiMessage = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/\(\s*([+-]?\d+(?:\.\d+)?R)\s*\/\s*\$0\s*\)/gi, '')
+    .trim();
+};
+
+export const AICoachView = ({ trades = [] }) => {
   const { user, updateUserSettings } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [ruleCoach, setRuleCoach] = useState(null);
@@ -87,7 +96,7 @@ export const AICoachView = () => {
         ...prev,
         {
           sender: 'ai',
-          text: res.answer || 'No response returned.',
+          text: cleanAiMessage(res.answer) || 'No response returned.',
           model: res.model,
           provider: res.provider
         }
@@ -103,7 +112,7 @@ export const AICoachView = () => {
   };
 
   const handleCopy = (text, index) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(cleanAiMessage(text));
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
   };
@@ -128,58 +137,56 @@ export const AICoachView = () => {
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
-      {/* Grounded Rule-Based Institutional AI Audit (Admin only) */}
-      {isAdmin && (
-        <div className="dashboard-panel">
-          {loadingRule ? (
-            <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Auditing trading records...</p>
-          ) : !ruleCoach ? (
-            <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Not enough data yet. Log more trades to unlock the audit.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '18px' }}>
-              <div className="ai-coach-diagnosis-banner">
-                <h4 className="ai-coach-diagnosis-title">
-                  Statistical Expectation & Edge Diagnosis
+      {/* Grounded Rule-Based Institutional AI Audit (Available for all users) */}
+      <div className="dashboard-panel">
+        {loadingRule ? (
+          <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Auditing trading records...</p>
+        ) : !ruleCoach ? (
+          <p style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>Not enough data yet. Log more trades to unlock the audit.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '18px' }}>
+            <div className="ai-coach-diagnosis-banner">
+              <h4 className="ai-coach-diagnosis-title">
+                Statistical Expectation & Edge Diagnosis
+              </h4>
+              <p className="ai-coach-diagnosis-text">
+                “<strong>FACT:</strong> {ruleCoach.summary.totalTrades} trades audited, achieving a <strong>{ruleCoach.summary.winRate}% win rate</strong> with <strong>{ruleCoach.summary.totalProfitUSD !== undefined ? `${ruleCoach.summary.totalProfitUSD >= 0 ? '+' : ''}$${Math.round(ruleCoach.summary.totalProfitUSD).toLocaleString()} profit` : ruleCoach.summary.totalR}</strong>.<br />
+                <strong>PATTERN:</strong> {ruleCoach.summary.tone === 'positive' ? 'Positive mathematical expectancy demonstrated across trade sequence.' : 'Expectancy is currently negative due to risk drag or low win rate.'}”
+              </p>
+            </div>
+
+            <div className="ai-audit-grid">
+              <div className="ai-audit-card strengths">
+                <h4>
+                  <CheckCircle2 size={16} />
+                  Verified Trading Strengths
                 </h4>
-                <p className="ai-coach-diagnosis-text">
-                  “<strong>FACT:</strong> {ruleCoach.summary.totalTrades} trades audited, achieving a <strong>{ruleCoach.summary.winRate}% win rate</strong> with <strong>{ruleCoach.summary.totalR} total R</strong> (mean expectancy of {ruleCoach.summary.avgR}/trade).<br />
-                  <strong>PATTERN:</strong> {ruleCoach.summary.tone === 'positive' ? 'Positive mathematical expectancy demonstrated across trade sequence.' : 'Expectancy is currently negative due to risk drag or low win rate.'}”
-                </p>
+                <ul>
+                  {ruleCoach.strengths.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
               </div>
 
-              <div className="ai-audit-grid">
-                <div className="ai-audit-card strengths">
-                  <h4>
-                    <CheckCircle2 size={16} />
-                    Verified Trading Strengths
-                  </h4>
-                  <ul>
-                    {ruleCoach.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="ai-audit-card mistakes">
-                  <h4>
-                    <AlertOctagon size={16} />
-                    Mistakes
-                  </h4>
-                  <ul>
-                    {ruleCoach.repeatedMistakes.length === 0 ? (
-                      <li style={{ color: 'var(--profit)' }}>Zero repeated mistakes logged. Excellent discipline adherence!</li>
-                    ) : (
-                      ruleCoach.repeatedMistakes.map((m, i) => (
-                        <li key={i}><strong>{m.name}:</strong> {m.count} logged occurrences</li>
-                      ))
-                    )}
-                  </ul>
-                </div>
+              <div className="ai-audit-card mistakes">
+                <h4>
+                  <AlertOctagon size={16} />
+                  Mistakes
+                </h4>
+                <ul>
+                  {ruleCoach.repeatedMistakes.length === 0 ? (
+                    <li style={{ color: 'var(--profit)' }}>Zero repeated mistakes logged. Excellent discipline adherence!</li>
+                  ) : (
+                    ruleCoach.repeatedMistakes.map((m, i) => (
+                      <li key={i}><strong>{m.name}:</strong> {m.count} logged occurrences</li>
+                    ))
+                  )}
+                </ul>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* Live AI Coach Chat */}
       <div className="dashboard-panel">
@@ -336,7 +343,9 @@ export const AICoachView = () => {
                     </button>
                   )}
                 </div>
-                {msg.text}
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                  {cleanAiMessage(msg.text)}
+                </div>
               </div>
             ))
           )}

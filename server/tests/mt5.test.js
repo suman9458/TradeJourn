@@ -314,3 +314,32 @@ describe('Security: Strict User Ownership Isolation', () => {
     assert.strictEqual(userBTrades.length, 0, 'User B must see zero trades of User A');
   });
 });
+
+// ----------------------------------------------------------------------------
+// 6. CLOUD MT5 DIRECT WEB LOGIN (NO DOWNLOAD / NO VPS)
+// ----------------------------------------------------------------------------
+describe('Cloud MT5 API: Direct Web Login (No Download)', () => {
+  test('Connects direct cloud account and seeds initial audit deals', async () => {
+    const { connectCloudAccount, getCloudOpenPositions } = require('../services/metaApiService');
+    const cloudRes = await connectCloudAccount(testUserA._id, {
+      serverName: 'ICMarketsSC-Demo',
+      login: 98765432,
+      password: 'investor_read_only_pw',
+      accountName: 'Cloud Demo Account',
+      tradeMode: 'demo'
+    });
+
+    assert.strictEqual(cloudRes.account.connectionMethod, 'cloud');
+    assert.strictEqual(cloudRes.account.status, 'connected');
+    assert.strictEqual(cloudRes.account.serverName, 'ICMarketsSC-Demo');
+    assert.strictEqual(cloudRes.account.login, 98765432);
+
+    // Verify deals were seeded into MT5Deal collection
+    const deals = await MT5Deal.find({ accountId: cloudRes.account._id });
+    assert.ok(deals.length > 0, 'Cloud account should have seeded deals');
+
+    const positions = getCloudOpenPositions(cloudRes.account);
+    assert.ok(positions.length > 0, 'Cloud account should stream active open positions');
+  });
+});
+

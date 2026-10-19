@@ -5,6 +5,11 @@ const MT5Position = require('../models/MT5Position');
 const MT5AuditLog = require('../models/MT5AuditLog');
 const Trade = require('../models/Trade');
 const { processDealsBatch } = require('../services/mt5SyncService');
+const {
+  connectCloudAccount,
+  syncCloudAccount,
+  getCloudOpenPositions
+} = require('../services/metaApiService');
 
 /**
  * In-memory store for currently active open positions snapshot per account
@@ -137,6 +142,56 @@ exports.exchangePairingCode = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * Direct Cloud Web Login (No download, no VPS, no EA needed)
+ * POST /api/mt5/cloud/connect
+ */
+exports.connectDirectCloudAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { serverName, login, password, accountName, tradeMode } = req.body;
+
+    if (!serverName || !login || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Broker Server, Login number, and Investor Password are required.'
+      });
+    }
+
+    const result = await connectCloudAccount(userId, {
+      serverName,
+      login,
+      password,
+      accountName,
+      tradeMode
+    });
+
+    await MT5AuditLog.create({
+      userId,
+      accountId: result.account._id,
+      event: 'cloud_account_connected',
+      details: {
+        serverName: result.account.serverName,
+        login: result.account.login,
+        method: 'cloud'
+      },
+      ipAddress: req.ip
+    });
+
+    res.status(200).json({
+      success: true,
+      account: result.account,
+      message: result.message
+    });
+  } catch (err) {
+    console.error('Error connecting Cloud MT5 account:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+
 
 // ----------------------------------------------------------------------------
 // 2. CONNECTOR INGESTION & TELEMETRY (HMAC AUTHENTICATED)
@@ -286,7 +341,14 @@ exports.getAccounts = async (req, res) => {
     const timeoutSec = Number(process.env.MT5_HEARTBEAT_TIMEOUT_SEC) || 30;
     const now = Date.now();
 
-    const accountsWithLiveStatus = accounts.map(acc => {
+    const accountsWithLiveStatus = await Promise.all(accounts.map(async acc => {
+      // Sync cloud account state if direct cloud connection
+      if (acc.connectionMethod === 'cloud' && acc.status === 'connected') {
+        try {
+          await syncCloudAccount(acc);
+        } catch (e) {}
+      }
+
       const accObj = acc.toObject();
       if (acc.lastHeartbeat) {
         const diffSec = (now - new Date(acc.lastHeartbeat).getTime()) / 1000;
@@ -299,7 +361,7 @@ exports.getAccounts = async (req, res) => {
         accObj.secondsSinceHeartbeat = null;
       }
       return accObj;
-    });
+    }));
 
     res.status(200).json({ success: true, accounts: accountsWithLiveStatus });
   } catch (err) {
@@ -321,8 +383,13 @@ exports.getOpenPositions = async (req, res) => {
     }
 
     const cached = activeOpenPositionsCache.get(account._id.toString());
-    const positions = cached ? cached.positions : [];
-    const updatedAt = cached ? cached.updatedAt : null;
+    let positions = cached ? cached.positions : [];
+    let updatedAt = cached ? cached.updatedAt : null;
+
+    if (positions.length === 0 && account.connectionMethod === 'cloud' && account.status === 'connected') {
+      positions = getCloudOpenPositions(account);
+      updatedAt = new Date();
+    }
 
     res.status(200).json({
       success: true,

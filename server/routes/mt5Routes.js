@@ -14,7 +14,8 @@ const {
   getPendingJournals,
   updateJournal,
   linkManualTrade,
-  disconnectAccount
+  disconnectAccount,
+  connectDirectCloudAccount
 } = require('../controllers/mt5Controller');
 
 // Global Feature Flag Middleware for MT5 Routes
@@ -45,6 +46,7 @@ router.post('/sync/reconciliation', verifyMT5Hmac, reconcileHistory);
 // ----------------------------------------------------------------------------
 // C. Trader Web Client Endpoints (User JWT Authenticated)
 // ----------------------------------------------------------------------------
+router.post('/cloud/connect', protect, connectDirectCloudAccount);
 router.get('/accounts', protect, getAccounts);
 router.get('/accounts/:id/positions', protect, getOpenPositions);
 router.get('/pending-journals', protect, getPendingJournals);

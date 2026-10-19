@@ -164,6 +164,7 @@ export const api = {
   askAiCoach: (payload) => request('/ai/chat', { method: 'POST', body: JSON.stringify(payload) }),
 
   // MetaTrader 5 (MT5) Integration
+  connectMT5CloudAccount: (payload) => request('/mt5/cloud/connect', { method: 'POST', body: JSON.stringify(payload) }),
   generateMT5PairingCode: () => request('/mt5/pair/generate', { method: 'POST' }),
   getMT5Accounts: () => request('/mt5/accounts'),
   getMT5OpenPositions: (id) => request(`/mt5/accounts/${id}/positions`),

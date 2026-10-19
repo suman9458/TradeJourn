@@ -102,6 +102,22 @@ const mt5AccountSchema = new mongoose.Schema(
       type: String,
       select: false
     },
+    // Cloud MT5 Direct Web Login Fields
+    connectionMethod: {
+      type: String,
+      enum: ['cloud', 'vps'],
+      default: 'cloud',
+      index: true
+    },
+    metaApiAccountId: {
+      type: String,
+      default: ''
+    },
+    investorPassword: {
+      type: String,
+      select: false,
+      default: ''
+    },
     isActive: {
       type: Boolean,
       default: true

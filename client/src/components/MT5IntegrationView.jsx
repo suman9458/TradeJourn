@@ -25,10 +25,31 @@ import {
   DollarSign,
   TrendingUp,
   Camera,
-  AlertOctagon
+  AlertOctagon,
+  Cloud,
+  CloudLightning,
+  Lock,
+  Globe,
+  Server,
+  Shield,
+  Eye,
+  EyeOff,
+  CheckCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { compressImageFile } from '../utils/imageHelper';
+
+// Popular broker presets for 1-click server selection
+const BROKER_PRESETS = [
+  { label: 'IC Markets Demo', server: 'ICMarketsSC-Demo', mode: 'demo' },
+  { label: 'IC Markets Live', server: 'ICMarketsSC-Live', mode: 'live' },
+  { label: 'Exness Real', server: 'Exness-MT5Real', mode: 'live' },
+  { label: 'Exness Trial', server: 'Exness-MT5Trial', mode: 'demo' },
+  { label: 'FTMO Challenge', server: 'FTMO-Demo', mode: 'demo' },
+  { label: 'FundedNext', server: 'FundedNext-Server', mode: 'demo' },
+  { label: 'Pepperstone', server: 'Pepperstone-Live', mode: 'live' },
+  { label: 'MetaQuotes Demo', server: 'MetaQuotes-Demo', mode: 'demo' }
+];
 
 export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [accounts, setAccounts] = useState([]);
@@ -40,7 +61,20 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
 
-  // Pairing State
+  // Cloud MT5 Direct Web Login State (No Download)
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [cloudForm, setCloudForm] = useState({
+    serverName: 'ICMarketsSC-Demo',
+    login: '',
+    password: '',
+    accountName: '',
+    tradeMode: 'demo'
+  });
+  const [connectingCloud, setConnectingCloud] = useState(false);
+  const [cloudError, setCloudError] = useState('');
+
+  // Pairing State (VPS)
   const [isPairingModalOpen, setIsPairingModalOpen] = useState(false);
   const [pairingCode, setPairingCode] = useState('');
   const [pairingExpiresAt, setPairingExpiresAt] = useState(null);
@@ -157,7 +191,56 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
   const activeAccount = accounts.find(a => a._id === selectedAccountId) || accounts[0] || null;
 
-  // Generate Pairing Code Flow
+  // Cloud Direct Web Login Flow (No Download)
+  const handleOpenCloudModal = () => {
+    setCloudError('');
+    setIsCloudModalOpen(true);
+  };
+
+  const handleConnectCloud = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setCloudError('');
+    if (!cloudForm.serverName.trim()) {
+      setCloudError('Please enter your broker server name (e.g. ICMarketsSC-Demo or Exness-MT5Real)');
+      return;
+    }
+    if (!cloudForm.login.toString().trim()) {
+      setCloudError('Please enter your MT5 account login number');
+      return;
+    }
+    if (!cloudForm.password.trim()) {
+      setCloudError('Please enter your MT5 Investor (read-only) Password');
+      return;
+    }
+
+    setConnectingCloud(true);
+    try {
+      const res = await api.connectMT5CloudAccount({
+        serverName: cloudForm.serverName.trim(),
+        login: cloudForm.login.toString().trim(),
+        password: cloudForm.password.trim(),
+        accountName: cloudForm.accountName.trim() || undefined,
+        tradeMode: cloudForm.tradeMode
+      });
+
+      if (res.success) {
+        setIsCloudModalOpen(false);
+        setToastMessage(`Connected MT5 Account #${res.account?.login || cloudForm.login} via Cloud API!`);
+        await fetchAccountsData();
+        if (res.account?._id) {
+          setSelectedAccountId(res.account._id);
+        }
+      } else {
+        setCloudError(res.message || 'Failed to connect MT5 cloud account.');
+      }
+    } catch (err) {
+      setCloudError(err.message || 'Connection failed. Please check your broker server and credentials.');
+    } finally {
+      setConnectingCloud(false);
+    }
+  };
+
+  // Generate Pairing Code Flow (VPS)
   const handleOpenPairing = async () => {
     setIsPairingModalOpen(true);
     setGeneratingCode(true);
@@ -369,12 +452,32 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           </button>
 
           <button
-            onClick={handleOpenPairing}
+            onClick={handleOpenCloudModal}
             className="btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', fontSize: '0.8rem', fontWeight: '700' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '7px 15px',
+              fontSize: '0.8rem',
+              fontWeight: '800',
+              background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+              boxShadow: '0 2px 10px rgba(6, 182, 212, 0.35)',
+              border: 'none'
+            }}
           >
-            <Zap size={14} />
-            <span>Pair MT5 Terminal</span>
+            <CloudLightning size={14} />
+            <span>Connect Cloud MT5</span>
+          </button>
+
+          <button
+            onClick={handleOpenPairing}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 13px', fontSize: '0.8rem', fontWeight: '700' }}
+            title="Self-Hosted VPS Connector"
+          >
+            <Terminal size={13} />
+            <span>VPS Pairing</span>
           </button>
 
           {activeAccount && (
@@ -423,10 +526,28 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             >
               {accounts.map(acc => (
                 <option key={acc._id} value={acc._id} style={{ background: '#111a2e', color: '#fff' }}>
-                  {acc.serverName} • #{acc.login} ({acc.tradeMode?.toUpperCase()})
+                  {acc.connectionMethod === 'cloud' ? '☁️ Cloud' : '🖥️ VPS'} • {acc.serverName} • #{acc.login} ({acc.tradeMode?.toUpperCase()})
                 </option>
               ))}
             </select>
+
+            {activeAccount && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                background: activeAccount.connectionMethod === 'cloud' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(168, 85, 247, 0.12)',
+                color: activeAccount.connectionMethod === 'cloud' ? 'var(--accent-cyan)' : 'var(--accent-purple)',
+                border: activeAccount.connectionMethod === 'cloud' ? '1px solid rgba(14, 165, 233, 0.3)' : '1px solid rgba(168, 85, 247, 0.3)',
+                fontSize: '0.72rem',
+                fontWeight: '800'
+              }}>
+                {activeAccount.connectionMethod === 'cloud' ? <Cloud size={12} /> : <Server size={12} />}
+                <span>{activeAccount.connectionMethod === 'cloud' ? 'Cloud API' : 'VPS Connector'}</span>
+              </span>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -503,28 +624,174 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           </div>
         </div>
       ) : (
-        /* Zero State: No Account Paired Yet */
+        /* Zero State: Choose Connection Method */
         <div style={{
-          padding: '36px 24px',
-          borderRadius: '16px',
+          marginBottom: '26px',
           background: 'var(--bg-card)',
-          border: '1px dashed rgba(56, 189, 248, 0.35)',
-          textAlign: 'center',
-          marginBottom: '24px'
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '16px',
+          padding: '28px 24px'
         }}>
-          <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: 'rgba(14, 165, 233, 0.12)', margin: '0 auto 16px', display: 'grid', placeItems: 'center', color: 'var(--accent-cyan)' }}>
-            <Cpu size={26} />
+          <div style={{ textAlign: 'center', maxWidth: '620px', margin: '0 auto 24px' }}>
+            <span style={{
+              fontSize: '0.72rem',
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--accent-cyan)',
+              background: 'rgba(14, 165, 233, 0.12)',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              border: '1px solid rgba(14, 165, 233, 0.3)'
+            }}>
+              Zero Software Download Required
+            </span>
+            <h3 style={{ margin: '12px 0 6px 0', fontSize: '1.45rem', fontWeight: '800', color: 'var(--text-white)' }}>
+              Connect Your MetaTrader 5 Account
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+              Choose how you want to bridge your MT5 broker to TradeJourn. We recommend Cloud Direct Web Login for instant 30-second connection without downloading any files or setting up a server.
+            </p>
           </div>
-          <h3 style={{ margin: '0 0 6px 0', fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-white)' }}>
-            No MetaTrader 5 Terminal Linked
-          </h3>
-          <p style={{ margin: '0 auto 18px', maxWidth: '480px', fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-            Connect your Windows VPS MetaTrader 5 terminal in 2 minutes. Our connector uses your read-only investor password to guarantee safety.
-          </p>
-          <button onClick={handleOpenPairing} className="btn-primary" style={{ padding: '9px 20px', fontSize: '0.88rem', fontWeight: '800' }}>
-            <Zap size={16} />
-            <span>Generate Pairing Code</span>
-          </button>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '16px' }}>
+            {/* Card 1: Cloud MT5 Direct Web Login (Primary / Recommended) */}
+            <div style={{
+              background: 'linear-gradient(145deg, rgba(14, 165, 233, 0.08) 0%, rgba(30, 41, 59, 0.7) 100%)',
+              border: '2px solid rgba(14, 165, 233, 0.4)',
+              borderRadius: '14px',
+              padding: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative',
+              boxShadow: '0 8px 24px rgba(14, 165, 233, 0.1)'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-10px',
+                right: '18px',
+                background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                color: '#fff',
+                fontSize: '0.66rem',
+                fontWeight: '900',
+                padding: '2px 10px',
+                borderRadius: '10px',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                boxShadow: '0 2px 8px rgba(6, 182, 212, 0.4)'
+              }}>
+                ⭐ Recommended
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.18)', display: 'grid', placeItems: 'center', color: 'var(--accent-cyan)' }}>
+                    <CloudLightning size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                      Cloud MT5 Web Login
+                    </h4>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontWeight: '700' }}>
+                      No Download • Direct Browser Login
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: '0 0 14px 0' }}>
+                  Enter your Broker Server &amp; Read-Only Investor Password. Your account connects instantly through our cloud bridge without installing any software or extensions.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--text-white)' }}>
+                    <CheckCircle size={14} color="var(--profit)" />
+                    <span>0 software downloads or extensions needed</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--text-white)' }}>
+                    <CheckCircle size={14} color="var(--profit)" />
+                    <span>100% Read-only investor password safety</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--profit)' }}>
+                    <CheckCircle size={14} color="var(--profit)" />
+                    <span>Instant telemetry &amp; live positions streaming</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleOpenCloudModal}
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.86rem',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+                  boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
+                }}
+              >
+                <CloudLightning size={16} />
+                <span>Connect Cloud MT5 (Instant)</span>
+              </button>
+            </div>
+
+            {/* Card 2: Self-Hosted Windows VPS Connector */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '14px',
+              padding: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--accent-purple)' }}>
+                    <Server size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                      Self-Hosted VPS Connector
+                    </h4>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-purple)', fontWeight: '700' }}>
+                      For Algo &amp; EA Dedicated Servers
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: '0 0 14px 0' }}>
+                  Run our open-source Python daemon directly inside your Windows VPS alongside your MT5 terminal using cryptographically signed HMAC pairing.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--text-white)' }}>
+                    <CheckCircle size={14} color="var(--accent-cyan)" />
+                    <span>Runs locally next to custom EAs &amp; scripts</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--accent-cyan)"' }}>
+                    <CheckCircle size={14} color="var(--accent-cyan)" />
+                    <span>Cryptographic HMAC-SHA256 signature</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>
+                    <CheckCircle size={14} color="var(--accent-cyan)" />
+                    <span>Zero open inbound firewall ports</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleOpenPairing}
+                className="btn-secondary"
+                style={{ width: '100%', justifyContent: 'center', padding: '10px', fontWeight: '800', fontSize: '0.86rem' }}
+              >
+                <Terminal size={15} />
+                <span>Pair VPS Terminal</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -696,6 +963,278 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           </table>
         </div>
       </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MODAL 0: Direct Cloud MT5 Web Login (No Download / No VPS)             */}
+      {/* ---------------------------------------------------------------------- */}
+      {isCloudModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '540px', padding: '26px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--accent-cyan)' }}>
+                  <CloudLightning size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                    Connect MT5 Cloud API
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--accent-cyan)', fontWeight: '700' }}>
+                    Direct Web Login • No Download • No VPS
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setIsCloudModalOpen(false)} className="btn-ghost" style={{ padding: '4px' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Fund Safety Guarantee Callout */}
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px'
+            }}>
+              <ShieldCheck size={18} color="var(--profit)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                <strong style={{ color: 'var(--profit)' }}>100% Fund Safety Guarantee:</strong>
+                <p style={{ margin: '3px 0 0 0' }}>
+                  Please enter your <strong>Investor (Read-Only) Password</strong>. TradeJourn can only read account balance and closed trade records. It is mathematically impossible to place trades or execute withdrawals.
+                </p>
+              </div>
+            </div>
+
+            {cloudError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                color: '#f87171',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <AlertTriangle size={15} />
+                <span>{cloudError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleConnectCloud}>
+              {/* Field 1: Broker Server */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Broker Server Name
+                </label>
+                <input
+                  type="text"
+                  value={cloudForm.serverName}
+                  onChange={e => setCloudForm({ ...cloudForm, serverName: e.target.value })}
+                  placeholder="e.g. ICMarketsSC-Demo or Exness-MT5Real"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-core)',
+                    color: '#fff',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: '0.86rem',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                />
+
+                {/* Quick Server Select Badges */}
+                <div style={{ marginTop: '8px' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Popular Broker Presets:
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {BROKER_PRESETS.map((bp) => (
+                      <button
+                        key={bp.server}
+                        type="button"
+                        onClick={() => setCloudForm({ ...cloudForm, serverName: bp.server, tradeMode: bp.mode })}
+                        style={{
+                          background: cloudForm.serverName === bp.server ? 'rgba(14, 165, 233, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                          border: cloudForm.serverName === bp.server ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                          color: cloudForm.serverName === bp.server ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                          fontSize: '0.7rem',
+                          fontWeight: '700',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {bp.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Field 2 & 3: Account Number & Password */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Account Login Number
+                  </label>
+                  <input
+                    type="number"
+                    value={cloudForm.login}
+                    onChange={e => setCloudForm({ ...cloudForm, login: e.target.value })}
+                    placeholder="e.g. 50123984"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-core)',
+                      color: '#fff',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.86rem',
+                      fontFamily: 'var(--font-mono)'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Investor Password
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={cloudForm.password}
+                      onChange={e => setCloudForm({ ...cloudForm, password: e.target.value })}
+                      placeholder="Read-only password"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px 36px 10px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--bg-core)',
+                        color: '#fff',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.86rem'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '2px'
+                      }}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Field 4 & 5: Trade Mode & Nickname */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Account Type
+                  </label>
+                  <select
+                    value={cloudForm.tradeMode}
+                    onChange={e => setCloudForm({ ...cloudForm, tradeMode: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-core)',
+                      color: '#fff',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.86rem'
+                    }}
+                  >
+                    <option value="demo">Demo Account</option>
+                    <option value="live">Live / Real Account</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Account Nickname (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={cloudForm.accountName}
+                    onChange={e => setCloudForm({ ...cloudForm, accountName: e.target.value })}
+                    placeholder="e.g. FTMO Challenge 100k"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-core)',
+                      color: '#fff',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.86rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsCloudModalOpen(false)}
+                  className="btn-secondary"
+                  style={{ padding: '9px 16px', fontSize: '0.84rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={connectingCloud}
+                  className="btn-primary"
+                  style={{
+                    padding: '9px 22px',
+                    fontSize: '0.86rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+                    boxShadow: '0 4px 16px rgba(6, 182, 212, 0.35)'
+                  }}
+                >
+                  {connectingCloud ? (
+                    <>
+                      <RefreshCw size={15} className="spin" />
+                      <span>Connecting to MT5 Cloud...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CloudLightning size={16} />
+                      <span>Connect MT5 Account</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ---------------------------------------------------------------------- */}
       {/* MODAL 1: Pair MT5 Terminal Code Modal                                  */}

@@ -815,7 +815,35 @@ export const TradesTableView = ({
                     </td>
 
                     <td style={{ fontWeight: '700', color: 'var(--text-white)' }}>
-                      {trade.tradeName}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                        <span>{trade.tradeName}</span>
+                        {trade.isFromMT5 && (
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: '800',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            background: 'rgba(14, 165, 233, 0.15)',
+                            color: 'var(--accent-cyan)',
+                            border: '1px solid rgba(14, 165, 233, 0.3)'
+                          }}>
+                            MT5 #{trade.mt5PositionId || ''}
+                          </span>
+                        )}
+                        {trade.mt5DataChanged && (
+                          <span style={{
+                            fontSize: '0.60rem',
+                            fontWeight: '800',
+                            padding: '1px 4px',
+                            borderRadius: '4px',
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            color: 'var(--warning)',
+                            border: '1px solid rgba(245, 158, 11, 0.3)'
+                          }}>
+                            Adjusted
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{trade.date} {trade.time}</td>
                     <td>

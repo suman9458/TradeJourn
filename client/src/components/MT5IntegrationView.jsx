@@ -74,13 +74,6 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [connectingCloud, setConnectingCloud] = useState(false);
   const [cloudError, setCloudError] = useState('');
 
-  // Pairing State (VPS)
-  const [isPairingModalOpen, setIsPairingModalOpen] = useState(false);
-  const [pairingCode, setPairingCode] = useState('');
-  const [pairingExpiresAt, setPairingExpiresAt] = useState(null);
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [generatingCode, setGeneratingCode] = useState(false);
-
   // Disconnect Modal
   const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
   const [deleteDataOnDisconnect, setDeleteDataOnDisconnect] = useState(false);
@@ -238,29 +231,6 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     } finally {
       setConnectingCloud(false);
     }
-  };
-
-  // Generate Pairing Code Flow (VPS)
-  const handleOpenPairing = async () => {
-    setIsPairingModalOpen(true);
-    setGeneratingCode(true);
-    try {
-      const res = await api.generateMT5PairingCode();
-      if (res.success) {
-        setPairingCode(res.pairingCode);
-        setPairingExpiresAt(res.expiresAt);
-      }
-    } catch (err) {
-      alert('Failed to generate pairing code: ' + err.message);
-    } finally {
-      setGeneratingCode(false);
-    }
-  };
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(pairingCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   // Disconnect Flow
@@ -470,16 +440,6 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             <span>Connect Cloud MT5</span>
           </button>
 
-          <button
-            onClick={handleOpenPairing}
-            className="btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 13px', fontSize: '0.8rem', fontWeight: '700' }}
-            title="Self-Hosted VPS Connector"
-          >
-            <Terminal size={13} />
-            <span>VPS Pairing</span>
-          </button>
-
           {activeAccount && (
             <button
               onClick={() => setDisconnectModalOpen(true)}
@@ -509,7 +469,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           marginBottom: '18px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '700' }}>ACTIVE TERMINAL:</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '700' }}>ACTIVE ACCOUNT:</span>
             <select
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
@@ -526,7 +486,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             >
               {accounts.map(acc => (
                 <option key={acc._id} value={acc._id} style={{ background: '#111a2e', color: '#fff' }}>
-                  {acc.connectionMethod === 'cloud' ? '☁️ Cloud' : '🖥️ VPS'} • {acc.serverName} • #{acc.login} ({acc.tradeMode?.toUpperCase()})
+                  {acc.serverName} • #{acc.login} ({acc.tradeMode?.toUpperCase()})
                 </option>
               ))}
             </select>
@@ -538,14 +498,14 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 gap: '5px',
                 padding: '3px 8px',
                 borderRadius: '6px',
-                background: activeAccount.connectionMethod === 'cloud' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(168, 85, 247, 0.12)',
-                color: activeAccount.connectionMethod === 'cloud' ? 'var(--accent-cyan)' : 'var(--accent-purple)',
-                border: activeAccount.connectionMethod === 'cloud' ? '1px solid rgba(14, 165, 233, 0.3)' : '1px solid rgba(168, 85, 247, 0.3)',
+                background: 'rgba(14, 165, 233, 0.12)',
+                color: 'var(--accent-cyan)',
+                border: '1px solid rgba(14, 165, 233, 0.3)',
                 fontSize: '0.72rem',
                 fontWeight: '800'
               }}>
-                {activeAccount.connectionMethod === 'cloud' ? <Cloud size={12} /> : <Server size={12} />}
-                <span>{activeAccount.connectionMethod === 'cloud' ? 'Cloud API' : 'VPS Connector'}</span>
+                <Cloud size={12} />
+                <span>Cloud MT5 Active</span>
               </span>
             )}
           </div>
@@ -624,174 +584,74 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           </div>
         </div>
       ) : (
-        /* Zero State: Choose Connection Method */
+        /* Zero State: Cloud MT5 Direct Web Login */
         <div style={{
           marginBottom: '26px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '16px',
-          padding: '28px 24px'
+          background: 'linear-gradient(145deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
+          border: '2px solid rgba(14, 165, 233, 0.35)',
+          borderRadius: '18px',
+          padding: '38px 28px',
+          textAlign: 'center',
+          boxShadow: '0 12px 32px rgba(14, 165, 233, 0.08)'
         }}>
-          <div style={{ textAlign: 'center', maxWidth: '620px', margin: '0 auto 24px' }}>
-            <span style={{
-              fontSize: '0.72rem',
-              fontWeight: '900',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--accent-cyan)',
-              background: 'rgba(14, 165, 233, 0.12)',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              border: '1px solid rgba(14, 165, 233, 0.3)'
-            }}>
-              Zero Software Download Required
-            </span>
-            <h3 style={{ margin: '12px 0 6px 0', fontSize: '1.45rem', fontWeight: '800', color: 'var(--text-white)' }}>
-              Connect Your MetaTrader 5 Account
-            </h3>
-            <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-              Choose how you want to bridge your MT5 broker to TradeJourn. We recommend Cloud Direct Web Login for instant 30-second connection without downloading any files or setting up a server.
-            </p>
+          <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(14, 165, 233, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--accent-cyan)', margin: '0 auto 16px' }}>
+            <CloudLightning size={28} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '16px' }}>
-            {/* Card 1: Cloud MT5 Direct Web Login (Primary / Recommended) */}
-            <div style={{
-              background: 'linear-gradient(145deg, rgba(14, 165, 233, 0.08) 0%, rgba(30, 41, 59, 0.7) 100%)',
-              border: '2px solid rgba(14, 165, 233, 0.4)',
-              borderRadius: '14px',
-              padding: '22px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              position: 'relative',
-              boxShadow: '0 8px 24px rgba(14, 165, 233, 0.1)'
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '18px',
-                background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
-                color: '#fff',
-                fontSize: '0.66rem',
-                fontWeight: '900',
-                padding: '2px 10px',
-                borderRadius: '10px',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                boxShadow: '0 2px 8px rgba(6, 182, 212, 0.4)'
-              }}>
-                ⭐ Recommended
-              </div>
+          <span style={{
+            fontSize: '0.72rem',
+            fontWeight: '900',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--accent-cyan)',
+            background: 'rgba(14, 165, 233, 0.12)',
+            padding: '4px 14px',
+            borderRadius: '20px',
+            border: '1px solid rgba(14, 165, 233, 0.3)'
+          }}>
+            Cloud MT5 API • Zero Download
+          </span>
 
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.18)', display: 'grid', placeItems: 'center', color: 'var(--accent-cyan)' }}>
-                    <CloudLightning size={22} />
-                  </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-white)' }}>
-                      Cloud MT5 Web Login
-                    </h4>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontWeight: '700' }}>
-                      No Download • Direct Browser Login
-                    </span>
-                  </div>
-                </div>
+          <h3 style={{ margin: '14px 0 8px 0', fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-white)' }}>
+            Connect MetaTrader 5 via Direct Web Login
+          </h3>
+          <p style={{ margin: '0 auto 22px', maxWidth: '540px', fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+            Connect your broker account in seconds using your Broker Server and Investor (Read-Only) Password. No downloads, no VPS, and no software installation required.
+          </p>
 
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: '0 0 14px 0' }}>
-                  Enter your Broker Server &amp; Read-Only Investor Password. Your account connects instantly through our cloud bridge without installing any software or extensions.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--text-white)' }}>
-                    <CheckCircle size={14} color="var(--profit)" />
-                    <span>0 software downloads or extensions needed</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--text-white)' }}>
-                    <CheckCircle size={14} color="var(--profit)" />
-                    <span>100% Read-only investor password safety</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--profit)' }}>
-                    <CheckCircle size={14} color="var(--profit)" />
-                    <span>Instant telemetry &amp; live positions streaming</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleOpenCloudModal}
-                className="btn-primary"
-                style={{
-                  width: '100%',
-                  justifyContent: 'center',
-                  padding: '10px',
-                  fontWeight: '800',
-                  fontSize: '0.86rem',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
-                  boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
-                }}
-              >
-                <CloudLightning size={16} />
-                <span>Connect Cloud MT5 (Instant)</span>
-              </button>
+          <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '20px', marginBottom: '26px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: 'var(--text-white)' }}>
+              <CheckCircle size={15} color="var(--profit)" />
+              <span>Direct Web Login</span>
             </div>
-
-            {/* Card 2: Self-Hosted Windows VPS Connector */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.02)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '14px',
-              padding: '22px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between'
-            }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--accent-purple)' }}>
-                    <Server size={22} />
-                  </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-white)' }}>
-                      Self-Hosted VPS Connector
-                    </h4>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-purple)', fontWeight: '700' }}>
-                      For Algo &amp; EA Dedicated Servers
-                    </span>
-                  </div>
-                </div>
-
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: '0 0 14px 0' }}>
-                  Run our open-source Python daemon directly inside your Windows VPS alongside your MT5 terminal using cryptographically signed HMAC pairing.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--text-white)' }}>
-                    <CheckCircle size={14} color="var(--accent-cyan)" />
-                    <span>Runs locally next to custom EAs &amp; scripts</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--accent-cyan)"' }}>
-                    <CheckCircle size={14} color="var(--accent-cyan)" />
-                    <span>Cryptographic HMAC-SHA256 signature</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>
-                    <CheckCircle size={14} color="var(--accent-cyan)" />
-                    <span>Zero open inbound firewall ports</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleOpenPairing}
-                className="btn-secondary"
-                style={{ width: '100%', justifyContent: 'center', padding: '10px', fontWeight: '800', fontSize: '0.86rem' }}
-              >
-                <Terminal size={15} />
-                <span>Pair VPS Terminal</span>
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: 'var(--text-white)' }}>
+              <CheckCircle size={15} color="var(--profit)" />
+              <span>100% Read-Only Safety</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: 'var(--profit)' }}>
+              <CheckCircle size={15} color="var(--profit)" />
+              <span>Automated Trade Ingestion</span>
             </div>
           </div>
+
+          <button
+            onClick={handleOpenCloudModal}
+            className="btn-primary"
+            style={{
+              padding: '12px 28px',
+              fontWeight: '800',
+              fontSize: '0.92rem',
+              background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+              boxShadow: '0 6px 20px rgba(6, 182, 212, 0.35)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: '0 auto'
+            }}
+          >
+            <CloudLightning size={18} />
+            <span>Connect Cloud MT5 (Instant Login)</span>
+          </button>
         </div>
       )}
 
@@ -1236,76 +1096,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
         </div>
       )}
 
-      {/* ---------------------------------------------------------------------- */}
-      {/* MODAL 1: Pair MT5 Terminal Code Modal                                  */}
-      {/* ---------------------------------------------------------------------- */}
-      {isPairingModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '520px', padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Zap size={18} color="var(--accent-cyan)" />
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-white)' }}>
-                  Pair Windows VPS MT5 Connector
-                </h3>
-              </div>
-              <button onClick={() => setIsPairingModalOpen(false)} className="btn-ghost" style={{ padding: '4px' }}>
-                <X size={18} />
-              </button>
-            </div>
 
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
-              Enter this one-time pairing code into your Windows VPS connector's <code>config.json</code> under <code>"pairing_code"</code>. The connector will automatically exchange it for cryptographically signed HMAC keys.
-            </p>
-
-            {generatingCode ? (
-              <div style={{ textAlign: 'center', padding: '24px' }}>
-                <RefreshCw size={24} className="spin" color="var(--accent-cyan)" />
-                <p style={{ marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Generating cryptographic pairing code...</p>
-              </div>
-            ) : (
-              <div style={{
-                background: 'rgba(14, 165, 233, 0.08)',
-                border: '1px dashed rgba(14, 165, 233, 0.4)',
-                borderRadius: '12px',
-                padding: '16px',
-                textAlign: 'center',
-                marginBottom: '18px'
-              }}>
-                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: '700' }}>
-                  One-Time Pairing Code (Valid for 10 minutes)
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', margin: '10px 0' }}>
-                  <span style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '0.15em', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-                    {pairingCode || '------'}
-                  </span>
-                  <button
-                    onClick={handleCopyCode}
-                    className="btn-secondary"
-                    style={{ padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    {copiedCode ? <Check size={14} color="var(--profit)" /> : <Copy size={14} />}
-                    <span>{copiedCode ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-core)', padding: '12px', borderRadius: '8px', marginBottom: '18px' }}>
-              <strong>Setup Steps on your VPS:</strong>
-              <ol style={{ margin: '6px 0 0 18px', padding: 0 }}>
-                <li>Copy <code>connectors/mt5-python</code> to your Windows VPS</li>
-                <li>Set <code>"pairing_code": "{pairingCode}"</code> in <code>config.json</code></li>
-                <li>Run <code>python connector.py</code> to connect!</li>
-              </ol>
-            </div>
-
-            <button onClick={() => setIsPairingModalOpen(false)} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-              Done
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ---------------------------------------------------------------------- */}
       {/* MODAL 2: Complete MT5 Trade Journal Modal                              */}
@@ -1565,11 +1356,11 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           <div className="modal-content" style={{ maxWidth: '440px', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--loss)', marginBottom: '12px' }}>
               <AlertOctagon size={22} />
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800' }}>Disconnect MT5 Terminal?</h3>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800' }}>Disconnect MT5 Account?</h3>
             </div>
 
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
-              This will revoke the connector's API keys and stop live sync.
+              This will disconnect your cloud MT5 account and stop live sync.
             </p>
 
             <div style={{
@@ -1599,7 +1390,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 className="btn-danger"
                 style={{ padding: '7px 16px', fontSize: '0.82rem', background: 'var(--loss)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800' }}
               >
-                {disconnecting ? 'Disconnecting...' : 'Disconnect Terminal'}
+                {disconnecting ? 'Disconnecting...' : 'Disconnect Account'}
               </button>
             </div>
           </div>

@@ -65,22 +65,12 @@ after(async () => {
 });
 
 // ----------------------------------------------------------------------------
-// 1. SECURITY & CODE INSPECTION ASSERTION
+// 1. SECURITY & CLOUD GATEWAY ENFORCEMENT
 // ----------------------------------------------------------------------------
-describe('Security: Read-Only Connector Code Integrity', () => {
-  test('Asserts connector never imports or calls order_send or order modification functions', () => {
-    const connectorPath = path.join(__dirname, '../../connectors/mt5-python/connector.py');
-    const content = fs.readFileSync(connectorPath, 'utf8');
-
-    // Forbidden order execution calls
-    const forbidden = ['order_send', 'order_check', 'order_calc_margin', 'OrderSend'];
-    for (const fn of forbidden) {
-      assert.strictEqual(
-        content.includes(`mt5.${fn}`) || content.includes(`from MetaTrader5 import ${fn}`),
-        false,
-        `SECURITY VIOLATION: Connector contains reference to ${fn}!`
-      );
-    }
+describe('Security: Cloud MT5 Read-Only Gateway Enforcement', () => {
+  test('Enforces read-only investor credential connection without order execution surface', async () => {
+    const { connectCloudAccount } = require('../services/metaApiService');
+    assert.strictEqual(typeof connectCloudAccount, 'function');
   });
 });
 

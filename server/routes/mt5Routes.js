@@ -3,8 +3,6 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { verifyMT5Hmac } = require('../middleware/mt5HmacAuth');
 const {
-  generatePairingCode,
-  exchangePairingCode,
   receiveHeartbeat,
   receiveOpenPositions,
   receiveDeals,
@@ -28,12 +26,6 @@ router.use((req, res, next) => {
   }
   next();
 });
-
-// ----------------------------------------------------------------------------
-// A. Connector Authentication & Pairing
-// ----------------------------------------------------------------------------
-router.post('/pair/generate', protect, generatePairingCode);
-router.post('/pair/exchange', exchangePairingCode);
 
 // ----------------------------------------------------------------------------
 // B. Connector Ingestion & Telemetry (HMAC-SHA256 Authenticated)

@@ -80,17 +80,6 @@ const mt5AccountSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
-    // One-time pairing credentials
-    pairingCode: {
-      type: String,
-      select: false,
-      default: null
-    },
-    pairingCodeExpiresAt: {
-      type: Date,
-      select: false,
-      default: null
-    },
     // Connector API authentication
     apiKeyId: {
       type: String,

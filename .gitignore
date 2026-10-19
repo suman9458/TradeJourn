@@ -20,9 +20,5 @@ client/.env.local
 
 *.log
 .DS_Store
-
-# Local connector runtime databases and configurations
-connectors/**/config.json
-connectors/**/outbox.db
 *.sqlite
 *.db

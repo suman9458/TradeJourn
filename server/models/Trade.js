@@ -174,7 +174,54 @@ const tradeSchema = new mongoose.Schema(
     winFlag: { type: Number, default: 1 },
     lossFlag: { type: Number, default: 0 },
     earlyExitFlag: { type: Number, default: 0 },
-    emotionalTradeFlag: { type: Number, default: 0 }
+    emotionalTradeFlag: { type: Number, default: 0 },
+    // MT5 Automated Integration Fields
+    mt5PositionId: {
+      type: Number,
+      default: null,
+      index: true
+    },
+    mt5AccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MT5Account',
+      default: null,
+      index: true
+    },
+    isFromMT5: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    journalStatus: {
+      type: String,
+      enum: ['pending', 'draft', 'completed'],
+      default: 'completed',
+      index: true
+    },
+    mt5DataChanged: {
+      type: Boolean,
+      default: false
+    },
+    lotSize: {
+      type: Number,
+      default: 0
+    },
+    commission: {
+      type: Number,
+      default: 0
+    },
+    swap: {
+      type: Number,
+      default: 0
+    },
+    entryPrice: {
+      type: Number,
+      default: 0
+    },
+    exitPrice: {
+      type: Number,
+      default: 0
+    }
   },
   {
     timestamps: true,

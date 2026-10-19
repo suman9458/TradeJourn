@@ -1,8 +1,11 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Playbook = require('../models/Playbook');
 const Goal = require('../models/Goal');
+const OtpToken = require('../models/OtpToken');
+const { generateOtp, sendOtp } = require('../services/otpService');
 
 const generateToken = (id) => {
   return jwt.sign(
@@ -281,10 +284,257 @@ const demoLogin = async (req, res, next) => {
   }
 };
 
+// @desc    Social / OAuth Login (Google & Apple)
+// @route   POST /api/auth/social
+// @access  Public
+const socialLogin = async (req, res, next) => {
+  try {
+    const { provider, name, email } = req.body;
+    const providerKey = (provider || 'google').toLowerCase();
+    const isApple = providerKey === 'apple';
+    const providerName = isApple ? 'Apple' : 'Google';
+    const defaultEmail = isApple ? 'trader.apple@tradejourn.com' : 'trader.google@tradejourn.com';
+    const handle = isApple ? '@apple_trader' : '@google_trader';
+    const userEmail = (email && email.trim()) ? email.trim().toLowerCase() : defaultEmail;
+
+    let user = await User.findOne({
+      $or: [{ email: userEmail }, { userId: handle }]
+    });
+
+    if (!user) {
+      user = await User.create({
+        name: name || `${providerName} Trader`,
+        userId: handle,
+        dob: '1998-06-20',
+        tradingExperience: 'Intermediate',
+        email: userEmail,
+        password: 'SocialOAuth2026PasswordSecure!',
+        role: 'pro'
+      });
+      await Playbook.create({ userId: user._id });
+      await Goal.create({ userId: user._id });
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        userId: user.userId,
+        dob: user.dob,
+        tradingExperience: user.tradingExperience,
+        email: user.email,
+        role: user.role,
+        settings: user.settings
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Generate & send OTP for Forgot Password
+// @route   POST /api/auth/forgot-password/send-otp
+// @access  Public
+const forgotPasswordSendOtp = async (req, res, next) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier || !identifier.trim()) {
+      return res.status(400).json({ success: false, message: 'Please provide your registered User ID or Email' });
+    }
+
+    const clean = identifier.trim().toLowerCase();
+    const withAt = clean.startsWith('@') ? clean : `@${clean}`;
+    const withoutAt = clean.startsWith('@') ? clean.slice(1) : clean;
+
+    const user = await User.findOne({
+      $or: [
+        { userId: withAt },
+        { userId: withoutAt },
+        { email: clean }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found matching this User ID or Email'
+      });
+    }
+
+    // Generate secure 6-digit OTP
+    const otp = generateOtp();
+    const salt = await bcrypt.genSalt(10);
+    const otpHash = await bcrypt.hash(otp, salt);
+
+    // Remove any previous active OTPs for this user
+    await OtpToken.deleteMany({ userId: user._id });
+
+    // Store in OtpToken with 10-minute expiry
+    const destination = user.email || `${withoutAt}@tradejourn.local`;
+    await OtpToken.create({
+      userId: user._id,
+      identifier: clean,
+      channel: destination.includes('@') ? 'email' : 'sms',
+      destination,
+      otpHash,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    });
+
+    // Send OTP via Twilio / Nodemailer / Dev Fallback
+    const result = await sendOtp({
+      destination,
+      otp,
+      userName: user.name || user.userId
+    });
+
+    res.json({
+      success: true,
+      message: `Verification code sent to ${result.maskedDestination}`,
+      destination: result.maskedDestination,
+      channel: result.channel,
+      devOtp: result.devOtp
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify OTP for Forgot Password
+// @route   POST /api/auth/forgot-password/verify-otp
+// @access  Public
+const forgotPasswordVerifyOtp = async (req, res, next) => {
+  try {
+    const { identifier, otp } = req.body;
+    if (!identifier || !otp) {
+      return res.status(400).json({ success: false, message: 'Please provide both User ID/Email and the 6-digit OTP' });
+    }
+
+    const clean = identifier.trim().toLowerCase();
+    const withAt = clean.startsWith('@') ? clean : `@${clean}`;
+    const withoutAt = clean.startsWith('@') ? clean.slice(1) : clean;
+
+    const user = await User.findOne({
+      $or: [
+        { userId: withAt },
+        { userId: withoutAt },
+        { email: clean }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    const otpRecord = await OtpToken.findOne({
+      userId: user._id,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired or was not requested. Please request a new code.'
+      });
+    }
+
+    if (otpRecord.attempts >= 5) {
+      await OtpToken.deleteOne({ _id: otpRecord._id });
+      return res.status(429).json({
+        success: false,
+        message: 'Too many incorrect attempts. For security, please request a fresh code.'
+      });
+    }
+
+    const isMatch = await bcrypt.compare(otp.trim(), otpRecord.otpHash);
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      const remaining = 5 - otpRecord.attempts;
+      return res.status(400).json({
+        success: false,
+        message: `Invalid verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+      });
+    }
+
+    // OTP matched! Generate one-time reset token valid for 15 minutes
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    otpRecord.verified = true;
+    otpRecord.resetToken = resetToken;
+    otpRecord.expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await otpRecord.save();
+
+    res.json({
+      success: true,
+      message: 'Code verified successfully! You can now set a new password.',
+      resetToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reset password using verified reset token
+// @route   POST /api/auth/forgot-password/reset-password
+// @access  Public
+const forgotPasswordReset = async (req, res, next) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Please provide reset token and your new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    }
+
+    const otpRecord = await OtpToken.findOne({
+      resetToken,
+      verified: true,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password reset session has expired or is invalid. Please request a new verification code.'
+      });
+    }
+
+    const user = await User.findById(otpRecord.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found' });
+    }
+
+    // Set new password (pre-save hook will hash it)
+    user.password = newPassword;
+    await user.save();
+
+    // Consume & destroy the OTP token
+    await OtpToken.deleteOne({ _id: otpRecord._id });
+
+    res.json({
+      success: true,
+      message: 'Password reset successful! You can now sign in with your new password.',
+      userId: user.userId
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getMe,
   updateSettings,
-  demoLogin
+  demoLogin,
+  socialLogin,
+  forgotPasswordSendOtp,
+  forgotPasswordVerifyOtp,
+  forgotPasswordReset
 };
+

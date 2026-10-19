@@ -6,7 +6,11 @@ const {
   loginUser,
   getMe,
   updateSettings,
-  demoLogin
+  demoLogin,
+  socialLogin,
+  forgotPasswordSendOtp,
+  forgotPasswordVerifyOtp,
+  forgotPasswordReset
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
@@ -25,6 +29,10 @@ const authLimiter = rateLimit({
 router.post('/register', authLimiter, registerUser);
 router.post('/login', authLimiter, loginUser);
 router.post('/demo', demoLogin);
+router.post('/social', authLimiter, socialLogin);
+router.post('/forgot-password/send-otp', authLimiter, forgotPasswordSendOtp);
+router.post('/forgot-password/verify-otp', authLimiter, forgotPasswordVerifyOtp);
+router.post('/forgot-password/reset-password', authLimiter, forgotPasswordReset);
 router.get('/me', protect, getMe);
 router.put('/settings', protect, updateSettings);
 

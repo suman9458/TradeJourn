@@ -41,7 +41,7 @@ const request = async (endpoint, options = {}, isRetry = false) => {
   let token = getToken();
   
   // For protected routes, ensure token exists before sending
-  if (!token && !endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/register') && !endpoint.startsWith('/auth/demo')) {
+  if (!token && !endpoint.startsWith('/auth')) {
     token = await ensureToken();
   }
 
@@ -114,6 +114,10 @@ export const api = {
   login: (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   register: (userData) => request('/auth/register', { method: 'POST', body: JSON.stringify(userData) }),
   demoLogin: () => request('/auth/demo', { method: 'POST' }),
+  socialLogin: (payload) => request('/auth/social', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPasswordSendOtp: (payload) => request('/auth/forgot-password/send-otp', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPasswordVerifyOtp: (payload) => request('/auth/forgot-password/verify-otp', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPasswordReset: (payload) => request('/auth/forgot-password/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
   getMe: () => request('/auth/me'),
   updateSettings: (payload) => {
     const body = (payload?.settings || payload?.name || payload?.dob || payload?.email || payload?.userId || payload?.tradingExperience)

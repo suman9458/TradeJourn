@@ -82,6 +82,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const socialLogin = async (payload) => {
+    setLoading(true);
+    try {
+      const data = await api.socialLogin(payload);
+      localStorage.setItem('tradejourn_token', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('tradejourn_token');
     setToken(null);
@@ -103,6 +116,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         demoLogin: switchDemo,
+        socialLogin,
         logout,
         updateUserSettings
       }}

@@ -1,6 +1,22 @@
 node_modules
 server/data
 client/dist
+
+# Environment variable secret files
 .env
+.env.local
+.env.development
+.env.production
+server/.env
+server/.env.local
+server/.env.development
+server/.env.production
+client/.env
+client/.env.local
+
+# Allow example templates in git
+!.env.example
+!server/.env.example
+
 *.log
 .DS_Store

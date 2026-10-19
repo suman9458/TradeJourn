@@ -1716,11 +1716,11 @@ export const ModernPipsDashboard = ({
           </div>
         </div>
 
-        {/* 2. Daily Performance (Pips) Calendar Heatmap */}
+        {/* 2. Daily Performance (Profit) Calendar Heatmap */}
         <div className="modern-panel daily-pips-panel">
           <div className="panel-top-bar">
             <div>
-              <h3>Daily Pips</h3>
+              <h3>Daily Profit</h3>
               <p className="panel-sub">Day-by-day distribution</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

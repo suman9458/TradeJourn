@@ -67,41 +67,41 @@ async function processDealsBatch(account, userId, deals) {
     const timeUTC = rawDeal.timeUTC ? new Date(rawDeal.timeUTC) : new Date();
 
     // 1. Idempotently insert raw deal record
+    const existingDeal = await MT5Deal.findOne({ accountId: account._id, dealTicket });
+    if (existingDeal) {
+      // Deal already processed and aggregated; skip to guarantee strict idempotency
+      continue;
+    }
+
     let dealRecord;
     try {
-      dealRecord = await MT5Deal.findOneAndUpdate(
-        { accountId: account._id, dealTicket },
-        {
-          $setOnInsert: {
-            accountId: account._id,
-            userId,
-            dealTicket,
-            orderTicket: Number(rawDeal.orderTicket) || 0,
-            positionId,
-            symbol,
-            normalizedSymbol: normSymbol,
-            type,
-            entry,
-            volume,
-            price,
-            timeBroker,
-            timeUTC,
-            profit,
-            commission,
-            swap,
-            fee,
-            magic: Number(rawDeal.magic) || 0,
-            comment: rawDeal.comment || '',
-            reason: rawDeal.reason || '',
-            rawPayload: rawDeal.rawPayload || rawDeal
-          }
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      dealRecord = await MT5Deal.create({
+        accountId: account._id,
+        userId,
+        dealTicket,
+        orderTicket: Number(rawDeal.orderTicket) || 0,
+        positionId,
+        symbol,
+        normalizedSymbol: normSymbol,
+        type,
+        entry,
+        volume,
+        price,
+        timeBroker,
+        timeUTC,
+        profit,
+        commission,
+        swap,
+        fee,
+        magic: Number(rawDeal.magic) || 0,
+        comment: rawDeal.comment || '',
+        reason: rawDeal.reason || '',
+        rawPayload: rawDeal.rawPayload || rawDeal
+      });
       insertedCount++;
     } catch (err) {
       if (err.code === 11000) {
-        // Already processed
+        // Unique constraint race condition safety
         continue;
       }
       throw err;

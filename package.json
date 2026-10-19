@@ -10,6 +10,9 @@
     "client": "npm --prefix client run dev",
     "dev": "concurrently -k \"node --watch-path=server/routes --watch-path=server/controllers --watch-path=server/models --watch-path=server/middleware --watch-path=server/config --watch-path=server/utils --watch-path=server/server.js server/server.js\" \"npm --prefix client run dev\"",
     "build": "npm --prefix client install --include=dev && npm --prefix client run build && npm --prefix server install",
+    "test": "npm --prefix server test",
+    "migrate:up": "npm --prefix server run migrate:up",
+    "migrate:down": "npm --prefix server run migrate:down",
     "start": "node server/server.js"
   },
   "devDependencies": {

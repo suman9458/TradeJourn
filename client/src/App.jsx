@@ -12,6 +12,7 @@ import { AICoachView } from './components/AICoachView';
 import { ReviewsView } from './components/ReviewsView';
 import { GoalsView } from './components/GoalsView';
 import { TradesTableView } from './components/TradesTableView';
+import { MT5IntegrationView } from './components/MT5IntegrationView';
 import { QuickAddTradeModal } from './components/QuickAddTradeModal';
 import { ResetDatasetModal } from './components/ResetDatasetModal';
 import { ExportPDFModal } from './components/ExportPDFModal';
@@ -248,11 +249,11 @@ const DashboardContent = () => {
           )}
 
           {activeTab === 'ai-coach' && (
-            <AICoachView />
+            <AICoachView trades={allTrades} />
           )}
 
           {activeTab === 'reviews' && (
-            <ReviewsView reviews={reviews} />
+            <ReviewsView reviews={reviews} trades={allTrades} />
           )}
 
 
@@ -266,6 +267,10 @@ const DashboardContent = () => {
               onTradeDeleted={handleRefresh}
               title="Database Views & Complete Trade Ledger"
             />
+          )}
+
+          {activeTab === 'mt5' && (
+            <MT5IntegrationView trades={allTrades} stats={stats} />
           )}
         </ErrorBoundary>
       </main>

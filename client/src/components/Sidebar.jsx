@@ -12,6 +12,7 @@ import {
   Settings,
   ShieldCheck,
   Zap,
+  Cpu,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -26,7 +27,8 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
     { id: 'ai-coach', label: 'AI Trading Coach', icon: Bot, badge: 'PRO' },
     { id: 'reviews', label: 'Performance Reviews', icon: CalendarCheck },
     { id: 'goals', label: 'Prop Goals & Milestones', icon: Target },
-    { id: 'database', label: 'Database Ledger', icon: Database }
+    { id: 'database', label: 'Database Ledger', icon: Database },
+    { id: 'mt5', label: 'MT5 Integration', icon: Cpu, badge: 'NEW' }
   ];
 
   const discipline = Math.round(stats?.disciplineScoreAverage || 0);

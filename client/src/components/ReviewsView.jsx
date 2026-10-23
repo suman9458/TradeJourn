@@ -554,30 +554,30 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
       </div>
 
       <div style={{ display: 'grid', gap: '22px' }}>
-        {/* 2. Top 5 KPI Cards (2nd Image Top Row) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
+        {/* 2. Top 5 KPI Cards (Responsive 2x2+1 grid on mobile) */}
+        <div className="reviews-kpi-grid">
           <div className="kpi-card neutral">
-            <div className="kpi-top"><span>Period Volume</span><span>📊</span></div>
+            <div className="kpi-top"><span>Period Volume</span><span className="kpi-emoji">📊</span></div>
             <div className="kpi-value">{reviewData.tradeCount || 0}</div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>Completed executions</p>
           </div>
           <div className="kpi-card positive">
-            <div className="kpi-top"><span>Realized Win Rate</span><span>📈</span></div>
+            <div className="kpi-top"><span>Realized Win Rate</span><span className="kpi-emoji">📈</span></div>
             <div className="kpi-value">{(reviewData.winRate || 0).toFixed(1)}%</div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>Target hit consistency</p>
           </div>
           <div className={`kpi-card ${totalProfitUSD >= 0 ? 'positive' : 'negative'}`}>
-            <div className="kpi-top"><span>Net Period Profit</span><span>💰</span></div>
+            <div className="kpi-top"><span>Net Period Profit</span><span className="kpi-emoji">💰</span></div>
             <div className="kpi-value">{formatUSD(totalProfitUSD)}</div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>{formatUSD(avgProfitUSD)} avg / trade</p>
           </div>
           <div className="kpi-card positive">
-            <div className="kpi-top"><span>Discipline Rating</span><span>⭐</span></div>
+            <div className="kpi-top"><span>Discipline Rating</span><span className="kpi-emoji">⭐</span></div>
             <div className="kpi-value">{Math.round(reviewData.avgDiscipline || 100)}/100</div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>Process compliance</p>
           </div>
           <div className="kpi-card warning">
-            <div className="kpi-top"><span>Early Exit Drag</span><span>⏱️</span></div>
+            <div className="kpi-top"><span>Early Exit Drag</span><span className="kpi-emoji">⏱️</span></div>
             <div className="kpi-value">{reviewData.earlyExits || 0} ({(reviewData.earlyExitPct || 0).toFixed(0)}%)</div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>Unrealized edge</p>
           </div>

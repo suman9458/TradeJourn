@@ -190,7 +190,7 @@ export const AICoachView = ({ trades = [] }) => {
 
       {/* Live AI Coach Chat */}
       <div className="dashboard-panel">
-        <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+        <div className="panel-header ai-coach-top-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={20} color="var(--accent-cyan)" />
             <h3 style={{ margin: 0 }}>AI Coach</h3>
@@ -202,7 +202,7 @@ export const AICoachView = ({ trades = [] }) => {
           </div>
 
           {/* Model Choose Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="ai-coach-model-picker">
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '700', whiteSpace: 'nowrap' }}>Choose Model:</span>
             <select
               value={model}
@@ -275,7 +275,7 @@ export const AICoachView = ({ trades = [] }) => {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '14px', alignItems: 'end' }}>
+            <div className="ai-coach-admin-key-row">
               <label>
                 <span>{provider === 'gemini' ? 'Google Gemini API Key (Global for all users)' : 'OpenAI API Key (Global for all users)'}</span>
                 <input

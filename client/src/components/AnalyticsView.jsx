@@ -311,7 +311,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
 
   return (
     <div style={{ display: 'grid', gap: '22px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '22px' }}>
+      <div className="analytics-grid-two-col">
         
         {/* Setup Analysis */}
         <div className="dashboard-panel" style={{ marginBottom: 0 }}>
@@ -420,7 +420,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '22px' }}>
+      <div className="analytics-grid-two-col">
         {/* Bias Alignment */}
         <div className="dashboard-panel" style={{ marginBottom: 0 }}>
           <div className="panel-header">

@@ -522,7 +522,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
       {/* 3. Account Capital & Margin Metrics Cards */}
       {activeAccount ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+        <div className="mt5-kpi-grid" style={{ marginBottom: '22px' }}>
           <div className="kpi-card neutral">
             <div className="kpi-top">
               <span>Account Balance</span>

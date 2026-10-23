@@ -776,6 +776,28 @@ button:active {
   gap: 22px;
 }
 
+/* Table Header Responsive Helpers */
+.th-mobile {
+  display: none;
+}
+.th-desktop {
+  display: inline;
+}
+
+.analytics-winrate-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analytics-cat-name {
+  color: var(--text-white, #f0f6fc);
+}
+
+[data-theme="light"] .analytics-cat-name {
+  color: #0f172a;
+}
+
 .kpi-icon {
   width: 28px;
   height: 28px;
@@ -1587,6 +1609,124 @@ label {
 
   .winrate-bar-track {
     width: 32px !important;
+  }
+
+  /* Deep Analytics: Responsive 6-Column Mobile Layout (Zero Truncation) */
+  .th-desktop {
+    display: none !important;
+  }
+  .th-mobile {
+    display: inline !important;
+  }
+
+  .analytics-table-responsive {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+  }
+
+  .analytics-table-responsive .analytics-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 0.69rem !important;
+  }
+
+  .analytics-table-responsive th {
+    padding: 6px 2px !important;
+    font-size: 0.61rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    white-space: nowrap !important;
+  }
+
+  .analytics-table-responsive td {
+    padding: 6px 2px !important;
+    font-size: 0.68rem !important;
+    vertical-align: middle !important;
+  }
+
+  /* Column 1: Category / Rating / Session / Emotion / Mistake */
+  .analytics-table th:nth-child(1),
+  .analytics-table td:nth-child(1) {
+    width: 26% !important;
+    text-align: left !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.15 !important;
+    position: static !important;
+    box-shadow: none !important;
+    padding-left: 2px !important;
+  }
+
+  /* Column 2: Trades / Freq */
+  .analytics-table th:nth-child(2),
+  .analytics-table td:nth-child(2) {
+    width: 12% !important;
+    text-align: center !important;
+    padding: 6px 2px !important;
+  }
+
+  /* Column 3: Win% */
+  .analytics-table th:nth-child(3),
+  .analytics-table td:nth-child(3) {
+    width: 15% !important;
+    text-align: center !important;
+    padding: 6px 2px !important;
+  }
+
+  /* Column 4: Pips */
+  .analytics-table th:nth-child(4),
+  .analytics-table td:nth-child(4) {
+    width: 14% !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+    padding: 6px 2px !important;
+  }
+
+  /* Column 5: Avg $ */
+  .analytics-table th:nth-child(5),
+  .analytics-table td:nth-child(5) {
+    width: 16% !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+    padding: 6px 2px !important;
+  }
+
+  /* Column 6: Net $ */
+  .analytics-table th:nth-child(6),
+  .analytics-table td:nth-child(6) {
+    width: 17% !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+    padding: 6px 2px !important;
+  }
+
+  /* Hide progress bar track on mobile to allow compact percentage */
+  .analytics-table .winrate-bar-track {
+    display: none !important;
+  }
+
+  .analytics-table .analytics-winrate-cell {
+    justify-content: center !important;
+    gap: 0 !important;
+  }
+
+  .analytics-table .pill-grade {
+    font-size: 0.64rem !important;
+    padding: 2px 4px !important;
+    display: inline-block !important;
+  }
+
+  .analytics-table .badge {
+    font-size: 0.62rem !important;
+    padding: 2px 4px !important;
+    display: inline-block !important;
   }
 
   /* Database Views & Complete Trade Ledger */

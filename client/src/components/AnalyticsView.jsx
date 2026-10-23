@@ -321,16 +321,34 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
               Setup Quality & Expectancy
             </h3>
           </div>
-          <div className="table-responsive">
-            <table>
+          <div className="table-responsive analytics-table-responsive">
+            <table className="analytics-table">
               <thead>
                 <tr>
-                  <th>Setup Rating</th>
-                  <th>Trades</th>
-                  <th>Win Rate</th>
-                  <th>Avg Pips</th>
-                  <th>Avg Profit ($)</th>
-                  <th>Net Profit ($)</th>
+                  <th>
+                    <span className="th-desktop">Setup Rating</span>
+                    <span className="th-mobile">Rating</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Trades</span>
+                    <span className="th-mobile">Trades</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Win Rate</span>
+                    <span className="th-mobile">Win%</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Pips</span>
+                    <span className="th-mobile">Pips</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Profit ($)</span>
+                    <span className="th-mobile">Avg $</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Net Profit ($)</span>
+                    <span className="th-mobile">Net $</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -343,7 +361,7 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     </td>
                     <td style={{ fontWeight: '600' }}>{s.count}</td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="analytics-winrate-cell">
                         <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${s.winRate}%`, background: s.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
                         </div>
@@ -376,25 +394,43 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
               Session Liquidity & Performance
             </h3>
           </div>
-          <div className="table-responsive">
-            <table>
+          <div className="table-responsive analytics-table-responsive">
+            <table className="analytics-table">
               <thead>
                 <tr>
-                  <th>Session</th>
-                  <th>Trades</th>
-                  <th>Win Rate</th>
-                  <th>Avg Pips</th>
-                  <th>Avg Profit ($)</th>
-                  <th>Net Profit ($)</th>
+                  <th>
+                    <span className="th-desktop">Session</span>
+                    <span className="th-mobile">Session</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Trades</span>
+                    <span className="th-mobile">Trades</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Win Rate</span>
+                    <span className="th-mobile">Win%</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Pips</span>
+                    <span className="th-mobile">Pips</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Profit ($)</span>
+                    <span className="th-mobile">Avg $</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Net Profit ($)</span>
+                    <span className="th-mobile">Net $</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {sessionStats.map((s, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: '700', color: 'var(--text-white)' }}>{s.session}</td>
+                    <td className="analytics-cat-name" style={{ fontWeight: '700' }}>{s.session}</td>
                     <td style={{ fontWeight: '600' }}>{s.count}</td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="analytics-winrate-cell">
                         <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${s.winRate}%`, background: s.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
                         </div>
@@ -429,16 +465,34 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
               Market Bias Execution
             </h3>
           </div>
-          <div className="table-responsive">
-            <table>
+          <div className="table-responsive analytics-table-responsive">
+            <table className="analytics-table">
               <thead>
                 <tr>
-                  <th>Bias</th>
-                  <th>Trades</th>
-                  <th>Win Rate</th>
-                  <th>Avg Pips</th>
-                  <th>Avg Profit ($)</th>
-                  <th>Net Profit ($)</th>
+                  <th>
+                    <span className="th-desktop">Bias</span>
+                    <span className="th-mobile">Bias</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Trades</span>
+                    <span className="th-mobile">Trades</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Win Rate</span>
+                    <span className="th-mobile">Win%</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Pips</span>
+                    <span className="th-mobile">Pips</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Profit ($)</span>
+                    <span className="th-mobile">Avg $</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Net Profit ($)</span>
+                    <span className="th-mobile">Net $</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -450,8 +504,15 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                       </span>
                     </td>
                     <td style={{ fontWeight: '600' }}>{b.count}</td>
-                    <td style={{ color: b.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
-                      {b.winRate.toFixed(1)}%
+                    <td>
+                      <div className="analytics-winrate-cell">
+                        <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${b.winRate}%`, background: b.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
+                        </div>
+                        <span style={{ color: b.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
+                          {b.winRate.toFixed(1)}%
+                        </span>
+                      </div>
                     </td>
                     <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
                       {b.avgPips >= 0 ? '+' : ''}{b.avgPips}
@@ -477,27 +538,52 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
               Trader Emotional State Matrix
             </h3>
           </div>
-          <div className="table-responsive">
-            <table>
+          <div className="table-responsive analytics-table-responsive">
+            <table className="analytics-table">
               <thead>
                 <tr>
-                  <th>Emotion</th>
-                  <th>Count</th>
-                  <th>Win Rate</th>
-                  <th>Avg Pips</th>
-                  <th>Avg Profit ($)</th>
-                  <th>Net Profit ($)</th>
+                  <th>
+                    <span className="th-desktop">Emotion</span>
+                    <span className="th-mobile">Emotion</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Count</span>
+                    <span className="th-mobile">Count</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Win Rate</span>
+                    <span className="th-mobile">Win%</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Pips</span>
+                    <span className="th-mobile">Pips</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Profit ($)</span>
+                    <span className="th-mobile">Avg $</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Net Profit ($)</span>
+                    <span className="th-mobile">Net $</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {emotionStats.map((e, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: '600', color: ['Fear', 'FOMO', 'Revenge', 'Greed'].includes(e.emotion) ? 'var(--loss)' : 'var(--text-white)' }}>
+                    <td className="analytics-cat-name" style={{ fontWeight: '600', color: ['Fear', 'FOMO', 'Revenge', 'Greed'].includes(e.emotion) ? 'var(--loss)' : undefined }}>
                       {e.emotion}
                     </td>
-                    <td>{e.count}</td>
-                    <td style={{ color: e.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
-                      {e.winRate.toFixed(1)}%
+                    <td style={{ fontWeight: '600' }}>{e.count}</td>
+                    <td>
+                      <div className="analytics-winrate-cell">
+                        <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${e.winRate}%`, background: e.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
+                        </div>
+                        <span style={{ color: e.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
+                          {e.winRate.toFixed(1)}%
+                        </span>
+                      </div>
                     </td>
                     <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
                       {e.avgPips >= 0 ? '+' : ''}{e.avgPips}
@@ -529,16 +615,34 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
             </p>
           </div>
         </div>
-        <div className="table-responsive">
-          <table>
+        <div className="table-responsive analytics-table-responsive">
+          <table className="analytics-table">
             <thead>
               <tr>
-                <th>Mistake Category</th>
-                <th>Frequency</th>
-                <th>Win Rate</th>
-                <th>Avg Pips</th>
-                <th>Avg Drain ($)</th>
-                <th>Cumulative P&L Drain ($)</th>
+                <th>
+                  <span className="th-desktop">Mistake Category</span>
+                  <span className="th-mobile">Mistake</span>
+                </th>
+                <th>
+                  <span className="th-desktop">Frequency</span>
+                  <span className="th-mobile">Freq</span>
+                </th>
+                <th>
+                  <span className="th-desktop">Win Rate</span>
+                  <span className="th-mobile">Win%</span>
+                </th>
+                <th>
+                  <span className="th-desktop">Avg Pips</span>
+                  <span className="th-mobile">Pips</span>
+                </th>
+                <th>
+                  <span className="th-desktop">Avg Drain ($)</span>
+                  <span className="th-mobile">Avg $</span>
+                </th>
+                <th>
+                  <span className="th-desktop">Cumulative P&L Drain ($)</span>
+                  <span className="th-mobile">Total $</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -553,8 +657,15 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                   <tr key={idx}>
                     <td style={{ fontWeight: '700', color: 'var(--loss)' }}>{m.mistake}</td>
                     <td style={{ fontWeight: '600' }}>{m.count}</td>
-                    <td style={{ color: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
-                      {m.winRate.toFixed(1)}%
+                    <td>
+                      <div className="analytics-winrate-cell">
+                        <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${m.winRate}%`, background: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
+                        </div>
+                        <span style={{ color: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
+                          {m.winRate.toFixed(1)}%
+                        </span>
+                      </div>
                     </td>
                     <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
                       {m.avgPips >= 0 ? '+' : ''}{m.avgPips}

@@ -25,7 +25,21 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const app = express();
 
 // Security and compression middlewares for high scalability
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com', 'https:'],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        connectSrc: ["'self'", 'https:', 'http:', 'ws:', 'wss:']
+      }
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 app.use(compression());
 app.use(
   cors({

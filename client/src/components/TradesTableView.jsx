@@ -1110,6 +1110,7 @@ export const TradesTableView = ({
                   <img
                     src={selectedTrade.screenshotUrl || selectedTrade.imageUrl}
                     alt="Trade Chart Setup"
+                    crossOrigin="anonymous"
                     style={{
                       width: '100%',
                       maxHeight: '320px',
@@ -1177,6 +1178,7 @@ export const TradesTableView = ({
             <img
               src={selectedTrade.screenshotUrl || selectedTrade.imageUrl}
               alt="Trade Chart Setup Enlarged"
+              crossOrigin="anonymous"
               style={{
                 maxWidth: '90vw',
                 maxHeight: '88vh',
@@ -1234,6 +1236,8 @@ export const TradesTableView = ({
                   <a
                     href={activeChartTrade.screenshotUrl || activeChartTrade.imageUrl}
                     download={`trade-chart-${Date.now()}.png`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="btn-ghost"
                     title="Download Chart Screenshot"
                     style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
@@ -1287,6 +1291,7 @@ export const TradesTableView = ({
                   <img
                     src={activeChartTrade.screenshotUrl || activeChartTrade.imageUrl}
                     alt="Trade Chart"
+                    crossOrigin="anonymous"
                     style={{
                       maxWidth: '92vw',
                       maxHeight: '82vh',

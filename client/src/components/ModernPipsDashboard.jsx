@@ -1944,6 +1944,8 @@ export const ModernPipsDashboard = ({
                   <a
                     href={activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl}
                     download={`trade-chart-${Date.now()}.png`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="btn-ghost"
                     title="Download Chart Screenshot"
                     style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
@@ -1998,6 +2000,7 @@ export const ModernPipsDashboard = ({
                   <img
                     src={activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl}
                     alt="Trade Chart Setup"
+                    crossOrigin="anonymous"
                     style={{
                       maxWidth: '92vw',
                       maxHeight: '82vh',

@@ -3,7 +3,7 @@
  * Scales high-resolution trading charts & screenshots down to optimal storage size
  * while preserving crystal-clear price action and candlestick details.
  */
-
+import { api } from '../services/api';
 export const compressImageFile = (file, maxWidth = 1600, maxHeight = 1600, quality = 0.85) => {
   return new Promise((resolve, reject) => {
     if (!file) return resolve('');
@@ -71,4 +71,41 @@ export const compressImageFile = (file, maxWidth = 1600, maxHeight = 1600, quali
     reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
   });
+};
+
+/**
+ * Compresses an image and uploads it to Cloudinary CDN via the backend.
+ * Returns the CDN URL (or data URL fallback if offline / unconfigured).
+ */
+export const processAndUploadChartImage = async (fileOrUrl) => {
+  if (!fileOrUrl) return '';
+
+  // If already an HTTP/HTTPS URL (e.g. TradingView link or existing Cloudinary URL), return directly
+  if (typeof fileOrUrl === 'string' && (fileOrUrl.startsWith('http://') || fileOrUrl.startsWith('https://'))) {
+    return fileOrUrl;
+  }
+
+  // Optimize and compress locally in browser first
+  let dataUrl;
+  try {
+    dataUrl = typeof fileOrUrl === 'string' ? fileOrUrl : await compressImageFile(fileOrUrl);
+  } catch (compressErr) {
+    console.warn('Image compression warning, using raw input:', compressErr);
+    dataUrl = fileOrUrl;
+  }
+
+  // Upload to Cloudinary via server API
+  try {
+    if (api && typeof api.uploadImage === 'function') {
+      const res = await api.uploadImage(dataUrl);
+      if (res && res.success && res.url) {
+        return res.url;
+      }
+    }
+  } catch (uploadErr) {
+    console.warn('Cloudinary upload notice (fallback to inline data):', uploadErr?.message || uploadErr);
+  }
+
+  // Safe fallback to dataUrl
+  return dataUrl;
 };

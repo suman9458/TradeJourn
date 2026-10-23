@@ -173,5 +173,15 @@ export const api = {
   disconnectMT5Account: (id, deleteData = false) => request(`/mt5/accounts/${id}?deleteData=${deleteData}`, { method: 'DELETE' }),
 
   // Health
-  checkHealth: () => request('/health')
+  checkHealth: () => request('/health'),
+
+  // Cloudinary Image Storage
+  uploadImage: (base64OrDataUrl) => request('/upload/image', {
+    method: 'POST',
+    body: JSON.stringify({ image: base64OrDataUrl })
+  }),
+  deleteUploadedImage: (publicId) => request('/upload/image', {
+    method: 'DELETE',
+    body: JSON.stringify({ publicId })
+  })
 };

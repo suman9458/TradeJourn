@@ -20,6 +20,7 @@ const playbookRoutes = require('./routes/playbookRoutes');
 const goalRoutes = require('./routes/goalRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const mt5Routes = require('./routes/mt5Routes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use('/api/playbook', playbookRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/mt5', mt5Routes);
+app.use('/api/upload', uploadRoutes);
 
 // Root route handler: Redirect to frontend dev server or serve production build
 const clientDistPath = path.join(__dirname, '../client/dist');

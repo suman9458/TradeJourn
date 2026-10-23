@@ -37,7 +37,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { api } from '../services/api';
-import { compressImageFile } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
 
 // Popular broker presets for 1-click server selection
 const BROKER_PRESETS = [
@@ -318,8 +318,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           if (file) {
             e.preventDefault();
             try {
-              const dataUrl = await compressImageFile(file);
-              setJournalForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+              const cdnUrl = await processAndUploadChartImage(file);
+              setJournalForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
             } catch (err) {
               console.warn('Paste failed:', err);
             }

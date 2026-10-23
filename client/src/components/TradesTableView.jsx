@@ -3,7 +3,7 @@ import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X,
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportTradeHistoryPDF } from '../utils/exportPDF';
-import { compressImageFile } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
 
 import { getTradeTakeProfitUSD } from './ModernPipsDashboard';
 
@@ -143,12 +143,9 @@ export const TradesTableView = ({
     if (!targetTrade) return;
     try {
       setUploadingChart(true);
-      let dataUrl = fileOrUrl;
-      if (typeof fileOrUrl !== 'string') {
-        dataUrl = await compressImageFile(fileOrUrl);
-      }
-      const updated = { ...targetTrade, screenshotUrl: dataUrl, imageUrl: dataUrl };
-      await api.updateTrade(targetTrade._id, { screenshotUrl: dataUrl, imageUrl: dataUrl });
+      const cdnUrl = await processAndUploadChartImage(fileOrUrl);
+      const updated = { ...targetTrade, screenshotUrl: cdnUrl, imageUrl: cdnUrl };
+      await api.updateTrade(targetTrade._id, { screenshotUrl: cdnUrl, imageUrl: cdnUrl });
       setActiveChartTrade(updated);
       setTrades(prev => prev.map(t => t._id === targetTrade._id ? updated : t));
       setMasterTrades(prev => prev.map(t => t._id === targetTrade._id ? updated : t));
@@ -180,9 +177,9 @@ export const TradesTableView = ({
     if (!file || !selectedTrade) return;
     try {
       setUpdatingImage(true);
-      const dataUrl = await compressImageFile(file);
-      const updated = { ...selectedTrade, screenshotUrl: dataUrl, imageUrl: dataUrl };
-      await api.updateTrade(selectedTrade._id, { screenshotUrl: dataUrl, imageUrl: dataUrl });
+      const cdnUrl = await processAndUploadChartImage(file);
+      const updated = { ...selectedTrade, screenshotUrl: cdnUrl, imageUrl: cdnUrl };
+      await api.updateTrade(selectedTrade._id, { screenshotUrl: cdnUrl, imageUrl: cdnUrl });
       setSelectedTrade(updated);
       setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
       setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));

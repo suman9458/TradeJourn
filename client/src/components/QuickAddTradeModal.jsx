@@ -17,7 +17,7 @@ import {
   Eye
 } from 'lucide-react';
 import { api } from '../services/api';
-import { compressImageFile } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
 
 const emotionalRiskList = ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Frustrated', 'Anxious', 'Overconfident'];
 
@@ -75,8 +75,8 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
             e.preventDefault();
             try {
               setIsCompressing(true);
-              const dataUrl = await compressImageFile(file);
-              setForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+              const cdnUrl = await processAndUploadChartImage(file);
+              setForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
             } catch (err) {
               console.warn('Clipboard image compression failed:', err);
             } finally {
@@ -97,8 +97,8 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
     if (!file) return;
     try {
       setIsCompressing(true);
-      const dataUrl = await compressImageFile(file);
-      setForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+      const cdnUrl = await processAndUploadChartImage(file);
+      setForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
     } catch (err) {
       setError(err.message || 'Failed to process image');
     } finally {
@@ -124,8 +124,8 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
     if (!file) return;
     try {
       setIsCompressing(true);
-      const dataUrl = await compressImageFile(file);
-      setForm(prev => ({ ...prev, screenshotUrl: dataUrl }));
+      const cdnUrl = await processAndUploadChartImage(file);
+      setForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
     } catch (err) {
       setError(err.message || 'Failed to process dropped image');
     } finally {

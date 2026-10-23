@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import richRiskImg from '../assets/rich-risk.jpg';
 import { TradesTableView } from './TradesTableView';
 import { api } from '../services/api';
-import { compressImageFile } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
 import {
   BarChart2,
   TrendingUp,
@@ -199,12 +199,9 @@ export const ModernPipsDashboard = ({
     if (!targetTrade) return;
     try {
       setUploadingDashboardChart(true);
-      let dataUrl = fileOrUrl;
-      if (typeof fileOrUrl !== 'string') {
-        dataUrl = await compressImageFile(fileOrUrl);
-      }
-      const updated = { ...targetTrade, screenshotUrl: dataUrl, imageUrl: dataUrl };
-      await api.updateTrade(targetTrade._id, { screenshotUrl: dataUrl, imageUrl: dataUrl });
+      const cdnUrl = await processAndUploadChartImage(fileOrUrl);
+      const updated = { ...targetTrade, screenshotUrl: cdnUrl, imageUrl: cdnUrl };
+      await api.updateTrade(targetTrade._id, { screenshotUrl: cdnUrl, imageUrl: cdnUrl });
       setActiveDashboardChartTrade(updated);
       onTradeUpdated && onTradeUpdated();
     } catch (err) {

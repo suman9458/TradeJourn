@@ -162,6 +162,21 @@ body {
   }
 }
 
+@media (max-width: 1024px) {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+
+  body {
+    background-attachment: scroll !important;
+  }
+}
+
 [data-theme="light"] body {
   background-color: var(--bg-core);
   background-image: 
@@ -1121,13 +1136,30 @@ label {
 
 /* 2. Tablet & Large Mobile Breakpoint (769px - 1024px) */
 @media (max-width: 1024px) {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+
+  body {
+    background-attachment: scroll !important;
+  }
+
   .app-container {
-    display: block;
-    width: 100%;
-    max-width: 100vw;
-    height: auto;
-    max-height: none;
-    overflow-x: hidden;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    touch-action: pan-y !important;
   }
 
   /* Slide-Out Drawer Navigation */
@@ -1220,9 +1252,13 @@ label {
   }
 
   .main-wrapper {
-    height: auto;
-    max-height: none;
-    overflow-y: visible;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
     padding: 16px 16px 60px;
     width: 100%;
     box-sizing: border-box;
@@ -1245,8 +1281,32 @@ label {
 
 /* 3. Mobile Phones (< 768px) */
 @media (max-width: 768px) {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+
+  body {
+    background-attachment: scroll !important;
+  }
+
+  .app-container {
+    overflow-y: visible !important;
+  }
+
   .main-wrapper {
-    padding: 12px 12px 70px;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    padding: 12px 12px max(80px, calc(env(safe-area-inset-bottom, 20px) + 60px)) !important;
     width: 100%;
     box-sizing: border-box;
   }
@@ -1543,27 +1603,43 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .modal-overlay {
+    padding: 10px 8px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    align-items: flex-start !important;
+    padding-top: max(16px, env(safe-area-inset-top, 16px)) !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+  }
+
   .modal-content {
-    padding: 18px 14px;
-    border-radius: var(--radius-md);
-    max-width: 96vw;
-    max-height: 92vh;
+    padding: 18px 14px !important;
+    border-radius: var(--radius-md) !important;
+    max-width: 96vw !important;
+    width: 100% !important;
+    max-height: calc(100dvh - 32px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .modal-header {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+    padding-bottom: 12px !important;
   }
 }
 
-/* 4. Small Phones (< 400px) */
-@media (max-width: 400px) {
-  .kpi-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
+/* 4. Small Phones & Compact Viewports (< 540px) */
+@media (max-width: 540px) {
   .topbar-pdf-btn .pdf-btn-label {
     display: none !important;
   }
 
   .topbar-pdf-btn {
     width: 34px !important;
+    min-width: 34px !important;
     padding: 0 !important;
     justify-content: center !important;
   }
@@ -1574,8 +1650,21 @@ label {
 
   .navbar-theme-btn {
     width: 34px !important;
+    min-width: 34px !important;
     padding: 0 !important;
     justify-content: center !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+}
+
+@media (max-width: 380px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }
 
@@ -1641,9 +1730,80 @@ label {
 }
 
 @media (max-width: 930px) {
+  .auth-ultra-container {
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
+    align-items: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding: 16px 12px 48px;
+  }
+
   .auth-split-card {
     grid-template-columns: 1fr;
     max-width: 560px;
+    min-height: auto;
+    border-radius: 18px;
+    margin: 0 auto;
+  }
+
+  .auth-hero-showcase {
+    min-height: 250px;
+    padding: 24px 20px 20px;
+  }
+
+  .hero-slogan-heading {
+    font-size: 1.8rem;
+  }
+
+  .slogan-script-glow {
+    font-size: 2.7rem;
+    line-height: 1;
+  }
+
+  .auth-form-column {
+    padding: 24px 18px 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-ultra-container {
+    padding: 10px 8px 36px;
+  }
+
+  .auth-hero-showcase {
+    min-height: 200px;
+    padding: 16px 14px 14px;
+  }
+
+  .hero-slogan-heading {
+    font-size: 1.45rem;
+  }
+
+  .slogan-script-glow {
+    font-size: 2.1rem;
+    margin: 0 4px;
+  }
+
+  .hero-slogan-sub {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    margin-top: 10px;
+  }
+
+  .hero-features-row {
+    margin-bottom: 12px;
+    gap: 6px;
+  }
+
+  .auth-main-heading {
+    font-size: 1.4rem;
+  }
+
+  .auth-form-column {
+    padding: 18px 12px 24px;
   }
 }
 
@@ -3782,6 +3942,22 @@ input::-ms-clear {
   .banner-art-wrap {
     display: none;
   }
+  .modern-hero-banner {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .banner-left-content {
+    padding: 18px 16px !important;
+  }
+  .modern-brand-title {
+    font-size: 1.45rem !important;
+  }
+  .modern-brand-tagline {
+    font-size: 0.65rem !important;
+    letter-spacing: 0.15em !important;
+  }
 }
 
 /* Zero State Quick Starter Card */
@@ -4135,12 +4311,14 @@ select option {
 .chart-canvas-wrap {
   position: relative;
   width: 100%;
+  touch-action: pan-y;
 }
 
 .chart-svg {
   width: 100%;
   height: auto;
   display: block;
+  touch-action: pan-y;
 }
 
 .monthly-bar-item {
@@ -4289,11 +4467,13 @@ select option {
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  touch-action: pan-y;
 }
 
 .donut-canvas svg {
   width: 100%;
   height: 100%;
+  touch-action: pan-y;
 }
 
 .donut-legend-col {
@@ -4408,11 +4588,13 @@ select option {
   width: 140px;
   height: 140px;
   flex-shrink: 0;
+  touch-action: pan-y;
 }
 
 .donut-canvas-asset svg {
   width: 100%;
   height: 100%;
+  touch-action: pan-y;
 }
 
 .asset-legend-list {
@@ -4528,10 +4710,13 @@ select option {
 .modern-table-wrap {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
 }
 
 .modern-table {
   width: 100%;
+  min-width: 480px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -4646,6 +4831,27 @@ select option {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .calendar-days-grid,
+  .calendar-weekdays-header {
+    gap: 3px !important;
+  }
+
+  .calendar-day-cell {
+    min-height: 32px !important;
+    border-radius: 4px !important;
+    padding: 1px !important;
+  }
+
+  .calendar-day-cell .day-number {
+    font-size: 0.62rem !important;
+  }
+
+  .calendar-day-cell .day-profit-text {
+    font-size: 0.46rem !important;
+  }
 }
 
 .calendar-day-cell {

@@ -320,54 +320,54 @@ const computeAiEdgeConclusion = (tradesList = []) => {
           <strong>{lowDisciplineCount} trades ({lowDisciplinePct}%)</strong> breached execution discipline (&lt; 75 compliance score), driven by <strong>{topNegativeEmotion}</strong> and <strong>{earlyExitCount} premature trade terminations</strong>. Unplanned impulse entries and premature stop-loss adjustments generate unnecessary equity drawdowns.
         </>
       )
-    },
-    {
-      num: 4,
-      title: 'Actionable AI Avoidance Protocol & Execution Matrix',
-      tag: 'Mandatory Capital Shield',
-      icon: '🚫',
-      risk: true,
-      fullWidth: true,
-      desc: (
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <div className="ai-avoidance-boxes-grid">
-            <div className="ai-avoidance-pill session">
-              <div className="ai-avoidance-pill-header">
-                <span className="pill-badge">🚫 SESSIONS TO AVOID</span>
-              </div>
-              <div className="ai-avoidance-pill-val">{worstSessionName} Session</div>
-              <div className="ai-avoidance-pill-stat">
-                {worstSessionWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstSessionProfit)}</span>
-              </div>
-            </div>
-
-            <div className="ai-avoidance-pill day">
-              <div className="ai-avoidance-pill-header">
-                <span className="pill-badge">🚫 DAYS TO AVOID</span>
-              </div>
-              <div className="ai-avoidance-pill-val">{worstDayName}s</div>
-              <div className="ai-avoidance-pill-stat">
-                {worstDayWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstDayProfit)}</span>
-              </div>
-            </div>
-
-            <div className="ai-avoidance-pill setup">
-              <div className="ai-avoidance-pill-header">
-                <span className="pill-badge">🚫 SETUPS TO AVOID</span>
-              </div>
-              <div className="ai-avoidance-pill-val">{worstSetupName}</div>
-              <div className="ai-avoidance-pill-stat">
-                {worstSetupWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstSetupProfit)}</span>
-              </div>
-            </div>
-          </div>
-          <p className="ai-box-desc" style={{ marginTop: '4px' }}>
-            <strong>Institutional Capital Rule:</strong> Enforce an absolute trading blackout during <strong>{worstSessionName} session</strong> and maintain flat exposure on <strong>{worstDayName}s</strong>. Blacklist all <strong>{worstSetupName}</strong> opportunities to immediately eliminate ~80% of systemic equity drawdowns.
-          </p>
-        </div>
-      )
     }
   ];
+
+  const avoidanceProtocol = {
+    title: 'Actionable AI Avoidance Protocol & Execution Matrix',
+    tag: 'Mandatory Capital Shield',
+    icon: '🚫',
+    risk: true,
+    fullWidth: true,
+    desc: (
+      <div style={{ display: 'grid', gap: '12px' }}>
+        <div className="ai-avoidance-boxes-grid">
+          <div className="ai-avoidance-pill session">
+            <div className="ai-avoidance-pill-header">
+              <span className="pill-badge">🚫 SESSIONS TO AVOID</span>
+            </div>
+            <div className="ai-avoidance-pill-val">{worstSessionName} Session</div>
+            <div className="ai-avoidance-pill-stat">
+              {worstSessionWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstSessionProfit)}</span>
+            </div>
+          </div>
+
+          <div className="ai-avoidance-pill day">
+            <div className="ai-avoidance-pill-header">
+              <span className="pill-badge">🚫 DAYS TO AVOID</span>
+            </div>
+            <div className="ai-avoidance-pill-val">{worstDayName}s</div>
+            <div className="ai-avoidance-pill-stat">
+              {worstDayWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstDayProfit)}</span>
+            </div>
+          </div>
+
+          <div className="ai-avoidance-pill setup">
+            <div className="ai-avoidance-pill-header">
+              <span className="pill-badge">🚫 SETUPS TO AVOID</span>
+            </div>
+            <div className="ai-avoidance-pill-val">{worstSetupName}</div>
+            <div className="ai-avoidance-pill-stat">
+              {worstSetupWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstSetupProfit)}</span>
+            </div>
+          </div>
+        </div>
+        <p className="ai-box-desc" style={{ marginTop: '4px' }}>
+          <strong>Institutional Capital Rule:</strong> Enforce an absolute trading blackout during <strong>{worstSessionName} session</strong> and maintain flat exposure on <strong>{worstDayName}s</strong>. Blacklist all <strong>{worstSetupName}</strong> opportunities to immediately eliminate ~80% of systemic equity drawdowns.
+        </p>
+      </div>
+    )
+  };
 
   return {
     totalTrades: total || 8,
@@ -386,7 +386,8 @@ const computeAiEdgeConclusion = (tradesList = []) => {
     disciplineDisplayCount,
     disciplinePct,
     points,
-    riskPoints
+    riskPoints,
+    avoidanceProtocol
   };
 };
 
@@ -582,6 +583,25 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
           </div>
         </div>
 
+        {/* Actionable AI Avoidance Protocol & Execution Matrix (Directly below KPI cards) */}
+        {analysisData.avoidanceProtocol && (
+          <div className="ai-topic-box risk full-width">
+            <div>
+              <div className="ai-box-header">
+                <div className="ai-box-badge-row">
+                  <div className="ai-box-icon risk">{analysisData.avoidanceProtocol.icon}</div>
+                  <h5 className="ai-box-title">{analysisData.avoidanceProtocol.title}</h5>
+                </div>
+                <span className="ai-box-tag risk">{analysisData.avoidanceProtocol.tag}</span>
+              </div>
+            </div>
+
+            <div className="ai-box-desc" style={{ marginTop: '10px' }}>
+              {analysisData.avoidanceProtocol.desc}
+            </div>
+          </div>
+        )}
+
         {/* PART 1: Statistical Expectation & AI Edge Diagnosis (Dedicated Topic Boxes) */}
         <div className="ai-section-container">
           <div className="ai-section-header">
@@ -638,7 +658,7 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
           </div>
         </div>
 
-        {/* PART 2: Risk Leakage, Behavioral Friction & Avoidance Protocol (Dedicated Topic Boxes) */}
+        {/* PART 2: Risk Leakage & Behavioral Friction Diagnostics (Dedicated Topic Boxes) */}
         <div className="ai-section-container">
           <div className="ai-section-header risk">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -647,7 +667,7 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
               </div>
               <div>
                 <h4 className="ai-section-title">
-                  Risk Leakage, Behavioral Friction & Avoidance Protocol
+                  Risk Leakage & Behavioral Friction Diagnostics
                 </h4>
                 <span className="ai-section-subtitle risk">
                   🛡️ Capital Protection Protocol • Weakness Detection & Elimination Audit
@@ -655,7 +675,7 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
               </div>
             </div>
             <div className="ai-expectancy-badge negative">
-              ⚠️ Capital Leakage & Avoidance Strategy
+              ⚠️ Capital Leakage & Risk Audit
             </div>
           </div>
 

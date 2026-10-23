@@ -423,18 +423,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
           <button
             onClick={handleOpenCloudModal}
-            className="btn-primary"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '7px',
-              padding: '7px 15px',
-              fontSize: '0.8rem',
-              fontWeight: '800',
-              background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
-              boxShadow: '0 2px 10px rgba(6, 182, 212, 0.35)',
-              border: 'none'
-            }}
+            className="btn-cloud-connect"
+            style={{ border: 'none' }}
           >
             <CloudLightning size={14} />
             <span>Connect Cloud MT5</span>
@@ -474,9 +464,9 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-white)',
+                background: 'var(--bg-core)',
+                border: '1px solid var(--border-medium)',
+                color: 'var(--text-primary)',
                 padding: '6px 12px',
                 borderRadius: '8px',
                 fontSize: '0.84rem',
@@ -485,7 +475,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               }}
             >
               {accounts.map(acc => (
-                <option key={acc._id} value={acc._id} style={{ background: '#111a2e', color: '#fff' }}>
+                <option key={acc._id} value={acc._id} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
                   {acc.serverName} • #{acc.login} ({acc.tradeMode?.toUpperCase()})
                 </option>
               ))}
@@ -585,50 +575,32 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
         </div>
       ) : (
         /* Zero State: Cloud MT5 Direct Web Login */
-        <div style={{
-          marginBottom: '26px',
-          background: 'linear-gradient(145deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
-          border: '2px solid rgba(14, 165, 233, 0.35)',
-          borderRadius: '18px',
-          padding: '38px 28px',
-          textAlign: 'center',
-          boxShadow: '0 12px 32px rgba(14, 165, 233, 0.08)'
-        }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(14, 165, 233, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--accent-cyan)', margin: '0 auto 16px' }}>
+        <div className="cloud-mt5-hero-card">
+          <div className="cloud-mt5-hero-icon">
             <CloudLightning size={28} />
           </div>
 
-          <span style={{
-            fontSize: '0.72rem',
-            fontWeight: '900',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: 'var(--accent-cyan)',
-            background: 'rgba(14, 165, 233, 0.12)',
-            padding: '4px 14px',
-            borderRadius: '20px',
-            border: '1px solid rgba(14, 165, 233, 0.3)'
-          }}>
+          <span className="cloud-mt5-hero-badge">
             Cloud MT5 API • Zero Download
           </span>
 
-          <h3 style={{ margin: '14px 0 8px 0', fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-white)' }}>
+          <h3 className="cloud-mt5-hero-title">
             Connect MetaTrader 5 via Direct Web Login
           </h3>
-          <p style={{ margin: '0 auto 22px', maxWidth: '540px', fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+          <p className="cloud-mt5-hero-desc">
             Connect your broker account in seconds using your Broker Server and Investor (Read-Only) Password. No downloads, no VPS, and no software installation required.
           </p>
 
-          <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '20px', marginBottom: '26px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: 'var(--text-white)' }}>
+          <div className="cloud-mt5-hero-features">
+            <div className="cloud-mt5-hero-feature-item">
               <CheckCircle size={15} color="var(--profit)" />
               <span>Direct Web Login</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: 'var(--text-white)' }}>
+            <div className="cloud-mt5-hero-feature-item">
               <CheckCircle size={15} color="var(--profit)" />
               <span>100% Read-Only Safety</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: 'var(--profit)' }}>
+            <div className="cloud-mt5-hero-feature-item">
               <CheckCircle size={15} color="var(--profit)" />
               <span>Automated Trade Ingestion</span>
             </div>
@@ -636,18 +608,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
           <button
             onClick={handleOpenCloudModal}
-            className="btn-primary"
-            style={{
-              padding: '12px 28px',
-              fontWeight: '800',
-              fontSize: '0.92rem',
-              background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
-              boxShadow: '0 6px 20px rgba(6, 182, 212, 0.35)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: '0 auto'
-            }}
+            className="cloud-mt5-hero-btn"
           >
             <CloudLightning size={18} />
             <span>Connect Cloud MT5 (Instant Login)</span>
@@ -904,8 +865,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                     padding: '10px 12px',
                     borderRadius: '8px',
                     background: 'var(--bg-core)',
-                    color: '#fff',
-                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-medium)',
                     fontSize: '0.86rem',
                     fontFamily: 'var(--font-mono)'
                   }}
@@ -922,16 +883,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                         key={bp.server}
                         type="button"
                         onClick={() => setCloudForm({ ...cloudForm, serverName: bp.server, tradeMode: bp.mode })}
-                        style={{
-                          background: cloudForm.serverName === bp.server ? 'rgba(14, 165, 233, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                          border: cloudForm.serverName === bp.server ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
-                          color: cloudForm.serverName === bp.server ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                          fontSize: '0.7rem',
-                          fontWeight: '700',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          cursor: 'pointer'
-                        }}
+                        className={`broker-preset-btn ${cloudForm.serverName === bp.server ? 'active' : ''}`}
                       >
                         {bp.label}
                       </button>
@@ -957,8 +909,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       padding: '10px 12px',
                       borderRadius: '8px',
                       background: 'var(--bg-core)',
-                      color: '#fff',
-                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-medium)',
                       fontSize: '0.86rem',
                       fontFamily: 'var(--font-mono)'
                     }}
@@ -981,8 +933,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                         padding: '10px 36px 10px 12px',
                         borderRadius: '8px',
                         background: 'var(--bg-core)',
-                        color: '#fff',
-                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-medium)',
                         fontSize: '0.86rem'
                       }}
                     />
@@ -1021,8 +973,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       padding: '10px 12px',
                       borderRadius: '8px',
                       background: 'var(--bg-core)',
-                      color: '#fff',
-                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-medium)',
                       fontSize: '0.86rem'
                     }}
                   >
@@ -1045,8 +997,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       padding: '10px 12px',
                       borderRadius: '8px',
                       background: 'var(--bg-core)',
-                      color: '#fff',
-                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-medium)',
                       fontSize: '0.86rem'
                     }}
                   />
@@ -1066,16 +1018,11 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <button
                   type="submit"
                   disabled={connectingCloud}
-                  className="btn-primary"
+                  className="btn-cloud-connect"
                   style={{
                     padding: '9px 22px',
                     fontSize: '0.86rem',
-                    fontWeight: '800',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
-                    boxShadow: '0 4px 16px rgba(6, 182, 212, 0.35)'
+                    border: 'none'
                   }}
                 >
                   {connectingCloud ? (
@@ -1118,8 +1065,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
             {/* Read-Only Verified MT5 Broker Data Strip */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-core)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '10px',
               padding: '12px 14px',
               display: 'grid',
@@ -1156,7 +1103,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <select
                   value={journalForm.setupRating}
                   onChange={e => setJournalForm({ ...journalForm, setupRating: e.target.value })}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: '#fff', border: '1px solid var(--border-subtle)' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
                 >
                   <option value="A+">A+ (Highest Conviction)</option>
                   <option value="A">A (Standard Edge)</option>
@@ -1174,7 +1121,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <select
                   value={journalForm.session}
                   onChange={e => setJournalForm({ ...journalForm, session: e.target.value })}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: '#fff', border: '1px solid var(--border-subtle)' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
                 >
                   <option value="London">London Session</option>
                   <option value="New York">New York Session</option>
@@ -1190,7 +1137,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <select
                   value={journalForm.emotion}
                   onChange={e => setJournalForm({ ...journalForm, emotion: e.target.value })}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: '#fff', border: '1px solid var(--border-subtle)' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
                 >
                   <option value="Calm">Calm &amp; Objective</option>
                   <option value="Confident">Confident</option>
@@ -1208,7 +1155,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <select
                   value={journalForm.marketCondition}
                   onChange={e => setJournalForm({ ...journalForm, marketCondition: e.target.value })}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: '#fff', border: '1px solid var(--border-subtle)' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
                 >
                   <option value="Trending">Trending Cleanly</option>
                   <option value="Ranging">Ranging / Consolidating</option>
@@ -1228,7 +1175,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 value={journalForm.notes}
                 onChange={e => setJournalForm({ ...journalForm, notes: e.target.value })}
                 placeholder="What was the entry trigger? Why did you enter or exit at this level?"
-                style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: '#fff', border: '1px solid var(--border-subtle)', fontSize: '0.82rem' }}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-core)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)', fontSize: '0.82rem' }}
               />
             </div>
 
@@ -1320,7 +1267,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <select
                 value={selectedManualTradeId}
                 onChange={e => setSelectedManualTradeId(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', background: 'var(--bg-core)', color: '#fff', border: '1px solid var(--border-subtle)', fontSize: '0.82rem' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', background: 'var(--bg-core)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)', fontSize: '0.82rem' }}
               >
                 <option value="">-- Choose matching trade --</option>
                 {manualTrades.map(t => (

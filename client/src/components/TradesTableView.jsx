@@ -536,7 +536,7 @@ export const TradesTableView = ({
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
+            <div className="gallery-grid">
               {trades.map(trade => {
                 const hasImg = Boolean(trade.screenshotUrl || trade.imageUrl);
                 const isWin = trade.result === 'WIN';
@@ -545,44 +545,16 @@ export const TradesTableView = ({
                   <div
                     key={trade._id}
                     onClick={() => setSelectedTrade(trade)}
-                    style={{
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '12px',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'var(--border-bright)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
+                    className="gallery-trade-card"
                   >
                     {/* Chart Banner */}
-                    <div
-                      style={{
-                        height: '170px',
-                        position: 'relative',
-                        background: '#04080e',
-                        borderBottom: '1px solid var(--border-subtle)',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
+                    <div className="gallery-chart-box">
                       {hasImg ? (
                         <>
                           <img
                             src={trade.screenshotUrl || trade.imageUrl}
                             alt={trade.tradeName}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            className="gallery-chart-img"
                           />
                           <button
                             type="button"
@@ -591,22 +563,7 @@ export const TradesTableView = ({
                               setActiveChartTrade(trade);
                             }}
                             title="Click to view chart (only chart)"
-                            style={{
-                              position: 'absolute',
-                              bottom: '8px',
-                              right: '8px',
-                              background: 'rgba(3, 6, 11, 0.85)',
-                              border: '1px solid rgba(255, 255, 255, 0.2)',
-                              borderRadius: '6px',
-                              color: '#ffffff',
-                              padding: '4px 8px',
-                              fontSize: '0.72rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              backdropFilter: 'blur(4px)'
-                            }}
+                            className="gallery-view-chart-btn"
                           >
                             <Maximize2 size={12} /> View Chart
                           </button>
@@ -617,25 +574,25 @@ export const TradesTableView = ({
                             e.stopPropagation();
                             setActiveChartTrade(trade);
                           }}
-                          style={{ textAlign: 'center', color: 'var(--accent-cyan)', padding: '20px', cursor: 'pointer' }}
+                          className="gallery-chart-empty"
                         >
-                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px', width: '42px', height: '42px', borderRadius: '50%', background: 'rgba(0, 210, 255, 0.1)', border: '1px dashed var(--accent-cyan)', margin: '0 auto 8px' }}>
+                          <div className="gallery-empty-icon-wrap">
                             <Camera size={16} />
                             <Plus size={12} strokeWidth={3} />
                           </div>
-                          <span style={{ fontSize: '0.78rem', display: 'block', fontWeight: '600' }}>+ Add Chart Image</span>
+                          <span className="gallery-empty-label">+ Add Chart Image</span>
                         </div>
                       )}
 
                       {/* Result Badge */}
-                      <div style={{ position: 'absolute', top: '10px', left: '10px' }}>
+                      <div className="gallery-badge-result">
                         <span className={`badge ${isWin ? 'badge-win' : isLoss ? 'badge-loss' : 'badge-be'}`}>
                           {trade.result} {formatR(trade.rResult)}
                         </span>
                       </div>
 
                       {/* Setup Quality Pill */}
-                      <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                      <div className="gallery-badge-grade">
                         <span className={`pill-grade ${(trade.setupRating || '').toLowerCase().replace(/[^a-z]/g, '')}`}>
                           {trade.setupRating}
                         </span>
@@ -643,38 +600,38 @@ export const TradesTableView = ({
                     </div>
 
                     {/* Card Content */}
-                    <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                    <div className="gallery-card-content">
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <strong style={{ fontSize: '1rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                        <div className="gallery-card-header">
+                          <strong className="gallery-instrument">
                             {trade.instrument}
                           </strong>
-                          <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                          <span className="gallery-datetime">
                             {trade.date} {trade.time}
                           </span>
                         </div>
-                        <p style={{ fontSize: '0.86rem', fontWeight: '600', color: 'var(--text-white)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p className="gallery-trade-title" title={trade.tradeName}>
                           {trade.tradeName}
                         </p>
                       </div>
 
                       {/* Metrics Bar */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: 'rgba(6, 12, 20, 0.6)', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-                        <div>
-                          <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>P&L</span>
-                          <strong style={{ fontSize: '0.84rem', fontFamily: 'var(--font-mono)', color: isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--text-muted)' }}>
+                      <div className="gallery-metrics-bar">
+                        <div className="gallery-metric-cell">
+                          <span className="gallery-metric-label">P&L</span>
+                          <strong className={`gallery-metric-value ${isWin ? 'metric-win' : isLoss ? 'metric-loss' : 'metric-muted'}`}>
                             {formatPnL(trade)}
                           </strong>
                         </div>
-                        <div>
-                          <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>PIPS</span>
-                          <strong style={{ fontSize: '0.84rem', fontFamily: 'var(--font-mono)' }}>
+                        <div className="gallery-metric-cell">
+                          <span className="gallery-metric-label">PIPS</span>
+                          <strong className="gallery-metric-value metric-pips">
                             {trade.pips || 0}
                           </strong>
                         </div>
-                        <div>
-                          <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>DISCIPLINE</span>
-                          <strong style={{ fontSize: '0.84rem', fontFamily: 'var(--font-mono)', color: trade.disciplineScore >= 75 ? 'var(--profit)' : 'var(--warning)' }}>
+                        <div className="gallery-metric-cell">
+                          <span className="gallery-metric-label">DISCIPLINE</span>
+                          <strong className={`gallery-metric-value ${trade.disciplineScore >= 75 ? 'metric-win' : 'metric-warn'}`}>
                             {trade.disciplineScore}/100
                           </strong>
                         </div>
@@ -682,7 +639,7 @@ export const TradesTableView = ({
 
                       {/* Notes snippet */}
                       {trade.notes && (
-                        <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: '1.4' }}>
+                        <p className="gallery-trade-notes">
                           {trade.notes}
                         </p>
                       )}
@@ -1085,7 +1042,7 @@ export const TradesTableView = ({
                     overflow: 'hidden',
                     border: '1px solid var(--border-bright)',
                     cursor: 'pointer',
-                    background: '#04080e',
+                    background: 'var(--bg-core, #04080e)',
                     textAlign: 'center'
                   }}
                   onClick={() => setDetailZoom(true)}
@@ -1135,11 +1092,11 @@ export const TradesTableView = ({
               maxWidth: '92vw',
               maxHeight: '92vh',
               position: 'relative',
-              background: '#04080e',
+              background: 'var(--bg-card, #04080e)',
               padding: '12px',
               borderRadius: '12px',
               border: '1px solid var(--border-bright)',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.9)'
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
             }}
             onClick={e => e.stopPropagation()}
           >

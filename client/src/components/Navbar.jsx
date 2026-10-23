@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, FileText, RefreshCw, Menu, Clock, Sun, Moon } from 'lucide-react';
+import { Plus, FileText, RefreshCw, Menu, Clock, Sun, Moon, Settings, User } from 'lucide-react';
 
 const LiveClock = () => {
   const [timeStr, setTimeStr] = useState(() => {
@@ -23,7 +23,7 @@ const LiveClock = () => {
   );
 };
 
-export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar, theme = 'dark', onToggleTheme }) => {
+export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar, onOpenSettings, onOpenAuth, theme = 'dark', onToggleTheme }) => {
   return (
     <header className="topbar">
       <div className="topbar-main-row">
@@ -34,8 +34,9 @@ export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset,
               className="mobile-menu-trigger"
               onClick={onToggleSidebar}
               aria-label="Open Navigation Menu"
+              title="Open Navigation Menu"
             >
-              <Menu size={20} />
+              <Menu size={22} strokeWidth={2.5} />
             </button>
           )}
           <div className="topbar-title">
@@ -92,6 +93,18 @@ export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset,
             <FileText size={15} />
             <span className="pdf-btn-label">Export PDF</span>
           </button>
+
+          {(onOpenSettings || onOpenAuth) && (
+            <button
+              type="button"
+              className="btn-secondary topbar-icon-btn topbar-user-btn"
+              onClick={onOpenSettings || onOpenAuth}
+              title="Trader Settings & Profile"
+              aria-label="Trader Settings & Profile"
+            >
+              <Settings size={15} />
+            </button>
+          )}
         </div>
       </div>
 

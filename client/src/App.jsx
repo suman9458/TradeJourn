@@ -223,6 +223,8 @@ const DashboardContent = () => {
           onRefresh={() => setIsResetModalOpen(true)}
           onResetDataset={() => setIsResetModalOpen(true)}
           onToggleSidebar={() => setIsMobileNavOpen(prev => !prev)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
           theme={theme}
           onToggleTheme={toggleTheme}
         />

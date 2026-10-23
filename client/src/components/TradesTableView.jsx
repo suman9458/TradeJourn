@@ -432,19 +432,19 @@ export const TradesTableView = ({
   };
 
   return (
-    <div className="dashboard-panel">
+    <div className={`dashboard-panel ${isFullScreen ? 'fullscreen-ledger-panel' : ''}`}>
       {/* Header & Search Bar */}
-      <div className="panel-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h3>{title}</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
+      <div className="panel-header ledger-panel-header">
+        <div className="ledger-title-group">
+          <h3 className="ledger-main-title">{title}</h3>
+          <p className="ledger-subtitle">
             {totalCount} total audited executions in database
           </p>
         </div>
 
         <div className="ledger-header-controls">
           <div className="ledger-search-box">
-            <Search size={16} className="search-icon" />
+            <Search size={15} className="search-icon" />
             <input
               type="text"
               placeholder="Search ticker, level, notes..."
@@ -453,8 +453,10 @@ export const TradesTableView = ({
             />
             {search && (
               <button
+                type="button"
                 className="btn-ghost search-clear-btn"
                 onClick={() => setSearch('')}
+                aria-label="Clear search input"
               >
                 <X size={14} />
               </button>
@@ -465,15 +467,6 @@ export const TradesTableView = ({
               type="button"
               className={layoutMode === 'table' ? 'btn-primary' : 'btn-ghost'}
               onClick={() => setLayoutMode('table')}
-              style={{
-                padding: '6px 12px',
-                fontSize: '0.78rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                borderRadius: '6px',
-                fontWeight: layoutMode === 'table' ? '700' : '500'
-              }}
               title="Table Ledger View"
             >
               <List size={14} />
@@ -483,15 +476,6 @@ export const TradesTableView = ({
               type="button"
               className={layoutMode === 'gallery' ? 'btn-primary' : 'btn-ghost'}
               onClick={() => setLayoutMode('gallery')}
-              style={{
-                padding: '6px 12px',
-                fontSize: '0.78rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                borderRadius: '6px',
-                fontWeight: layoutMode === 'gallery' ? '700' : '500'
-              }}
               title="Visual Chart Gallery View"
             >
               <LayoutGrid size={14} />
@@ -503,7 +487,6 @@ export const TradesTableView = ({
             type="button"
             className="btn-secondary ledger-pdf-btn"
             onClick={handleExportPDF}
-            style={{ fontSize: '0.82rem', padding: '7px 14px', whiteSpace: 'nowrap' }}
             title="Download full audited trade history as PDF with proper columns & rows"
           >
             <FileText size={15} />

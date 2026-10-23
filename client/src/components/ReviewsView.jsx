@@ -195,11 +195,11 @@ const computeAiEdgeConclusion = (tradesList = []) => {
     },
     {
       num: 2,
-      title: 'Dominant Session Alpha Driver',
-      tag: `Alpha Vector • ${bestSessionName} Session`,
+      title: 'Dominant Session Performance',
+      tag: `Dominant: ${bestSessionName} Session`,
       icon: '🚀',
       metrics: [
-        { label: 'Session Net Alpha', val: formatUSD(bestSessionProfit), color: 'var(--profit)' },
+        { label: 'Session Net Profit', val: formatUSD(bestSessionProfit), color: 'var(--profit)' },
         { label: 'Optimal Window', val: `${bestSessionName} Session` },
         { label: 'Execution Match', val: 'Peak Liquidity' }
       ],

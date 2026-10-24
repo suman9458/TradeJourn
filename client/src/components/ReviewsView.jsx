@@ -57,100 +57,197 @@ const formatPipsStr = (t) => {
 };
 
 // Intelligent Trade Analyzer for Point-Wise AI Edge Diagnosis & Risk Leakage Audit
-const computeAiEdgeConclusion = (tradesList = []) => {
+const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
   const total = tradesList.length;
 
   const wins = tradesList.filter(t => t.result === 'WIN');
   const losses = tradesList.filter(t => t.result === 'LOSS');
-  const winRate = total > 0 ? (wins.length / total) * 100 : 70.6;
+  const winRate = total > 0 ? (wins.length / total) * 100 : 0;
 
   const totalProfitUSD = total > 0
     ? tradesList.reduce((sum, t) => sum + getTradeProfitUSD(t), 0)
-    : 534;
+    : 0;
 
   const totalR = total > 0
     ? tradesList.reduce((sum, t) => sum + (Number(t.rResult) || (t.result === 'WIN' ? (t.rr || 1.5) : t.result === 'LOSS' ? -1 : 0)), 0)
-    : 21.3;
+    : 0;
 
-  const avgProfitUSD = total > 0 ? (totalProfitUSD / total) : 31.41;
-  const avgR = total > 0 ? (totalR / total) : 1.25;
+  const avgProfitUSD = total > 0 ? (totalProfitUSD / total) : 0;
+  const avgR = total > 0 ? (totalR / total) : 0;
   const tone = totalProfitUSD >= 0 ? 'positive' : 'negative';
 
-  // 1. Session Breakdown (Best & Worst)
-  const sessionMap = {};
-  tradesList.forEach(t => {
-    const s = t.session || 'London';
-    if (!sessionMap[s]) sessionMap[s] = { count: 0, profit: 0, wins: 0 };
-    sessionMap[s].count++;
-    sessionMap[s].profit += getTradeProfitUSD(t);
-    if (t.result === 'WIN') sessionMap[s].wins++;
+  // 1. Session Breakdown (Decided by ALL-TIME audit data, ranked strictly by Win Rate)
+  const allTimeTrades = (allTradesList && allTradesList.length > 0) ? allTradesList : tradesList;
+  const allTimeSessionMap = {};
+  allTimeTrades.forEach(t => {
+    const raw = (t.session && t.session.trim()) || 'London';
+    const s = raw.replace(/\s+session$/i, '').trim() || 'London';
+    if (!allTimeSessionMap[s]) {
+      allTimeSessionMap[s] = { name: s, count: 0, profit: 0, wins: 0, losses: 0, be: 0 };
+    }
+    allTimeSessionMap[s].count++;
+    allTimeSessionMap[s].profit += getTradeProfitUSD(t);
+    if (t.result === 'WIN') allTimeSessionMap[s].wins++;
+    else if (t.result === 'LOSS') allTimeSessionMap[s].losses++;
+    else if (t.result === 'BE') allTimeSessionMap[s].be++;
   });
-  const sortedSessionsDesc = Object.entries(sessionMap).sort((a, b) => b[1].profit - a[1].profit);
-  const bestSessionEntry = sortedSessionsDesc[0];
-  const bestSessionName = bestSessionEntry ? bestSessionEntry[0] : 'London';
-  const bestSessionProfit = bestSessionEntry ? bestSessionEntry[1].profit : 142;
 
-  const sortedSessionsAsc = Object.entries(sessionMap).sort((a, b) => a[1].profit - b[1].profit);
-  const worstSessionEntry = sortedSessionsAsc.length > 1
-    ? sortedSessionsAsc[0]
-    : (sortedSessionsAsc[0] && sortedSessionsAsc[0][1].profit <= 0 ? sortedSessionsAsc[0] : null);
-  const worstSessionName = worstSessionEntry ? worstSessionEntry[0] : (bestSessionName === 'London' ? 'Asian' : 'New York');
-  const worstSessionProfit = worstSessionEntry ? worstSessionEntry[1].profit : -95;
-  const worstSessionCount = worstSessionEntry ? worstSessionEntry[1].count : 3;
-  const worstSessionWr = worstSessionEntry && worstSessionEntry[1].count
-    ? ((worstSessionEntry[1].wins / worstSessionEntry[1].count) * 100).toFixed(1)
-    : '33.3';
+  const allTimeSessionList = Object.values(allTimeSessionMap).map(item => ({
+    ...item,
+    winRate: item.count > 0 ? (item.wins / item.count) * 100 : 0,
+    lossRate: item.count > 0 ? (item.losses / item.count) * 100 : 0
+  }));
 
-  // 2. Setup Breakdown (High-Probability vs Low-Probability)
-  const aPlusTrades = tradesList.filter(t => t.setupRating === 'A+');
-  const aPlusCount = aPlusTrades.length > 0 ? aPlusTrades.length : 2;
-  const aPlusWins = aPlusTrades.length > 0 ? aPlusTrades.filter(t => t.result === 'WIN').length : 2;
-  const aPlusWinRate = aPlusTrades.length > 0 ? ((aPlusWins / aPlusTrades.length) * 100).toFixed(1) : '100.0';
-
-  const setupMap = {};
+  // Period session breakdown (for Dominant Session in period)
+  const periodSessionMap = {};
   tradesList.forEach(t => {
+    const raw = (t.session && t.session.trim()) || 'London';
+    const s = raw.replace(/\s+session$/i, '').trim() || 'London';
+    if (!periodSessionMap[s]) periodSessionMap[s] = { name: s, count: 0, profit: 0, wins: 0, losses: 0, be: 0 };
+    periodSessionMap[s].count++;
+    periodSessionMap[s].profit += getTradeProfitUSD(t);
+    if (t.result === 'WIN') periodSessionMap[s].wins++;
+    else if (t.result === 'LOSS') periodSessionMap[s].losses++;
+    else if (t.result === 'BE') periodSessionMap[s].be++;
+  });
+  const sortedPeriodSessions = Object.values(periodSessionMap).sort((a, b) => b.profit - a.profit);
+  const bestSessionEntry = sortedPeriodSessions[0] || (allTimeSessionList.length > 0 ? [...allTimeSessionList].sort((a, b) => b.profit - a.profit)[0] : null);
+  const bestSessionName = bestSessionEntry ? bestSessionEntry.name : 'London';
+  const bestSessionProfit = bestSessionEntry ? bestSessionEntry.profit : 0;
+
+  // Worst performing session by loss rate & net profit (decided by ALL-TIME audit data)
+  const sortedSessionsByWrAsc = [...allTimeSessionList].sort((a, b) => {
+    // 1. Loss session first (profit < 0)
+    if ((a.profit < 0) !== (b.profit < 0)) {
+      return a.profit < 0 ? -1 : 1;
+    }
+    // 2. Highest loss rate first
+    if (a.lossRate !== b.lossRate) {
+      return b.lossRate - a.lossRate;
+    }
+    // 3. Lowest total profit first
+    if (a.profit !== b.profit) {
+      return a.profit - b.profit;
+    }
+    // 4. Higher trade count (more confidence)
+    return b.count - a.count;
+  });
+
+  const worstSessionEntry = sortedSessionsByWrAsc[0] || null;
+  const worstSessionName = worstSessionEntry ? worstSessionEntry.name : 'None';
+  const worstSessionProfit = worstSessionEntry ? worstSessionEntry.profit : 0;
+  const worstSessionCount = worstSessionEntry ? worstSessionEntry.count : 0;
+  const worstSessionWr = worstSessionEntry ? worstSessionEntry.winRate.toFixed(1) : '0.0';
+  const worstSessionLossRate = worstSessionEntry ? worstSessionEntry.lossRate.toFixed(1) : '0.0';
+
+  // 2. Setup Breakdown (High-Probability vs Low-Probability decided strictly by ALL-TIME audit data)
+  const allTimeAPlusTrades = allTimeTrades.filter(t => t.setupRating === 'A+');
+  const aPlusCount = allTimeAPlusTrades.length > 0 ? allTimeAPlusTrades.length : 2;
+  const aPlusWins = allTimeAPlusTrades.length > 0 ? allTimeAPlusTrades.filter(t => t.result === 'WIN').length : 2;
+  const aPlusWinRate = allTimeAPlusTrades.length > 0 ? ((aPlusWins / allTimeAPlusTrades.length) * 100).toFixed(1) : '100.0';
+
+  const allTimeSetupMap = {};
+  allTimeTrades.forEach(t => {
     const s = t.setupRating || 'Unrated';
-    if (!setupMap[s]) setupMap[s] = { count: 0, profit: 0, wins: 0 };
-    setupMap[s].count++;
-    setupMap[s].profit += getTradeProfitUSD(t);
-    if (t.result === 'WIN') setupMap[s].wins++;
+    if (!allTimeSetupMap[s]) allTimeSetupMap[s] = { name: s, count: 0, profit: 0, wins: 0, losses: 0, be: 0 };
+    allTimeSetupMap[s].count++;
+    allTimeSetupMap[s].profit += getTradeProfitUSD(t);
+    if (t.result === 'WIN') allTimeSetupMap[s].wins++;
+    else if (t.result === 'LOSS') allTimeSetupMap[s].losses++;
+    else if (t.result === 'BE') allTimeSetupMap[s].be++;
   });
-  const sortedSetupsAsc = Object.entries(setupMap).sort((a, b) => a[1].profit - b[1].profit);
-  const worstSetupEntry = sortedSetupsAsc.length > 1
-    ? sortedSetupsAsc[0]
-    : (sortedSetupsAsc[0] && sortedSetupsAsc[0][1].profit <= 0 ? sortedSetupsAsc[0] : null);
-  const worstSetupName = worstSetupEntry ? worstSetupEntry[0] : 'C / No Setup';
-  const worstSetupProfit = worstSetupEntry ? worstSetupEntry[1].profit : -120;
-  const worstSetupCount = worstSetupEntry ? worstSetupEntry[1].count : 2;
-  const worstSetupWr = worstSetupEntry && worstSetupEntry[1].count
-    ? ((worstSetupEntry[1].wins / worstSetupEntry[1].count) * 100).toFixed(1)
-    : '25.0';
 
-  // 3. Day of Week Breakdown (for advice)
+  const allTimeSetupList = Object.values(allTimeSetupMap).map(item => ({
+    ...item,
+    winRate: item.count > 0 ? (item.wins / item.count) * 100 : 0,
+    lossRate: item.count > 0 ? (item.losses / item.count) * 100 : 0
+  }));
+
+  // A setup qualifies as a SETUP TO AVOID ONLY if it has an actual negative expectancy drag:
+  // (lossRate >= 50% OR winRate < 50% OR profit < 0 OR losses > wins)
+  const draggingSetups = allTimeSetupList.filter(s => s.profit < 0 || s.lossRate >= 50 || s.winRate < 50 || s.losses > s.wins);
+  const hasSetupToAvoid = draggingSetups.length > 0;
+
+  // Sort setups by:
+  // 1. High-tier setups (A+, A) are never prioritized as avoidance if lower-tier setups (C, D, etc.) have losses
+  // 2. Loss setups first (profit < 0)
+  // 3. Highest loss rate first
+  // 4. Lowest profit first
+  // 5. Higher trade count first
+  const sortedSetupsByLossRateAsc = [...(hasSetupToAvoid ? draggingSetups : allTimeSetupList)].sort((a, b) => {
+    const aIsHighTier = a.name === 'A+' || a.name === 'A';
+    const bIsHighTier = b.name === 'A+' || b.name === 'A';
+    if (aIsHighTier !== bIsHighTier) return aIsHighTier ? 1 : -1;
+    if ((a.profit < 0) !== (b.profit < 0)) return a.profit < 0 ? -1 : 1;
+    if (a.lossRate !== b.lossRate) return b.lossRate - a.lossRate;
+    if (a.profit !== b.profit) return a.profit - b.profit;
+    return b.count - a.count;
+  });
+
+  const worstSetupEntry = hasSetupToAvoid ? sortedSetupsByLossRateAsc[0] : (sortedSetupsByLossRateAsc[0] || null);
+  const worstSetupName = worstSetupEntry ? worstSetupEntry.name : 'None Detected';
+  const worstSetupProfit = worstSetupEntry ? worstSetupEntry.profit : 0;
+  const worstSetupCount = worstSetupEntry ? worstSetupEntry.count : 0;
+  const worstSetupWr = worstSetupEntry ? worstSetupEntry.winRate.toFixed(1) : '0.0';
+  const worstSetupLossRate = worstSetupEntry ? worstSetupEntry.lossRate.toFixed(1) : '0.0';
+
+  // 3. Day of Week Breakdown (Decided strictly by ALL-TIME audit data)
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const dayMap = {};
-  tradesList.forEach(t => {
+  const allTimeDayMap = {};
+  allTimeTrades.forEach(t => {
     if (t.date) {
       const parts = t.date.split('-');
       if (parts.length === 3) {
         const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         if (!isNaN(d.getDay())) {
           const dayName = dayNames[d.getDay()];
-          if (!dayMap[dayName]) dayMap[dayName] = { count: 0, profit: 0, wins: 0 };
-          dayMap[dayName].count++;
-          dayMap[dayName].profit += getTradeProfitUSD(t);
-          if (t.result === 'WIN') dayMap[dayName].wins++;
+          if (!allTimeDayMap[dayName]) {
+            allTimeDayMap[dayName] = { name: dayName, count: 0, profit: 0, wins: 0, losses: 0, be: 0 };
+          }
+          allTimeDayMap[dayName].count++;
+          allTimeDayMap[dayName].profit += getTradeProfitUSD(t);
+          if (t.result === 'WIN') allTimeDayMap[dayName].wins++;
+          else if (t.result === 'LOSS') allTimeDayMap[dayName].losses++;
+          else if (t.result === 'BE') allTimeDayMap[dayName].be++;
         }
       }
     }
   });
-  const sortedDaysAsc = Object.entries(dayMap).sort((a, b) => a[1].profit - b[1].profit);
-  const worstDayEntry = sortedDaysAsc.length > 0 ? sortedDaysAsc[0] : null;
-  const worstDayName = worstDayEntry ? worstDayEntry[0] : 'Monday';
-  const worstDayProfit = worstDayEntry ? worstDayEntry[1].profit : -65;
-  const worstDayWr = worstDayEntry && worstDayEntry[1].count
-    ? Math.round((worstDayEntry[1].wins / worstDayEntry[1].count) * 100)
-    : 33;
+
+  const allTimeDayList = Object.values(allTimeDayMap).map(item => ({
+    ...item,
+    winRate: item.count > 0 ? (item.wins / item.count) * 100 : 0,
+    lossRate: item.count > 0 ? (item.losses / item.count) * 100 : 0
+  }));
+
+  // Sort days by:
+  // 1. Loss session first (profit < 0)
+  // 2. Highest loss rate first
+  // 3. Lowest profit first
+  // 4. Higher trade count first
+  const sortedDaysByWrAsc = [...allTimeDayList].sort((a, b) => {
+    if ((a.profit < 0) !== (b.profit < 0)) {
+      return a.profit < 0 ? -1 : 1;
+    }
+    if (a.lossRate !== b.lossRate) return b.lossRate - a.lossRate;
+    if (a.profit !== b.profit) return a.profit - b.profit;
+    return b.count - a.count;
+  });
+
+  // A day qualifies as a DAY TO AVOID ONLY if it has an actual negative expectancy drag:
+  // (lossRate >= 50% OR winRate < 50% OR profit < 0 OR losses > wins)
+  const draggingDays = sortedDaysByWrAsc.filter(d => d.profit < 0 || d.lossRate >= 50 || d.winRate < 50 || d.losses > d.wins);
+  const hasDayToAvoid = draggingDays.length > 0;
+
+  const worstDayEntry = hasDayToAvoid
+    ? draggingDays[0]
+    : (sortedDaysByWrAsc[0] || null);
+
+  const worstDayName = worstDayEntry ? worstDayEntry.name : 'None';
+  const worstDayProfit = worstDayEntry ? worstDayEntry.profit : 0;
+  const worstDayCount = worstDayEntry ? worstDayEntry.count : 0;
+  const worstDayWr = worstDayEntry ? worstDayEntry.winRate.toFixed(1) : '0.0';
+  const worstDayLossRate = worstDayEntry ? worstDayEntry.lossRate.toFixed(1) : '0.0';
 
   // 4. Discipline & Bad Behaviour
   const highDisciplineCount = tradesList.filter(t => (t.disciplineScore || 100) >= 75).length;
@@ -269,20 +366,39 @@ const computeAiEdgeConclusion = (tradesList = []) => {
   const riskPoints = [
     {
       num: 1,
-      title: 'Worst Performing Session Drag',
-      tag: `${worstSessionName} Session Drag`,
-      icon: '📉',
-      risk: true,
+      title: worstSessionProfit < 0 || Number(worstSessionLossRate) >= 50 ? 'Worst Performing Session Drag' : 'Highest Loss-Rate Session Audit',
+      tag: `${worstSessionName} Session ${worstSessionProfit < 0 ? 'Drag' : 'Audit'}`,
+      icon: worstSessionProfit < 0 ? '📉' : '⏱️',
+      risk: worstSessionProfit < 0 || Number(worstSessionLossRate) >= 50,
       metrics: [
-        { label: 'Session Net Drag', val: formatUSD(worstSessionProfit), color: 'var(--loss)' },
-        { label: 'Realized Win Rate', val: `${worstSessionWr}%`, color: 'var(--loss)' },
-        { label: 'Executions Logged', val: `${worstSessionCount} Trades` }
+        {
+          label: worstSessionProfit < 0 ? 'Session Net Drag' : 'Session Net Alpha',
+          val: formatUSD(worstSessionProfit),
+          color: worstSessionProfit >= 0 ? 'var(--profit)' : 'var(--loss)'
+        },
+        {
+          label: 'Realized Loss Rate',
+          val: `${worstSessionLossRate}%`,
+          color: Number(worstSessionLossRate) >= 50 ? 'var(--loss)' : 'var(--profit)'
+        },
+        {
+          label: 'Executions Logged',
+          val: `${worstSessionCount} Audit${worstSessionCount === 1 ? '' : 's'}`
+        }
       ],
-      desc: (
+      desc: worstSessionCount === 0 ? (
+        <>No trade audits logged yet in all-time data to identify session performance.</>
+      ) : worstSessionProfit < 0 || Number(worstSessionLossRate) >= 50 ? (
         <>
-          <strong>{worstSessionName} session</strong> acts as your primary performance drag, generating{' '}
-          <strong style={{ color: 'var(--loss)' }}>{formatUSD(worstSessionProfit)}</strong> in net losses with an unsustainable{' '}
-          <strong style={{ color: 'var(--loss)' }}>{worstSessionWr}% win rate</strong>. Spread widening and adverse order flow during this window systematically erode gains achieved in prime sessions.
+          <strong>{worstSessionName} session</strong> acts as your primary performance drag in all-time audit data, generating{' '}
+          <strong style={{ color: worstSessionProfit >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSD(worstSessionProfit)}</strong> with an unsustainable{' '}
+          <strong style={{ color: 'var(--loss)' }}>{worstSessionLossRate}% loss rate</strong> across {worstSessionCount} audit{worstSessionCount > 1 ? 's' : ''}. Spread widening and adverse order flow during this window systematically erode gains achieved in prime sessions.
+        </>
+      ) : (
+        <>
+          All-time audit ranks <strong>{worstSessionName} session</strong> at{' '}
+          <strong style={{ color: 'var(--profit)' }}>{worstSessionLossRate}% loss rate</strong> across {worstSessionCount} audit{worstSessionCount > 1 ? 's' : ''}, generating{' '}
+          <strong style={{ color: 'var(--profit)' }}>{formatUSD(worstSessionProfit)}</strong>. No negative loss drag has been detected in this session window.
         </>
       )
     },
@@ -293,14 +409,14 @@ const computeAiEdgeConclusion = (tradesList = []) => {
       icon: '🎯',
       risk: true,
       metrics: [
-        { label: 'Sub-Optimal Hit Rate', val: `${worstSetupWr}%`, color: 'var(--loss)' },
+        { label: 'Sub-Optimal Loss Rate', val: `${worstSetupLossRate}%`, color: 'var(--loss)' },
         { label: 'Sub-Optimal PnL', val: formatUSD(worstSetupProfit), color: 'var(--loss)' },
         { label: 'A+ Benchmark Hit Rate', val: `${aPlusWinRate}%`, color: 'var(--profit)' }
       ],
       desc: (
         <>
-          Severe expectancy divergence: while <strong>A+ setups</strong> produced a <strong>{aPlusWinRate}% win rate</strong>, lower-tier <strong>{worstSetupName} setups</strong> bled{' '}
-          <strong style={{ color: 'var(--loss)' }}>{worstSetupWr}% win rate</strong> ({formatUSD(worstSetupProfit)} net drag). Taking setups outside your strict A+ criteria severely dilutes portfolio alpha.
+          Severe expectancy divergence: while <strong>A+ setups</strong> produced a <strong>{aPlusWinRate}% win rate</strong>, lower-tier <strong>{worstSetupName} setups</strong> suffered a{' '}
+          <strong style={{ color: 'var(--loss)' }}>{worstSetupLossRate}% loss rate</strong> ({formatUSD(worstSetupProfit)} net drag). Taking setups outside your strict A+ criteria severely dilutes portfolio alpha.
         </>
       )
     },
@@ -336,9 +452,24 @@ const computeAiEdgeConclusion = (tradesList = []) => {
             <div className="ai-avoidance-pill-header">
               <span className="pill-badge">🚫 SESSIONS TO AVOID</span>
             </div>
-            <div className="ai-avoidance-pill-val">{worstSessionName} Session</div>
+            <div className="ai-avoidance-pill-val">
+              {worstSessionCount > 0
+                ? (/session$/i.test(worstSessionName) ? worstSessionName : `${worstSessionName} Session`)
+                : 'None Detected'}
+            </div>
             <div className="ai-avoidance-pill-stat">
-              {worstSessionWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstSessionProfit)}</span>
+              {worstSessionCount > 0 ? (
+                <>
+                  <span style={{ color: Number(worstSessionLossRate) >= 50 ? 'var(--loss)' : 'inherit', fontWeight: '700' }}>
+                    {worstSessionLossRate}% loss rate
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    ({worstSessionCount} Trade{worstSessionCount === 1 ? '' : 's'})
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>No audit data</span>
+              )}
             </div>
           </div>
 
@@ -346,9 +477,37 @@ const computeAiEdgeConclusion = (tradesList = []) => {
             <div className="ai-avoidance-pill-header">
               <span className="pill-badge">🚫 DAYS TO AVOID</span>
             </div>
-            <div className="ai-avoidance-pill-val">{worstDayName}s</div>
+            <div className="ai-avoidance-pill-val">
+              {worstDayCount === 0 ? (
+                'None Detected'
+              ) : hasDayToAvoid ? (
+                `${worstDayName}s`
+              ) : (
+                'None Detected'
+              )}
+            </div>
             <div className="ai-avoidance-pill-stat">
-              {worstDayWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstDayProfit)}</span>
+              {worstDayCount === 0 ? (
+                <span style={{ color: 'var(--text-muted)' }}>No audit data</span>
+              ) : hasDayToAvoid ? (
+                <>
+                  <span style={{ color: 'var(--loss)', fontWeight: '700' }}>
+                    {worstDayLossRate}% loss rate
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    ({worstDayCount} Trade{worstDayCount === 1 ? '' : 's'})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span style={{ color: 'var(--profit)', fontWeight: '700' }}>
+                    {worstDayLossRate}% loss rate
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    ({worstDayCount} Trade{worstDayCount === 1 ? '' : 's'})
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -356,15 +515,29 @@ const computeAiEdgeConclusion = (tradesList = []) => {
             <div className="ai-avoidance-pill-header">
               <span className="pill-badge">🚫 SETUPS TO AVOID</span>
             </div>
-            <div className="ai-avoidance-pill-val">{worstSetupName}</div>
+            <div className="ai-avoidance-pill-val">
+              {worstSetupCount === 0 ? 'None Detected' : hasSetupToAvoid ? worstSetupName : 'None Detected'}
+            </div>
             <div className="ai-avoidance-pill-stat">
-              {worstSetupWr}% win rate • <span style={{ color: 'var(--loss)', fontWeight: '700' }}>{formatUSD(worstSetupProfit)}</span>
+              {worstSetupCount === 0 ? (
+                <span style={{ color: 'var(--text-muted)' }}>No audit data</span>
+              ) : hasSetupToAvoid ? (
+                <>
+                  <span style={{ color: 'var(--loss)', fontWeight: '700' }}>
+                    {worstSetupLossRate}% loss rate
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    ({worstSetupCount} Trade{worstSetupCount === 1 ? '' : 's'})
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--profit)', fontWeight: '700' }}>
+                  All setups profitable
+                </span>
+              )}
             </div>
           </div>
         </div>
-        <p className="ai-box-desc" style={{ marginTop: '4px' }}>
-          <strong>Institutional Capital Rule:</strong> Enforce an absolute trading blackout during <strong>{worstSessionName} session</strong> and maintain flat exposure on <strong>{worstDayName}s</strong>. Blacklist all <strong>{worstSetupName}</strong> opportunities to immediately eliminate ~80% of systemic equity drawdowns.
-        </p>
       </div>
     )
   };
@@ -381,6 +554,9 @@ const computeAiEdgeConclusion = (tradesList = []) => {
     bestSessionProfit,
     worstSessionName,
     worstSessionProfit,
+    worstSessionLossRate,
+    worstDayLossRate,
+    worstSetupLossRate,
     aPlusWinRate,
     aPlusCount,
     disciplineDisplayCount,
@@ -421,9 +597,9 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
     return trades;
   }, [trades, subTab]);
 
-  // Compute live point-wise analysis of latest trades for this audit period
+  // Compute live point-wise analysis of latest trades for this audit period + all-time trades for macro avoidance rules
   const analysisData = useMemo(() => {
-    return computeAiEdgeConclusion(activePeriodTrades.length > 0 ? activePeriodTrades : trades);
+    return computeAiEdgeConclusion(activePeriodTrades.length > 0 ? activePeriodTrades : trades, trades);
   }, [activePeriodTrades, trades]);
 
   const fallbackReviewData = useMemo(() => {
@@ -602,24 +778,18 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
           </div>
         )}
 
-        {/* PART 1: Statistical Expectation & AI Edge Diagnosis (Dedicated Topic Boxes) */}
+        {/* PART 1: AI Trading Edge Intelligence (Dedicated Topic Boxes) */}
         <div className="ai-section-container">
           <div className="ai-section-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div className="ai-pulse-icon">
                 <Sparkles size={18} />
               </div>
               <div>
                 <h4 className="ai-section-title">
-                  Statistical Expectation & AI Edge Diagnosis
+                  AI Trading Edge Intelligence
                 </h4>
-                <span className="ai-section-subtitle">
-                  ⚡ Institutional Alpha Matrix • Topic-by-Topic Quantitative Audit
-                </span>
               </div>
-            </div>
-            <div className={`ai-expectancy-badge ${analysisData.tone}`}>
-              {analysisData.tone === 'positive' ? '✅ Positive Mathematical Edge' : '⚠️ Expectancy Drag Detected'}
             </div>
           </div>
 

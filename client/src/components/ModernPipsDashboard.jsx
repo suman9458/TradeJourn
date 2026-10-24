@@ -873,16 +873,67 @@ export const ModernPipsDashboard = ({
     });
   }, [recentTrades, allTrades]);
 
-  // 8. DYNAMIC DAILY CALENDAR DAYS FOR SELECTED MONTH
+  // 8. DYNAMIC DAILY CALENDAR DAYS FOR SELECTED MONTH (Mathematically aligned with real-world calendar)
   const calendarDays = useMemo(() => {
     const [monthName, yearStr] = selectedMonth.split(' ');
     const mIdx = MONTH_NAMES.indexOf(monthName);
-    const yearNum = parseInt(yearStr, 10) || 2026;
-    const daysInMonth = new Date(yearNum, (mIdx >= 0 ? mIdx : 8) + 1, 0).getDate();
+    const yearNum = parseInt(yearStr, 10) || new Date().getFullYear();
+    const safeMonthIdx = mIdx >= 0 ? mIdx : new Date().getMonth();
+    const daysInMonth = new Date(yearNum, safeMonthIdx + 1, 0).getDate();
 
-    const mPrefix = `${yearNum}-${String((mIdx >= 0 ? mIdx : 8) + 1).padStart(2, '0')}`;
+    const mPrefix = `${yearNum}-${String(safeMonthIdx + 1).padStart(2, '0')}`;
+
+    // Day of week of the 1st of this month (0 = Sun, 1 = Mon, ..., 6 = Sat)
+    // Week permanently starts on Monday: Mon = 0 pad, Tue = 1 pad, ..., Sun = 6 pad
+    const firstDayDate = new Date(yearNum, safeMonthIdx, 1);
+    const firstDayJs = firstDayDate.getDay();
+    const leadingPadCount = (firstDayJs + 6) % 7;
+
+    // Previous month info to render trailing dates
+    const prevMonthDaysCount = new Date(yearNum, safeMonthIdx, 0).getDate();
+    const prevMonthNum = safeMonthIdx === 0 ? 12 : safeMonthIdx;
+    const prevYearNum = safeMonthIdx === 0 ? yearNum - 1 : yearNum;
+    const prevPrefix = `${prevYearNum}-${String(prevMonthNum).padStart(2, '0')}`;
 
     const days = [];
+
+    // 1. Add leading padding cells from previous month
+    for (let p = leadingPadCount - 1; p >= 0; p--) {
+      const prevDayNum = prevMonthDaysCount - p;
+      const prevDayStr = String(prevDayNum).padStart(2, '0');
+      const prevDateKey = `${prevPrefix}-${prevDayStr}`;
+      const dayTrades = allTrades.filter(t => t.date === prevDateKey);
+
+      let status = 'none';
+      let pips = 0;
+      let dayProfit = 0;
+      let profitText = null;
+
+      if (dayTrades.length > 0) {
+        pips = dayTrades.reduce((sum, t) => sum + (Number(t.pips) || 0), 0);
+        dayProfit = dayTrades.reduce((sum, t) => sum + getTradeTakeProfitUSD(t), 0);
+        if (dayProfit > 0 || (dayProfit === 0 && pips > 0)) status = 'win';
+        else if (dayProfit < 0 || (dayProfit === 0 && pips < 0)) status = 'loss';
+        else status = 'be';
+        profitText = formatProfitShort(dayProfit);
+      }
+
+      days.push({
+        id: `prev-${prevDateKey}`,
+        day: prevDayNum,
+        isOtherMonth: true,
+        dateKey: prevDateKey,
+        status: status === 'none' ? 'none other-month' : `${status} other-month`,
+        pips: `${pips >= 0 ? '+' : ''}${Math.round(pips)}`,
+        profitUSD: dayProfit,
+        profitText,
+        tradesCount: dayTrades.length
+      });
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // 2. Add actual days of current month
     for (let day = 1; day <= daysInMonth; day++) {
       const dayStr = String(day).padStart(2, '0');
       const dateKey = `${mPrefix}-${dayStr}`;
@@ -904,9 +955,57 @@ export const ModernPipsDashboard = ({
         profitText = formatProfitShort(dayProfit);
       }
 
+      const isToday = dateKey === todayStr;
+
       days.push({
+        id: `cur-${dateKey}`,
         day,
-        status,
+        isOtherMonth: false,
+        isToday,
+        dateKey,
+        status: isToday ? `${status} is-today` : status,
+        pips: `${pips >= 0 ? '+' : ''}${Math.round(pips)}`,
+        profitUSD: dayProfit,
+        profitText,
+        tradesCount: dayTrades.length
+      });
+    }
+
+    // 3. Complete the grid to full 7-day rows (35 or 42 cells)
+    const totalCurrentCells = days.length;
+    const remainingInRow = (7 - (totalCurrentCells % 7)) % 7;
+    const targetTotal = (totalCurrentCells + remainingInRow <= 35) ? 35 : (totalCurrentCells + remainingInRow <= 42 ? 42 : totalCurrentCells + remainingInRow);
+    const trailingCount = targetTotal - totalCurrentCells;
+
+    const nextMonthNum = safeMonthIdx === 11 ? 1 : safeMonthIdx + 2;
+    const nextYearNum = safeMonthIdx === 11 ? yearNum + 1 : yearNum;
+    const nextPrefix = `${nextYearNum}-${String(nextMonthNum).padStart(2, '0')}`;
+
+    for (let nextDay = 1; nextDay <= trailingCount; nextDay++) {
+      const nextDayStr = String(nextDay).padStart(2, '0');
+      const nextDateKey = `${nextPrefix}-${nextDayStr}`;
+      const dayTrades = allTrades.filter(t => t.date === nextDateKey);
+
+      let status = 'none';
+      let pips = 0;
+      let dayProfit = 0;
+      let profitText = null;
+
+      if (dayTrades.length > 0) {
+        pips = dayTrades.reduce((sum, t) => sum + (Number(t.pips) || 0), 0);
+        dayProfit = dayTrades.reduce((sum, t) => sum + getTradeTakeProfitUSD(t), 0);
+        if (dayProfit > 0 || (dayProfit === 0 && pips > 0)) status = 'win';
+        else if (dayProfit < 0 || (dayProfit === 0 && pips < 0)) status = 'loss';
+        else status = 'be';
+        profitText = formatProfitShort(dayProfit);
+      }
+
+      days.push({
+        id: `next-${nextDateKey}`,
+        day: nextDay,
+        isOtherMonth: true,
+        dateKey: nextDateKey,
+        status: status === 'none' ? 'none other-month' : `${status} other-month`,
         pips: `${pips >= 0 ? '+' : ''}${Math.round(pips)}`,
         profitUSD: dayProfit,
         profitText,
@@ -1761,16 +1860,16 @@ export const ModernPipsDashboard = ({
           <div className="calendar-heatmap-container">
             <div className="calendar-weekdays-header">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(w => (
-                <span key={w} className="weekday-col-title">{w}</span>
+                <span key={w} className={`weekday-col-title ${w === 'Sat' || w === 'Sun' ? 'weekend' : ''}`}>{w}</span>
               ))}
             </div>
 
             <div className="calendar-days-grid">
               {calendarDays.map((c) => (
                 <div
-                  key={c.day}
+                  key={c.id || `${c.isOtherMonth ? 'other' : 'cur'}-${c.day}`}
                   className={`calendar-day-cell ${c.status}`}
-                  title={`${selectedMonth} ${c.day}: ${c.profitText ? c.profitText + ' Take Profit • ' : ''}${c.pips} Pips (${c.tradesCount} trade${c.tradesCount !== 1 ? 's' : ''})`}
+                  title={c.isOtherMonth ? `${c.dateKey}: Outside active month` : `${selectedMonth} ${c.day}: ${c.profitText ? c.profitText + ' Take Profit • ' : ''}${c.pips} Pips (${c.tradesCount} trade${c.tradesCount !== 1 ? 's' : ''})`}
                 >
                   <span className="day-number">{c.day}</span>
                   {c.profitText && (

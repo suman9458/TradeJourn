@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { BarChart3, Clock, Compass, Brain, AlertOctagon } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { BarChart3, Clock, Compass, Brain, AlertOctagon, CalendarDays } from 'lucide-react';
 
 const getTradeProfitUSD = (p) => {
   if (!p) return 0;
@@ -162,6 +162,82 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
       };
     }).sort(sortByBestPerformance);
   }, [trades, bkSessions]);
+
+  // 3. Weekday Performance & P&L Breakdown (Monday to Friday + Weekends)
+  const [weekdaySort, setWeekdaySort] = useState('day'); // 'day' | 'profit'
+  const weekdayStats = useMemo(() => {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const map = {};
+    dayOrder.forEach((name, idx) => {
+      map[name] = {
+        weekday: name,
+        order: idx,
+        count: 0,
+        wins: 0,
+        losses: 0,
+        be: 0,
+        totalPips: 0,
+        totalProfit: 0
+      };
+    });
+
+    if (trades && trades.length > 0) {
+      for (const t of trades) {
+        if (!t.date) continue;
+        const parts = t.date.split('-');
+        if (parts.length !== 3) continue;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) continue;
+        const dateObj = new Date(y, m - 1, d);
+        if (isNaN(dateObj.getTime())) continue;
+        const dayName = dayNames[dateObj.getDay()];
+        if (!map[dayName]) {
+          map[dayName] = {
+            weekday: dayName,
+            order: 7,
+            count: 0,
+            wins: 0,
+            losses: 0,
+            be: 0,
+            totalPips: 0,
+            totalProfit: 0
+          };
+        }
+        map[dayName].count += 1;
+        if (t.result === 'WIN') map[dayName].wins += 1;
+        else if (t.result === 'LOSS') map[dayName].losses += 1;
+        else if (t.result === 'BE') map[dayName].be += 1;
+
+        let pips = Number(t.pips || 0);
+        if (t.result === 'LOSS' && pips > 0) pips = -pips;
+        else if (t.result === 'WIN' && pips < 0) pips = Math.abs(pips);
+        else if (t.result === 'BE') pips = 0;
+        map[dayName].totalPips += pips;
+
+        map[dayName].totalProfit += getTradeProfitUSD(t);
+      }
+    }
+
+    const list = Object.values(map)
+      .filter(d => d.count > 0 || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].includes(d.weekday))
+      .map(d => ({
+        weekday: d.weekday,
+        order: d.order,
+        count: d.count,
+        winRate: d.count > 0 ? (d.wins / d.count) * 100 : 0,
+        avgPips: d.count > 0 ? Math.round(d.totalPips / d.count) : 0,
+        avgProfit: d.count > 0 ? Math.round(d.totalProfit / d.count) : 0,
+        totalProfit: Math.round(d.totalProfit)
+      }));
+
+    if (weekdaySort === 'profit') {
+      return [...list].sort(sortByBestPerformance);
+    }
+    return [...list].sort((a, b) => a.order - b.order);
+  }, [trades, weekdaySort]);
 
   // 3. Market Bias Stats Breakdown (Ranked Best Performance on Top)
   const biasStats = useMemo(() => {
@@ -456,7 +532,99 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
         </div>
       </div>
 
+      {/* Row 2: Weekday Performance & Market Bias */}
       <div className="analytics-grid-two-col">
+        {/* Weekday Performance & P&L */}
+        <div className="dashboard-panel" style={{ marginBottom: 0 }}>
+          <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CalendarDays size={18} color="var(--accent-cyan)" />
+              Weekday Performance & P&L
+            </h3>
+            <div className="analytics-sort-toggle">
+              <button
+                className={`btn-sort ${weekdaySort === 'day' ? 'active' : ''}`}
+                onClick={() => setWeekdaySort('day')}
+                title="Calendar Mon–Sun order"
+              >
+                Mon–Sun
+              </button>
+              <button
+                className={`btn-sort ${weekdaySort === 'profit' ? 'active' : ''}`}
+                onClick={() => setWeekdaySort('profit')}
+                title="Sort by best P&L"
+              >
+                Best P&L
+              </button>
+            </div>
+          </div>
+          <div className="table-responsive analytics-table-responsive">
+            <table className="analytics-table">
+              <thead>
+                <tr>
+                  <th>
+                    <span className="th-desktop">Weekday</span>
+                    <span className="th-mobile">Day</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Trades</span>
+                    <span className="th-mobile">Trades</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Win Rate</span>
+                    <span className="th-mobile">Win%</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Pips</span>
+                    <span className="th-mobile">Pips</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Profit ($)</span>
+                    <span className="th-mobile">Avg $</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Net Profit ($)</span>
+                    <span className="th-mobile">Net $</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekdayStats.map((w, idx) => (
+                  <tr key={idx}>
+                    <td className="analytics-cat-name" style={{ fontWeight: '700' }}>
+                      {w.weekday}
+                    </td>
+                    <td style={{ fontWeight: '600' }}>{w.count}</td>
+                    <td>
+                      {w.count > 0 ? (
+                        <div className="analytics-winrate-cell">
+                          <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${w.winRate}%`, background: w.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
+                          </div>
+                          <span style={{ fontWeight: '700', color: w.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}>
+                            {w.winRate.toFixed(1)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
+                      {w.count > 0 ? `${w.avgPips >= 0 ? '+' : ''}${w.avgPips}` : '—'}
+                    </td>
+                    <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)', color: w.count > 0 ? (w.avgProfit >= 0 ? 'var(--profit)' : 'var(--loss)') : 'var(--text-muted)' }}>
+                      {w.count > 0 ? formatUSD(w.avgProfit) : '—'}
+                    </td>
+                    <td style={{ fontWeight: '800', fontFamily: 'var(--font-mono)', color: w.count > 0 ? (w.totalProfit >= 0 ? 'var(--profit)' : 'var(--loss)') : 'var(--text-muted)' }}>
+                      {w.count > 0 ? formatUSD(w.totalProfit) : '$0'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Bias Alignment */}
         <div className="dashboard-panel" style={{ marginBottom: 0 }}>
           <div className="panel-header">
@@ -529,7 +697,10 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
             </table>
           </div>
         </div>
+      </div>
 
+      {/* Row 3: Emotion Matrix & Capital Drain Analysis */}
+      <div className="analytics-grid-two-col">
         {/* Emotion Matrix */}
         <div className="dashboard-panel" style={{ marginBottom: 0 }}>
           <div className="panel-header">
@@ -600,87 +771,84 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
             </table>
           </div>
         </div>
-      </div>
 
-      {/* Mistake Frequency & Negative Profit Drain */}
-      <div className="dashboard-panel">
-        <div className="panel-header">
-          <div>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--loss)' }}>
-              <AlertOctagon size={20} />
-              Capital Drain Analysis: Execution Mistakes
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '4px' }}>
-              Ranked breakdown of behavioral friction and cumulative USD profit/loss impact
-            </p>
+        {/* Mistake Frequency & Negative Profit Drain */}
+        <div className="dashboard-panel" style={{ marginBottom: 0 }}>
+          <div className="panel-header">
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--loss)' }}>
+                <AlertOctagon size={18} />
+                Capital Drain Analysis: Mistakes
+              </h3>
+            </div>
           </div>
-        </div>
-        <div className="table-responsive analytics-table-responsive">
-          <table className="analytics-table">
-            <thead>
-              <tr>
-                <th>
-                  <span className="th-desktop">Mistake Category</span>
-                  <span className="th-mobile">Mistake</span>
-                </th>
-                <th>
-                  <span className="th-desktop">Frequency</span>
-                  <span className="th-mobile">Freq</span>
-                </th>
-                <th>
-                  <span className="th-desktop">Win Rate</span>
-                  <span className="th-mobile">Win%</span>
-                </th>
-                <th>
-                  <span className="th-desktop">Avg Pips</span>
-                  <span className="th-mobile">Pips</span>
-                </th>
-                <th>
-                  <span className="th-desktop">Avg Drain ($)</span>
-                  <span className="th-mobile">Avg $</span>
-                </th>
-                <th>
-                  <span className="th-desktop">Cumulative P&L Drain ($)</span>
-                  <span className="th-mobile">Total $</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {mistakeStats.length === 0 ? (
+          <div className="table-responsive analytics-table-responsive">
+            <table className="analytics-table">
+              <thead>
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '28px' }}>
-                    No execution mistakes logged yet. Flawless process adherence!
-                  </td>
+                  <th>
+                    <span className="th-desktop">Mistake Category</span>
+                    <span className="th-mobile">Mistake</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Frequency</span>
+                    <span className="th-mobile">Freq</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Win Rate</span>
+                    <span className="th-mobile">Win%</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Pips</span>
+                    <span className="th-mobile">Pips</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Avg Drain ($)</span>
+                    <span className="th-mobile">Avg $</span>
+                  </th>
+                  <th>
+                    <span className="th-desktop">Cumulative P&L Drain ($)</span>
+                    <span className="th-mobile">Total $</span>
+                  </th>
                 </tr>
-              ) : (
-                mistakeStats.map((m, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: '700', color: 'var(--loss)' }}>{m.mistake}</td>
-                    <td style={{ fontWeight: '600' }}>{m.count}</td>
-                    <td>
-                      <div className="analytics-winrate-cell">
-                        <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${m.winRate}%`, background: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
-                        </div>
-                        <span style={{ color: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
-                          {m.winRate.toFixed(1)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-                      {m.avgPips >= 0 ? '+' : ''}{m.avgPips}
-                    </td>
-                    <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)', color: m.avgProfit <= 0 ? 'var(--loss)' : 'var(--profit)' }}>
-                      {formatUSD(m.avgProfit)}
-                    </td>
-                    <td style={{ fontWeight: '800', fontFamily: 'var(--font-mono)', color: m.totalProfit <= 0 ? 'var(--loss)' : 'var(--profit)' }}>
-                      {formatUSD(m.totalProfit)}
+              </thead>
+              <tbody>
+                {mistakeStats.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '28px' }}>
+                      No execution mistakes logged yet. Flawless process adherence!
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  mistakeStats.map((m, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontWeight: '700', color: 'var(--loss)' }}>{m.mistake}</td>
+                      <td style={{ fontWeight: '600' }}>{m.count}</td>
+                      <td>
+                        <div className="analytics-winrate-cell">
+                          <div className="winrate-bar-track" style={{ width: '50px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${m.winRate}%`, background: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}></div>
+                          </div>
+                          <span style={{ color: m.winRate >= 50 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700' }}>
+                            {m.winRate.toFixed(1)}%
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
+                        {m.avgPips >= 0 ? '+' : ''}{m.avgPips}
+                      </td>
+                      <td style={{ fontWeight: '700', fontFamily: 'var(--font-mono)', color: m.avgProfit <= 0 ? 'var(--loss)' : 'var(--profit)' }}>
+                        {formatUSD(m.avgProfit)}
+                      </td>
+                      <td style={{ fontWeight: '800', fontFamily: 'var(--font-mono)', color: m.totalProfit <= 0 ? 'var(--loss)' : 'var(--profit)' }}>
+                        {formatUSD(m.totalProfit)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

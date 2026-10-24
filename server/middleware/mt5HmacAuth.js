@@ -22,8 +22,8 @@ setInterval(() => {
  *   x-connector-signature: Hex HMAC-SHA256 signature
  */
 const verifyMT5Hmac = async (req, res, next) => {
-  // 1. Feature Flag Check
-  if (process.env.MT5_INTEGRATION_ENABLED !== 'true') {
+  // 1. Feature Flag Check (Enabled by default unless explicitly disabled)
+  if (process.env.MT5_INTEGRATION_ENABLED === 'false') {
     return res.status(403).json({
       success: false,
       message: 'MetaTrader 5 integration is currently disabled by system administrator'

@@ -17,9 +17,9 @@ const {
   getConnectorConfig
 } = require('../controllers/mt5Controller');
 
-// Global Feature Flag Middleware for MT5 Routes
+// Global Feature Flag Middleware for MT5 Routes (Enabled by default unless explicitly set to 'false')
 router.use((req, res, next) => {
-  if (process.env.MT5_INTEGRATION_ENABLED !== 'true') {
+  if (process.env.MT5_INTEGRATION_ENABLED === 'false') {
     return res.status(403).json({
       success: false,
       message: 'MetaTrader 5 integration is currently disabled by system administrator'

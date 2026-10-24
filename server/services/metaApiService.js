@@ -90,27 +90,56 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
   // If real MetaApi token exists, register account with MetaApi Cloud
   if (META_API_TOKEN) {
     try {
-      const deployRes = await fetch(`${META_API_PROVISIONING_URL}/users/current/accounts`, {
-        method: 'POST',
-        headers: {
-          'auth-token': META_API_TOKEN,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: account.accountName,
-          type: 'cloud',
-          login: String(cleanLogin),
-          password: password,
-          server: cleanServer,
-          platform: 'mt5',
-          magic: 0
-        })
+      // First check if account is already provisioned in MetaApi
+      const listRes = await fetch(`${META_API_PROVISIONING_URL}/users/current/accounts`, {
+        headers: { 'auth-token': META_API_TOKEN }
       });
+      if (listRes.ok) {
+        const existingList = await listRes.json();
+        const found = Array.isArray(existingList) && existingList.find(a => String(a.login) === String(cleanLogin));
+        if (found && found.id) {
+          account.metaApiAccountId = found.id;
+          console.log(`[MetaApi Cloud] Linked existing account ${cleanLogin} (ID: ${found.id})`);
+        }
+      }
 
-      const data = await deployRes.json();
-      if (data && data.id) {
-        account.metaApiAccountId = data.id;
-        console.log(`[MetaApi Cloud] Deployed account ${cleanLogin} (ID: ${data.id})`);
+      if (!account.metaApiAccountId) {
+        const deployRes = await fetch(`${META_API_PROVISIONING_URL}/users/current/accounts`, {
+          method: 'POST',
+          headers: {
+            'auth-token': META_API_TOKEN,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: account.accountName,
+            type: 'cloud',
+            login: String(cleanLogin),
+            password: password,
+            server: cleanServer,
+            platform: 'mt5',
+            magic: 0
+          })
+        });
+
+        const data = await deployRes.json();
+        if (data && data.id) {
+          account.metaApiAccountId = data.id;
+          console.log(`[MetaApi Cloud] Created account ${cleanLogin} (ID: ${data.id})`);
+          try {
+            await fetch(`${META_API_PROVISIONING_URL}/users/current/accounts/${data.id}/deploy`, {
+              method: 'POST',
+              headers: {
+                'auth-token': META_API_TOKEN,
+                'Content-Type': 'application/json'
+              }
+            });
+            console.log(`[MetaApi Cloud] Deployed account ${data.id}`);
+          } catch (depErr) {
+            console.warn('[MetaApi Cloud] Deploy warning:', depErr.message);
+          }
+        } else if (data && data.error) {
+          console.warn('[MetaApi Cloud] Provisioning response:', data);
+        }
       }
     } catch (err) {
       console.warn('[MetaApi Cloud] Registration error, using institutional cloud gateway fallback:', err.message);

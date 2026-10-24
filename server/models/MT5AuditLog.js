@@ -20,6 +20,7 @@ const mt5AuditLogSchema = new mongoose.Schema(
       enum: [
         'pairing_code_generated',
         'paired',
+        'cloud_account_connected',
         'key_rotated',
         'heartbeat',
         'sync_positions',

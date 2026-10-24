@@ -730,20 +730,6 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <CloudLightning size={18} />
               <span>Connect MT5 Account</span>
             </button>
-
-            <button
-              onClick={handleInstantLiveConnect}
-              disabled={connectingCloud}
-              className="cloud-mt5-hero-btn"
-              style={{
-                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.4))',
-                border: '1px solid rgba(239, 68, 68, 0.5)',
-                color: '#ffffff'
-              }}
-            >
-              <Zap size={18} color="#f87171" />
-              <span>{connectingCloud ? 'Connecting...' : '⚡ 1-Click Live Account Demo'}</span>
-            </button>
           </div>
         </div>
       )}

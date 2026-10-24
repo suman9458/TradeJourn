@@ -76,14 +76,28 @@ const verifyMT5Hmac = async (req, res, next) => {
 
     // 5. Compute HMAC-SHA256 Signature
     // Format: METHOD:PATH:TIMESTAMP:NONCE:BODY_HASH
-    const bodyStr = req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : '';
+    const bodyStr = req.rawBody !== undefined
+      ? req.rawBody
+      : (req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : '');
     const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
-    const payloadToSign = `${req.method.toUpperCase()}:${req.originalUrl || req.url}:${timestamp}:${nonce}:${bodyHash}`;
+    const path = req.originalUrl || req.url;
+    const payloadToSign = `${req.method.toUpperCase()}:${path}:${timestamp}:${nonce}:${bodyHash}`;
 
-    const expectedSignature = crypto
+    let expectedSignature = crypto
       .createHmac('sha256', account.apiKeyHash)
       .update(payloadToSign)
       .digest('hex');
+
+    // Resilient fallback check with re-serialized JSON if rawBody differed slightly
+    if (signature !== expectedSignature && req.body && Object.keys(req.body).length > 0) {
+      const altBodyStr = JSON.stringify(req.body);
+      const altBodyHash = crypto.createHash('sha256').update(altBodyStr).digest('hex');
+      const altPayload = `${req.method.toUpperCase()}:${path}:${timestamp}:${nonce}:${altBodyHash}`;
+      const altSig = crypto.createHmac('sha256', account.apiKeyHash).update(altPayload).digest('hex');
+      if (signature === altSig) {
+        expectedSignature = altSig;
+      }
+    }
 
     // Constant-time comparison
     const sigBuffer = Buffer.from(signature, 'hex');

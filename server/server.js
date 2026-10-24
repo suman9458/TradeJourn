@@ -73,8 +73,13 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
-// Body parsers
-app.use(express.json({ limit: '10mb' }));
+// Body parsers with rawBody retention for cryptographically secure HMAC verification
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf-8');
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health Check

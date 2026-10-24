@@ -66,7 +66,7 @@ def send_signed_request(backend_url, endpoint, body, api_key_id, api_secret):
     url = f"{backend_url.rstrip('/')}{endpoint}"
     timestamp = str(int(time.time()))
     nonce = str(uuid.uuid4())
-    body_str = json.dumps(body) if body is not None else ""
+    body_str = json.dumps(body, separators=(',', ':')) if body is not None else ""
     body_hash = hashlib.sha256(body_str.encode('utf-8')).hexdigest()
 
     payload_to_sign = f"POST:{endpoint}:{timestamp}:{nonce}:{body_hash}"

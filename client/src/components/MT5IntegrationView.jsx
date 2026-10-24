@@ -35,7 +35,8 @@ import {
   Eye,
   EyeOff,
   CheckCircle,
-  Edit2
+  Edit2,
+  Download
 } from 'lucide-react';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
@@ -209,18 +210,18 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
         console.warn('Could not fetch connector config:', err);
       }
     }
-    // Reliable default VPS / Desktop connector config
+    // Reliable VPS / Desktop connector config
     const host = window.location.origin.includes('localhost') ? 'http://localhost:5000' : 'https://tradejourn.onrender.com';
     setConnectorConfig({
       backend_url: host,
-      api_key_id: 'mt5_key_205c1869e80c2515',
+      api_key_id: activeAccount?.apiKeyId || 'mt5_key_1fdced6694ef0ca4',
       api_secret: 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a',
       polling_interval_sec: 5,
       history_backfill_days: 30,
       mt5: {
-        login: 434413217,
+        login: activeAccount?.login ? Number(activeAccount.login) : 434413217,
         password: "YOUR_INVESTOR_PASSWORD",
-        server: "Exness-MT5Trial7"
+        server: activeAccount?.server || "Exness-MT5Trial7"
       }
     });
     setConnectorConfigModalOpen(true);
@@ -231,6 +232,19 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     navigator.clipboard.writeText(JSON.stringify(connectorConfig, null, 2));
     setCopiedConfig(true);
     setTimeout(() => setCopiedConfig(false), 2000);
+  };
+
+  const handleDownloadConfigFile = () => {
+    if (!connectorConfig) return;
+    const blob = new Blob([JSON.stringify(connectorConfig, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'config.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleOpenEditCapital = () => {
@@ -1469,42 +1483,101 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             </div>
 
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
-              Run this connector on any <strong>Windows VPS</strong> (Contabo, Kamatera, AWS, or your broker's Free VPS) or your personal laptop for <strong>100% Free 24/7 automatic sync</strong>.
+              Connect any MT5 account (Exness, FTMO, XM, etc.) from your <strong>Windows VPS or Personal PC</strong> with 100% Free 24/7 auto-sync.
             </p>
 
+            {/* 1-Click Action Buttons for New Users */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+              <a
+                href="/tradejourn-mt5-connector.zip"
+                download="tradejourn-mt5-connector.zip"
+                className="btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  fontSize: '0.82rem',
+                  textDecoration: 'none',
+                  borderRadius: '9px',
+                  fontWeight: '700',
+                  background: 'linear-gradient(135deg, #0ea5e9, #2563eb)'
+                }}
+              >
+                <Download size={15} />
+                <span>1. Download Connector (.zip)</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleDownloadConfigFile}
+                className="btn-secondary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  fontSize: '0.82rem',
+                  borderRadius: '9px',
+                  fontWeight: '700'
+                }}
+              >
+                <Download size={15} />
+                <span>2. Download config.json</span>
+              </button>
+            </div>
+
+            {/* Quick Steps Guide */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-medium)', borderRadius: '10px', padding: '14px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '10px', fontSize: '0.85rem' }}>
+                🚀 Simple 3-Step Setup for New Users:
+              </strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <span style={{ background: 'rgba(14, 165, 233, 0.15)', color: 'var(--accent-cyan)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.74rem' }}>1</span>
+                  <span><strong>Open MT5 Terminal:</strong> Keep your Exness / broker MT5 terminal running logged into account <strong style={{ color: 'var(--text-white)' }}>#{connectorConfig.mt5?.login}</strong>. <em>(MetaEditor open karne ki bilkul zaroorat nahi hai).</em></span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <span style={{ background: 'rgba(14, 165, 233, 0.15)', color: 'var(--accent-cyan)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.74rem' }}>2</span>
+                  <span><strong>Extract &amp; Paste Config:</strong> <code style={{ color: 'var(--accent-cyan)' }}>tradejourn-mt5-connector.zip</code> ko extract karein aur downloaded <code style={{ color: 'var(--profit)' }}>config.json</code> ko usi folder ke andar daal kar apna password likhein.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--profit)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.74rem' }}>3</span>
+                  <span><strong>Run Connector:</strong> Folder me <code style={{ color: 'var(--profit)', fontWeight: 'bold' }}>run_connector.bat</code> par double-click karein! Automatic connection ban jayega aur trades sync hone lagengi.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Config preview & copy */}
             <div style={{ position: 'relative', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Config Preview:</span>
+                <button
+                  type="button"
+                  onClick={handleCopyConfig}
+                  className="btn-secondary"
+                  style={{ padding: '4px 10px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                >
+                  {copiedConfig ? <Check size={12} color="var(--profit)" /> : <Copy size={12} />}
+                  <span>{copiedConfig ? 'Copied!' : 'Copy Code'}</span>
+                </button>
+              </div>
               <pre style={{
                 background: 'var(--bg-core)',
                 border: '1px solid var(--border-medium)',
                 borderRadius: '10px',
-                padding: '14px',
-                fontSize: '0.8rem',
+                padding: '12px',
+                fontSize: '0.78rem',
                 color: 'var(--accent-cyan)',
                 overflowX: 'auto',
                 fontFamily: 'var(--font-mono)',
-                maxHeight: '220px'
+                maxHeight: '160px',
+                margin: 0
               }}>
                 {JSON.stringify(connectorConfig, null, 2)}
               </pre>
-              <button
-                type="button"
-                onClick={handleCopyConfig}
-                className="btn-secondary"
-                style={{ position: 'absolute', top: '10px', right: '10px', padding: '5px 10px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '5px' }}
-              >
-                {copiedConfig ? <Check size={13} color="var(--profit)" /> : <Copy size={13} />}
-                <span>{copiedConfig ? 'Copied!' : 'Copy Config'}</span>
-              </button>
-            </div>
-
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '14px 16px', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '8px' }}>Quick Start on VPS or PC:</strong>
-              <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <li>Install &amp; open <strong>MetaTrader 5</strong> on your VPS / PC and login to your broker account.</li>
-                <li>Save this config into <code style={{ color: 'var(--accent-cyan)' }}>connectors/mt5-python/config.json</code></li>
-                <li>Double-click <code style={{ color: 'var(--profit)' }}>run_connector.bat</code> or run <code style={{ color: 'var(--profit)' }}>python connector.py</code></li>
-                <li><em>24/7 VPS Sync:</em> Keep the batch script running in the background. Every trade taken on your phone will sync instantly!</li>
-              </ol>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

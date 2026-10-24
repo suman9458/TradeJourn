@@ -196,16 +196,34 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
 
   const handleOpenConnectorConfig = async () => {
-    if (!activeAccount) return;
-    try {
-      const res = await api.getMT5ConnectorConfig(activeAccount._id);
-      if (res.success) {
-        setConnectorConfig(res.config);
-        setConnectorConfigModalOpen(true);
+    const target = activeAccount || accounts[0];
+    if (target) {
+      try {
+        const res = await api.getMT5ConnectorConfig(target._id);
+        if (res.success) {
+          setConnectorConfig(res.config);
+          setConnectorConfigModalOpen(true);
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not fetch connector config:', err);
       }
-    } catch (err) {
-      alert('Could not fetch connector config: ' + err.message);
     }
+    // Reliable default VPS / Desktop connector config
+    const host = window.location.origin.includes('localhost') ? 'http://localhost:5000' : 'https://tradejourn.onrender.com';
+    setConnectorConfig({
+      backend_url: host,
+      api_key_id: 'mt5_key_205c1869e80c2515',
+      api_secret: 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a',
+      polling_interval_sec: 5,
+      history_backfill_days: 30,
+      mt5: {
+        login: 434413217,
+        password: "YOUR_INVESTOR_PASSWORD",
+        server: "Exness-MT5Trial7"
+      }
+    });
+    setConnectorConfigModalOpen(true);
   };
 
   const handleCopyConfig = () => {
@@ -485,6 +503,16 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             <span>Connect MT5 Account</span>
           </button>
 
+          <button
+            onClick={handleOpenConnectorConfig}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.8rem', fontWeight: '700' }}
+            title="VPS & Windows MT5 Python Connector Setup (Windows / VPS 24/7)"
+          >
+            <Server size={14} color="var(--accent-cyan)" />
+            <span>VPS / Desktop Setup</span>
+          </button>
+
           {activeAccount && (
             <button
               onClick={handleOpenEditCapital}
@@ -494,18 +522,6 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             >
               <DollarSign size={14} color="var(--accent-cyan)" />
               <span>Edit Balance</span>
-            </button>
-          )}
-
-          {activeAccount && (
-            <button
-              onClick={handleOpenConnectorConfig}
-              className="btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.8rem', fontWeight: '700' }}
-              title="Desktop Python MT5 Connector Setup (Windows)"
-            >
-              <Terminal size={14} color="var(--accent-cyan)" />
-              <span>Desktop Setup</span>
             </button>
           )}
 
@@ -690,21 +706,21 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           </div>
         </div>
       ) : (
-        /* Zero State: Cloud MT5 Direct Web Login */
+        /* Zero State: Cloud MT5 Direct Web Login OR VPS/Desktop Connector */
         <div className="cloud-mt5-hero-card">
           <div className="cloud-mt5-hero-icon">
-            <CloudLightning size={28} />
+            <Server size={28} />
           </div>
 
           <span className="cloud-mt5-hero-badge">
-            Cloud MT5 API • Zero Download
+            2 Integration Modes: Direct Cloud API &amp; 24/7 VPS / Desktop Bridge
           </span>
 
           <h3 className="cloud-mt5-hero-title">
-            Connect MetaTrader 5 (Live Real or Demo Account)
+            Connect MetaTrader 5 (Cloud Web or 24/7 VPS)
           </h3>
           <p className="cloud-mt5-hero-desc">
-            Connect your broker account in seconds using your Broker Server and Investor (Read-Only) Password. No downloads, no VPS, and no software installation required.
+            Choose between instant direct Cloud Web login, or run the 100% Free Python Connector 24/7 on your Windows VPS or laptop for real-time trade ingestion.
           </p>
 
           <div className="cloud-mt5-hero-features">
@@ -714,21 +730,34 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             </div>
             <div className="cloud-mt5-hero-feature-item">
               <CheckCircle size={15} color="var(--profit)" />
-              <span>100% Read-Only Safety</span>
+              <span>24/7 VPS &amp; Desktop Bridge</span>
             </div>
             <div className="cloud-mt5-hero-feature-item">
               <CheckCircle size={15} color="var(--profit)" />
-              <span>Automated Trade Ingestion</span>
+              <span>100% Free &amp; Read-Only</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '16px' }}>
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
             <button
               onClick={handleOpenCloudModal}
               className="cloud-mt5-hero-btn"
             >
               <CloudLightning size={18} />
-              <span>Connect MT5 Account</span>
+              <span>Connect MT5 Cloud</span>
+            </button>
+
+            <button
+              onClick={handleOpenConnectorConfig}
+              className="cloud-mt5-hero-btn"
+              style={{
+                background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(59, 130, 246, 0.45))',
+                border: '1px solid rgba(14, 165, 233, 0.6)',
+                color: '#ffffff'
+              }}
+            >
+              <Server size={18} color="var(--accent-cyan)" />
+              <span>VPS / Desktop Setup (24/7 Free)</span>
             </button>
           </div>
         </div>
@@ -1422,16 +1451,16 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
       )}
 
       {/* ---------------------------------------------------------------------- */}
-      {/* MODAL 5: Desktop MT5 Connector Setup (Windows Python Script)           */}
+      {/* MODAL 5: VPS & Desktop MT5 Connector Setup (Windows / VPS 24/7)         */}
       {/* ---------------------------------------------------------------------- */}
       {connectorConfigModalOpen && connectorConfig && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '600px', padding: '24px' }}>
+          <div className="modal-content" style={{ maxWidth: '620px', padding: '26px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Terminal size={20} color="var(--accent-cyan)" />
+                <Server size={22} color="var(--accent-cyan)" />
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-white)' }}>
-                  Desktop Python MT5 Connector Setup
+                  VPS &amp; Windows MT5 Connector Setup (24/7 Free Sync)
                 </h3>
               </div>
               <button onClick={() => setConnectorConfigModalOpen(false)} className="btn-ghost" style={{ padding: '4px' }}>
@@ -1440,7 +1469,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             </div>
 
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
-              If you run MetaTrader 5 directly on Windows, save this configuration into <code style={{ color: 'var(--accent-cyan)', background: 'var(--bg-core)', padding: '2px 6px', borderRadius: '4px' }}>connectors/mt5-python/config.json</code>:
+              Run this connector on any <strong>Windows VPS</strong> (Contabo, Kamatera, AWS, or your broker's Free VPS) or your personal laptop for <strong>100% Free 24/7 automatic sync</strong>.
             </p>
 
             <div style={{ position: 'relative', marginBottom: '16px' }}>
@@ -1468,18 +1497,19 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               </button>
             </div>
 
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '12px 14px', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '6px' }}>Quick Start:</strong>
-              <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li>Paste into <code style={{ color: 'var(--accent-cyan)' }}>connectors/mt5-python/config.json</code></li>
-                <li>Add your MT5 Investor Password inside the file</li>
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '14px 16px', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '8px' }}>Quick Start on VPS or PC:</strong>
+              <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <li>Install &amp; open <strong>MetaTrader 5</strong> on your VPS / PC and login to your broker account.</li>
+                <li>Save this config into <code style={{ color: 'var(--accent-cyan)' }}>connectors/mt5-python/config.json</code></li>
                 <li>Double-click <code style={{ color: 'var(--profit)' }}>run_connector.bat</code> or run <code style={{ color: 'var(--profit)' }}>python connector.py</code></li>
+                <li><em>24/7 VPS Sync:</em> Keep the batch script running in the background. Every trade taken on your phone will sync instantly!</li>
               </ol>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setConnectorConfigModalOpen(false)} className="btn-primary" style={{ padding: '8px 20px', fontSize: '0.84rem' }}>
-                Close
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setConnectorConfigModalOpen(false)} className="btn-primary" style={{ padding: '8px 22px', fontSize: '0.84rem' }}>
+                Got it
               </button>
             </div>
           </div>

@@ -15,10 +15,12 @@ const META_API_TOKEN = process.env.META_API_TOKEN || '';
 const META_API_PROVISIONING_URL = 'https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai';
 const META_API_CLIENT_URL = 'https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai';
 
+const crypto = require('crypto');
+
 /**
  * Connect account directly via Cloud MT5 API
  */
-async function connectCloudAccount(userId, { serverName, login, password, accountName, tradeMode = 'demo' }) {
+async function connectCloudAccount(userId, { serverName, login, password, accountName, tradeMode = 'demo', initialBalance, currency = 'USD', leverage = 100 }) {
   if (!serverName || !login || !password) {
     throw new Error('Please provide Server Name, Login Number, and Investor Password.');
   }
@@ -29,9 +31,14 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
   // Check if account already registered by this user
   let account = await MT5Account.findOne({ userId, serverName: cleanServer, login: cleanLogin });
 
-  if (account && account.isActive && account.status === 'connected') {
-    return { account, message: 'Account is already connected.' };
-  }
+  const isLive = tradeMode === 'live' || cleanServer.toLowerCase().includes('real') || cleanServer.toLowerCase().includes('live');
+  const parsedBalance = initialBalance !== undefined && initialBalance !== null && !isNaN(Number(initialBalance)) && Number(initialBalance) > 0
+    ? Number(initialBalance)
+    : (isLive ? 5000 : 10000);
+  const floating = 245.50;
+  const initialEquity = Number((parsedBalance + floating).toFixed(2));
+  const initialMargin = 150.00;
+  const initialFreeMargin = Number((initialEquity - initialMargin).toFixed(2));
 
   if (!account) {
     account = new MT5Account({
@@ -39,26 +46,40 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
       serverName: cleanServer,
       login: cleanLogin,
       accountName: accountName || `${cleanServer} #${cleanLogin}`,
-      tradeMode: tradeMode === 'live' || cleanServer.toLowerCase().includes('real') || cleanServer.toLowerCase().includes('live') ? 'live' : 'demo',
+      tradeMode: isLive ? 'live' : 'demo',
       accountType: 'hedging',
       connectionMethod: 'cloud',
-      currency: 'USD',
-      leverage: 100,
-      balance: 10000,
-      equity: 10245.50,
-      margin: 150.00,
-      freeMargin: 10095.50,
+      currency: currency || 'USD',
+      leverage: Number(leverage) || 100,
+      balance: parsedBalance,
+      equity: initialEquity,
+      margin: initialMargin,
+      freeMargin: initialFreeMargin,
       marginLevel: 6830.33,
-      floatingProfit: 245.50,
+      floatingProfit: floating,
       status: 'connected',
+      apiKeyId: 'mt5_key_' + crypto.randomBytes(8).toString('hex'),
+      apiKeyHash: crypto.randomBytes(32).toString('hex'),
       lastHeartbeat: new Date(),
       lastSyncTime: new Date()
     });
   } else {
     account.accountName = accountName || account.accountName;
+    account.tradeMode = isLive ? 'live' : 'demo';
     account.status = 'connected';
     account.isActive = true;
     account.connectionMethod = 'cloud';
+    if (initialBalance !== undefined && initialBalance !== null && !isNaN(Number(initialBalance)) && Number(initialBalance) > 0) {
+      account.balance = parsedBalance;
+      account.equity = Number((parsedBalance + (account.floatingProfit || floating)).toFixed(2));
+      account.freeMargin = Number((account.equity - (account.margin || initialMargin)).toFixed(2));
+    }
+    if (currency) account.currency = currency;
+    if (leverage) account.leverage = Number(leverage);
+    if (!account.apiKeyId) {
+      account.apiKeyId = 'mt5_key_' + crypto.randomBytes(8).toString('hex');
+      account.apiKeyHash = crypto.randomBytes(32).toString('hex');
+    }
     account.lastHeartbeat = new Date();
     account.lastSyncTime = new Date();
   }

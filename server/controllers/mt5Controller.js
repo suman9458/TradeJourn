@@ -28,7 +28,7 @@ const activeOpenPositionsCache = new Map();
 exports.connectDirectCloudAccount = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { serverName, login, password, accountName, tradeMode } = req.body;
+    const { serverName, login, password, accountName, tradeMode, initialBalance, currency, leverage } = req.body;
 
     if (!serverName || !login || !password) {
       return res.status(400).json({
@@ -42,7 +42,10 @@ exports.connectDirectCloudAccount = async (req, res) => {
       login,
       password,
       accountName,
-      tradeMode
+      tradeMode,
+      initialBalance,
+      currency,
+      leverage
     });
 
     await MT5AuditLog.create({
@@ -474,3 +477,43 @@ exports.disconnectAccount = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * Get credentials/config for local Windows Python MT5 connector
+ * GET /api/mt5/accounts/:id/connector-config
+ */
+exports.getConnectorConfig = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const account = await MT5Account.findOne({ _id: req.params.id, userId }).select('+apiKeyHash');
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    if (!account.apiKeyId || !account.apiKeyHash) {
+      account.apiKeyId = 'mt5_key_' + crypto.randomBytes(8).toString('hex');
+      account.apiKeyHash = crypto.randomBytes(32).toString('hex');
+      await account.save();
+    }
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:5000';
+    const backendUrl = `${protocol}://${host}`;
+
+    res.status(200).json({
+      success: true,
+      config: {
+        backend_url: backendUrl,
+        api_key_id: account.apiKeyId,
+        api_secret: account.apiKeyHash,
+        server: account.serverName,
+        login: account.login,
+        polling_interval_sec: 5
+      }
+    });
+  } catch (err) {
+    console.error('Error getting connector config:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

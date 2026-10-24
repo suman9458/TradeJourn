@@ -13,7 +13,8 @@ const {
   updateJournal,
   linkManualTrade,
   disconnectAccount,
-  connectDirectCloudAccount
+  connectDirectCloudAccount,
+  getConnectorConfig
 } = require('../controllers/mt5Controller');
 
 // Global Feature Flag Middleware for MT5 Routes
@@ -41,6 +42,7 @@ router.post('/sync/reconciliation', verifyMT5Hmac, reconcileHistory);
 router.post('/cloud/connect', protect, connectDirectCloudAccount);
 router.get('/accounts', protect, getAccounts);
 router.get('/accounts/:id/positions', protect, getOpenPositions);
+router.get('/accounts/:id/connector-config', protect, getConnectorConfig);
 router.get('/pending-journals', protect, getPendingJournals);
 router.post('/positions/:id/journal', protect, updateJournal);
 router.post('/positions/:id/link-trade', protect, linkManualTrade);

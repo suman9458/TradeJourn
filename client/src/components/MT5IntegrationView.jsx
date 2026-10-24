@@ -65,14 +65,22 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [cloudForm, setCloudForm] = useState({
-    serverName: 'ICMarketsSC-Demo',
+    serverName: 'Exness-MT5Real',
     login: '',
     password: '',
     accountName: '',
-    tradeMode: 'demo'
+    tradeMode: 'live',
+    initialBalance: '5000',
+    currency: 'USD',
+    leverage: 500
   });
   const [connectingCloud, setConnectingCloud] = useState(false);
   const [cloudError, setCloudError] = useState('');
+
+  // Connector Config Modal (Desktop MT5 Windows)
+  const [connectorConfigModalOpen, setConnectorConfigModalOpen] = useState(false);
+  const [connectorConfig, setConnectorConfig] = useState(null);
+  const [copiedConfig, setCopiedConfig] = useState(false);
 
   // Disconnect Modal
   const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
@@ -190,6 +198,79 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     setIsCloudModalOpen(true);
   };
 
+  const handleQuickFill = (presetType) => {
+    if (presetType === 'live') {
+      setCloudForm({
+        serverName: 'Exness-MT5Real',
+        login: '8829104',
+        password: 'InvestorPass#2026',
+        accountName: 'Exness Live Real Account',
+        tradeMode: 'live',
+        initialBalance: '5000',
+        currency: 'USD',
+        leverage: 500
+      });
+    } else {
+      setCloudForm({
+        serverName: 'ICMarketsSC-Demo',
+        login: '50123984',
+        password: 'DemoPass#2026',
+        accountName: 'IC Markets Demo Sandbox',
+        tradeMode: 'demo',
+        initialBalance: '10000',
+        currency: 'USD',
+        leverage: 100
+      });
+    }
+  };
+
+  const handleInstantLiveConnect = async () => {
+    setConnectingCloud(true);
+    try {
+      const res = await api.connectMT5CloudAccount({
+        serverName: 'Exness-MT5Real',
+        login: '8829104',
+        password: 'InvestorPass#2026',
+        accountName: 'Exness Live Real Account',
+        tradeMode: 'live',
+        initialBalance: 5000,
+        currency: 'USD',
+        leverage: 500
+      });
+      if (res.success) {
+        setToastMessage('Connected Live MT5 Account #8829104 (Exness Real Live)!');
+        await fetchAccountsData();
+        if (res.account?._id) setSelectedAccountId(res.account._id);
+      } else {
+        alert(res.message || 'Failed to connect live account');
+      }
+    } catch (err) {
+      alert('Connection failed: ' + err.message);
+    } finally {
+      setConnectingCloud(false);
+    }
+  };
+
+  const handleOpenConnectorConfig = async () => {
+    if (!activeAccount) return;
+    try {
+      const res = await api.getMT5ConnectorConfig(activeAccount._id);
+      if (res.success) {
+        setConnectorConfig(res.config);
+        setConnectorConfigModalOpen(true);
+      }
+    } catch (err) {
+      alert('Could not fetch connector config: ' + err.message);
+    }
+  };
+
+  const handleCopyConfig = () => {
+    if (!connectorConfig) return;
+    navigator.clipboard.writeText(JSON.stringify(connectorConfig, null, 2));
+    setCopiedConfig(true);
+    setTimeout(() => setCopiedConfig(false), 2000);
+  };
+
   const handleConnectCloud = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setCloudError('');
@@ -213,12 +294,15 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
         login: cloudForm.login.toString().trim(),
         password: cloudForm.password.trim(),
         accountName: cloudForm.accountName.trim() || undefined,
-        tradeMode: cloudForm.tradeMode
+        tradeMode: cloudForm.tradeMode,
+        initialBalance: cloudForm.initialBalance ? Number(cloudForm.initialBalance) : undefined,
+        currency: cloudForm.currency || 'USD',
+        leverage: cloudForm.leverage ? Number(cloudForm.leverage) : 100
       });
 
       if (res.success) {
         setIsCloudModalOpen(false);
-        setToastMessage(`Connected MT5 Account #${res.account?.login || cloudForm.login} via Cloud API!`);
+        setToastMessage(`Connected MT5 Account #${res.account?.login || cloudForm.login} (${res.account?.tradeMode?.toUpperCase() || 'LIVE'})!`);
         await fetchAccountsData();
         if (res.account?._id) {
           setSelectedAccountId(res.account._id);
@@ -427,8 +511,20 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             style={{ border: 'none' }}
           >
             <CloudLightning size={14} />
-            <span>Connect Cloud MT5</span>
+            <span>Connect MT5 Account</span>
           </button>
+
+          {activeAccount && (
+            <button
+              onClick={handleOpenConnectorConfig}
+              className="btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.8rem', fontWeight: '700' }}
+              title="Desktop Python MT5 Connector Setup (Windows)"
+            >
+              <Terminal size={14} color="var(--accent-cyan)" />
+              <span>Desktop Setup</span>
+            </button>
+          )}
 
           {activeAccount && (
             <button
@@ -485,17 +581,24 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '3px 8px',
+                gap: '6px',
+                padding: '3px 10px',
                 borderRadius: '6px',
-                background: 'rgba(14, 165, 233, 0.12)',
-                color: 'var(--accent-cyan)',
-                border: '1px solid rgba(14, 165, 233, 0.3)',
+                background: activeAccount.tradeMode === 'live' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(14, 165, 233, 0.12)',
+                color: activeAccount.tradeMode === 'live' ? '#ef4444' : 'var(--accent-cyan)',
+                border: activeAccount.tradeMode === 'live' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(14, 165, 233, 0.3)',
                 fontSize: '0.72rem',
                 fontWeight: '800'
               }}>
-                <Cloud size={12} />
-                <span>Cloud MT5 Active</span>
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: activeAccount.tradeMode === 'live' ? '#ef4444' : 'var(--accent-cyan)',
+                  boxShadow: activeAccount.tradeMode === 'live' ? '0 0 6px #ef4444' : 'none',
+                  display: 'inline-block'
+                }} />
+                <span>{activeAccount.tradeMode === 'live' ? 'LIVE REAL ACCOUNT ACTIVE' : 'CLOUD MT5 DEMO ACTIVE'}</span>
               </span>
             )}
           </div>
@@ -528,7 +631,10 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <span>Account Balance</span>
               <DollarSign size={15} color="var(--accent-cyan)" />
             </div>
-            <div className="kpi-value">${(activeAccount.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="kpi-value">
+              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {(activeAccount.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               Base: {activeAccount.currency || 'USD'} • 1:{activeAccount.leverage || 100}
             </p>
@@ -540,7 +646,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <TrendingUp size={15} color="var(--profit)" />
             </div>
             <div className="kpi-value" style={{ color: (activeAccount.equity || 0) >= (activeAccount.balance || 0) ? 'var(--profit)' : 'var(--loss)' }}>
-              ${(activeAccount.equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {(activeAccount.equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               Live floating margin
@@ -553,7 +660,9 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <Activity size={15} color={(activeAccount.floatingProfit || 0) >= 0 ? 'var(--profit)' : 'var(--loss)'} />
             </div>
             <div className="kpi-value">
-              {(activeAccount.floatingProfit || 0) >= 0 ? '+' : ''}${(activeAccount.floatingProfit || 0).toFixed(2)}
+              {(activeAccount.floatingProfit || 0) >= 0 ? '+' : ''}
+              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {(activeAccount.floatingProfit || 0).toFixed(2)}
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               {openPositions.length} active positions
@@ -566,7 +675,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <ShieldCheck size={15} color="var(--accent-purple)" />
             </div>
             <div className="kpi-value" style={{ fontSize: '1.2rem' }}>
-              ${(activeAccount.freeMargin || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} Free
+              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {(activeAccount.freeMargin || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} Free
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               Used: ${(activeAccount.margin || 0).toFixed(1)} • {Math.round(activeAccount.marginLevel || 0)}%
@@ -585,7 +695,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           </span>
 
           <h3 className="cloud-mt5-hero-title">
-            Connect MetaTrader 5 via Direct Web Login
+            Connect MetaTrader 5 (Live Real or Demo Account)
           </h3>
           <p className="cloud-mt5-hero-desc">
             Connect your broker account in seconds using your Broker Server and Investor (Read-Only) Password. No downloads, no VPS, and no software installation required.
@@ -606,13 +716,29 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             </div>
           </div>
 
-          <button
-            onClick={handleOpenCloudModal}
-            className="cloud-mt5-hero-btn"
-          >
-            <CloudLightning size={18} />
-            <span>Connect Cloud MT5 (Instant Login)</span>
-          </button>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '16px' }}>
+            <button
+              onClick={handleOpenCloudModal}
+              className="cloud-mt5-hero-btn"
+            >
+              <CloudLightning size={18} />
+              <span>Connect MT5 Account</span>
+            </button>
+
+            <button
+              onClick={handleInstantLiveConnect}
+              disabled={connectingCloud}
+              className="cloud-mt5-hero-btn"
+              style={{
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.4))',
+                border: '1px solid rgba(239, 68, 68, 0.5)',
+                color: '#ffffff'
+              }}
+            >
+              <Zap size={18} color="#f87171" />
+              <span>{connectingCloud ? 'Connecting...' : '⚡ 1-Click Live Account Demo'}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -848,6 +974,28 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               </div>
             )}
 
+            {/* Quick Fill Sample Badges */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('live')}
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '5px', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
+              >
+                <Zap size={13} color="#f87171" />
+                <span>Fill Exness Real (Live $5,000)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('demo')}
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '5px', borderColor: 'rgba(14, 165, 233, 0.4)', color: 'var(--accent-cyan)' }}
+              >
+                <Zap size={13} color="var(--accent-cyan)" />
+                <span>Fill IC Markets (Demo $10,000)</span>
+              </button>
+            </div>
+
             <form onSubmit={handleConnectCloud}>
               {/* Field 1: Broker Server */}
               <div style={{ marginBottom: '14px' }}>
@@ -960,7 +1108,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               </div>
 
               {/* Field 4 & 5: Trade Mode & Nickname */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                     Account Type
@@ -991,7 +1139,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                     type="text"
                     value={cloudForm.accountName}
                     onChange={e => setCloudForm({ ...cloudForm, accountName: e.target.value })}
-                    placeholder="e.g. FTMO Challenge 100k"
+                    placeholder="e.g. My Real Trading Account"
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -1002,6 +1150,82 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       fontSize: '0.86rem'
                     }}
                   />
+                </div>
+              </div>
+
+              {/* Field 6, 7 & 8: Capital & Margin Setup */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Account Balance
+                  </label>
+                  <input
+                    type="number"
+                    value={cloudForm.initialBalance}
+                    onChange={e => setCloudForm({ ...cloudForm, initialBalance: e.target.value })}
+                    placeholder="e.g. 5000"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-core)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-medium)',
+                      fontSize: '0.86rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Currency
+                  </label>
+                  <select
+                    value={cloudForm.currency}
+                    onChange={e => setCloudForm({ ...cloudForm, currency: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-core)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-medium)',
+                      fontSize: '0.86rem'
+                    }}
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="INR">INR (₹)</option>
+                    <option value="AUD">AUD (A$)</option>
+                    <option value="CAD">CAD (C$)</option>
+                    <option value="JPY">JPY (¥)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Leverage
+                  </label>
+                  <select
+                    value={cloudForm.leverage}
+                    onChange={e => setCloudForm({ ...cloudForm, leverage: Number(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-core)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-medium)',
+                      fontSize: '0.86rem'
+                    }}
+                  >
+                    <option value={100}>1:100</option>
+                    <option value={200}>1:200</option>
+                    <option value={500}>1:500</option>
+                    <option value={1000}>1:1000</option>
+                    <option value={30}>1:30</option>
+                  </select>
                 </div>
               </div>
 
@@ -1338,6 +1562,71 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 style={{ padding: '7px 16px', fontSize: '0.82rem', background: 'var(--loss)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800' }}
               >
                 {disconnecting ? 'Disconnecting...' : 'Disconnect Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MODAL 5: Desktop MT5 Connector Setup (Windows Python Script)           */}
+      {/* ---------------------------------------------------------------------- */}
+      {connectorConfigModalOpen && connectorConfig && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '600px', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Terminal size={20} color="var(--accent-cyan)" />
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                  Desktop Python MT5 Connector Setup
+                </h3>
+              </div>
+              <button onClick={() => setConnectorConfigModalOpen(false)} className="btn-ghost" style={{ padding: '4px' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+              If you run MetaTrader 5 directly on Windows, save this configuration into <code style={{ color: 'var(--accent-cyan)', background: 'var(--bg-core)', padding: '2px 6px', borderRadius: '4px' }}>connectors/mt5-python/config.json</code>:
+            </p>
+
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
+              <pre style={{
+                background: 'var(--bg-core)',
+                border: '1px solid var(--border-medium)',
+                borderRadius: '10px',
+                padding: '14px',
+                fontSize: '0.8rem',
+                color: 'var(--accent-cyan)',
+                overflowX: 'auto',
+                fontFamily: 'var(--font-mono)',
+                maxHeight: '220px'
+              }}>
+                {JSON.stringify(connectorConfig, null, 2)}
+              </pre>
+              <button
+                type="button"
+                onClick={handleCopyConfig}
+                className="btn-secondary"
+                style={{ position: 'absolute', top: '10px', right: '10px', padding: '5px 10px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+              >
+                {copiedConfig ? <Check size={13} color="var(--profit)" /> : <Copy size={13} />}
+                <span>{copiedConfig ? 'Copied!' : 'Copy Config'}</span>
+              </button>
+            </div>
+
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '12px 14px', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '6px' }}>Quick Start:</strong>
+              <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li>Paste into <code style={{ color: 'var(--accent-cyan)' }}>connectors/mt5-python/config.json</code></li>
+                <li>Add your MT5 Investor Password inside the file</li>
+                <li>Double-click <code style={{ color: 'var(--profit)' }}>run_connector.bat</code> or run <code style={{ color: 'var(--profit)' }}>python connector.py</code></li>
+              </ol>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConnectorConfigModalOpen(false)} className="btn-primary" style={{ padding: '8px 20px', fontSize: '0.84rem' }}>
+                Close
               </button>
             </div>
           </div>

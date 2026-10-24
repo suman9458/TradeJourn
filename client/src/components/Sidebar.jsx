@@ -28,7 +28,7 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
     { id: 'reviews', label: 'Performance Reviews', icon: CalendarCheck },
     { id: 'goals', label: 'Prop Goals & Milestones', icon: Target },
     { id: 'database', label: 'Database Ledger', icon: Database },
-    { id: 'mt5', label: 'MT5 Integration', icon: Cpu, badge: 'COMING SOON' }
+    { id: 'mt5', label: 'MT5 Integration', icon: Cpu, badge: 'LIVE' }
   ];
 
   const discipline = Math.round(stats?.disciplineScoreAverage || 0);
@@ -68,7 +68,30 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
                 <Icon size={17} />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.badge && (
-                  <span style={{ fontSize: '0.62rem', fontWeight: '800', color: 'var(--accent-cyan)', background: 'var(--accent-cyan-soft)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(0, 210, 255, 0.3)', whiteSpace: 'nowrap' }}>
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: '800',
+                    color: item.badge === 'LIVE' ? 'var(--profit)' : 'var(--accent-cyan)',
+                    background: item.badge === 'LIVE' ? 'rgba(0, 245, 155, 0.12)' : 'var(--accent-cyan-soft)',
+                    padding: '2px 7px',
+                    borderRadius: '4px',
+                    border: item.badge === 'LIVE' ? '1px solid rgba(0, 245, 155, 0.35)' : '1px solid rgba(0, 210, 255, 0.3)',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '0.04em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {item.badge === 'LIVE' && (
+                      <span style={{
+                        width: '5px',
+                        height: '5px',
+                        borderRadius: '50%',
+                        background: 'var(--profit)',
+                        display: 'inline-block',
+                        boxShadow: '0 0 6px var(--profit)'
+                      }} />
+                    )}
                     {item.badge}
                   </span>
                 )}

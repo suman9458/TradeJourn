@@ -22,3 +22,7 @@ client/.env.local
 .DS_Store
 *.sqlite
 *.db
+
+# Connector secrets
+connectors/**/config.json
+!connectors/**/config.example.json

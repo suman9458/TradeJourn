@@ -167,6 +167,7 @@ export const api = {
   connectMT5CloudAccount: (payload) => request('/mt5/cloud/connect', { method: 'POST', body: JSON.stringify(payload) }),
   getMT5Accounts: () => request('/mt5/accounts'),
   getMT5OpenPositions: (id) => request(`/mt5/accounts/${id}/positions`),
+  getMT5ConnectorConfig: (id) => request(`/mt5/accounts/${id}/connector-config`),
   getMT5PendingJournals: () => request('/mt5/pending-journals'),
   updateMT5Journal: (id, payload) => request(`/mt5/positions/${id}/journal`, { method: 'POST', body: JSON.stringify(payload) }),
   linkMT5ManualTrade: (id, payload) => request(`/mt5/positions/${id}/link-trade`, { method: 'POST', body: JSON.stringify(payload) }),

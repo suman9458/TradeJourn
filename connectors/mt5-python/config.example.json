@@ -1,0 +1,13 @@
+{
+  "backend_url": "http://localhost:5000",
+  "api_key_id": "mt5_key_sample123",
+  "api_secret": "sample_secret_hash_hex",
+  "polling_interval_sec": 5,
+  "history_backfill_days": 30,
+  "mt5": {
+    "login": 12345678,
+    "password": "YOUR_INVESTOR_PASSWORD",
+    "server": "Exness-MT5Real",
+    "path": "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
+  }
+}

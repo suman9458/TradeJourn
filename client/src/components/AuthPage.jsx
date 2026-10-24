@@ -65,8 +65,8 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     document.title = 'TradeJourn | Institutional Trading Journal';
   }, []);
 
-  // Mode: 'login' | 'register'
-  const [mode, setMode] = useState('login');
+  // Mode: 'register' | 'login'
+  const [mode, setMode] = useState('register');
 
   // Carousel Slide & Auto-Slide (pauses on hover)
   const [activeSlide, setActiveSlide] = useState(0);
@@ -259,7 +259,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     try {
       await login({ userId: loginId.trim(), password: loginPassword });
     } catch (err) {
-      setError(err.message || 'Invalid User ID or Password');
+      setError(err.message || 'Invalid Trader ID or Password');
     } finally {
       setLoading(false);
     }
@@ -473,17 +473,17 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
             <div className="auth-mode-pill-toggle">
               <button
                 type="button"
-                className={`mode-toggle-btn ${mode === 'login' ? 'active' : ''}`}
-                onClick={() => { setMode('login'); setError(''); }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
                 className={`mode-toggle-btn ${mode === 'register' ? 'active' : ''}`}
                 onClick={() => { setMode('register'); setError(''); }}
               >
                 Sign Up
+              </button>
+              <button
+                type="button"
+                className={`mode-toggle-btn ${mode === 'login' ? 'active' : ''}`}
+                onClick={() => { setMode('login'); setError(''); }}
+              >
+                Log In
               </button>
             </div>
 
@@ -501,12 +501,12 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
           {/* Form Header */}
           <div className="auth-column-header">
             <h1 className="auth-main-heading">
-              {mode === 'login' ? 'Sign In' : 'Create an account'}
+              {mode === 'register' ? 'Create an account' : 'Welcome back'}
             </h1>
             <p className="auth-main-subheading">
-              {mode === 'login'
-                ? 'Login with your User ID and password to access your trading dashboard.'
-                : 'Start your trading journey today.'}
+              {mode === 'register'
+                ? 'Start your trading journey today.'
+                : 'Enter your credentials to access your trading ledger.'}
             </p>
           </div>
 
@@ -697,13 +697,13 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
           {/* LOGIN FORM */}
           {mode === 'login' && (
             <form onSubmit={handleLoginSubmit} className="auth-modern-form">
-              {/* User ID */}
+              {/* User ID or Email */}
               <div className="modern-input-group has-icon-left">
                 <AtSign size={17} className="input-leading-icon" />
                 <input
                   type="text"
                   required
-                  placeholder="User ID (e.g. @suman9458 or suman9458)"
+                  placeholder="Trader User ID or Email (e.g. @suman9458)"
                   value={loginId}
                   onChange={e => setLoginId(e.target.value)}
                   className="modern-input"

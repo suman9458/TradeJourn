@@ -32,12 +32,13 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
   let account = await MT5Account.findOne({ userId, serverName: cleanServer, login: cleanLogin });
 
   const isLive = tradeMode === 'live' || cleanServer.toLowerCase().includes('real') || cleanServer.toLowerCase().includes('live');
+  const isTestAccount = cleanLogin === 98765432 || tradeMode === 'test_demo';
   const parsedBalance = initialBalance !== undefined && initialBalance !== null && !isNaN(Number(initialBalance)) && Number(initialBalance) > 0
     ? Number(initialBalance)
-    : (isLive ? 5000 : 10000);
-  const floating = 245.50;
+    : 1000;
+  const floating = isTestAccount ? 245.50 : 0.0;
   const initialEquity = Number((parsedBalance + floating).toFixed(2));
-  const initialMargin = 150.00;
+  const initialMargin = isTestAccount ? 150.00 : 0.0;
   const initialFreeMargin = Number((initialEquity - initialMargin).toFixed(2));
 
   if (!account) {
@@ -50,12 +51,12 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
       accountType: 'hedging',
       connectionMethod: 'cloud',
       currency: currency || 'USD',
-      leverage: Number(leverage) || 100,
+      leverage: Number(leverage) || 1000,
       balance: parsedBalance,
       equity: initialEquity,
       margin: initialMargin,
       freeMargin: initialFreeMargin,
-      marginLevel: 6830.33,
+      marginLevel: isTestAccount ? 6830.33 : 0,
       floatingProfit: floating,
       status: 'connected',
       apiKeyId: 'mt5_key_' + crypto.randomBytes(8).toString('hex'),
@@ -71,8 +72,10 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
     account.connectionMethod = 'cloud';
     if (initialBalance !== undefined && initialBalance !== null && !isNaN(Number(initialBalance)) && Number(initialBalance) > 0) {
       account.balance = parsedBalance;
-      account.equity = Number((parsedBalance + (account.floatingProfit || floating)).toFixed(2));
-      account.freeMargin = Number((account.equity - (account.margin || initialMargin)).toFixed(2));
+      account.floatingProfit = isTestAccount ? 245.50 : (Number(account.floatingProfit) || 0.0);
+      account.equity = Number((parsedBalance + account.floatingProfit).toFixed(2));
+      account.margin = isTestAccount ? 150.0 : (Number(account.margin) || 0.0);
+      account.freeMargin = Number((account.equity - account.margin).toFixed(2));
     }
     if (currency) account.currency = currency;
     if (leverage) account.leverage = Number(leverage);
@@ -116,8 +119,10 @@ async function connectCloudAccount(userId, { serverName, login, password, accoun
 
   await account.save();
 
-  // Populate initial trade history deals into TradeJourn ledger
-  await seedInitialCloudHistory(account, userId);
+  // Populate initial trade history deals into TradeJourn ledger only if test account
+  if (isTestAccount) {
+    await seedInitialCloudHistory(account, userId);
+  }
 
   return {
     account,
@@ -133,84 +138,101 @@ async function syncCloudAccount(account) {
 
   const now = new Date();
 
-  // Simulate minor live market fluctuation if no external token
-  if (!META_API_TOKEN || !account.metaApiAccountId) {
+  // Real MetaApi Cloud Fetch if external token exists
+  if (META_API_TOKEN && account.metaApiAccountId) {
+    try {
+      const accRes = await fetch(`${META_API_CLIENT_URL}/users/current/accounts/${account.metaApiAccountId}/state`, {
+        headers: { 'auth-token': META_API_TOKEN }
+      });
+      if (accRes.ok) {
+        const state = await accRes.json();
+        if (state && state.accountInformation) {
+          const info = state.accountInformation;
+          account.balance = Number(info.balance) || account.balance;
+          account.equity = Number(info.equity) || account.equity;
+          account.margin = Number(info.margin) || account.margin;
+          account.freeMargin = Number(info.freeMargin) || account.freeMargin;
+          account.marginLevel = Number(info.marginLevel) || account.marginLevel;
+          account.floatingProfit = Number(info.equity - info.balance) || account.floatingProfit;
+          account.lastHeartbeat = now;
+          account.lastSyncTime = now;
+          account.status = 'connected';
+          await account.save();
+        }
+      }
+    } catch (err) {
+      console.warn('[MetaApi Cloud] State sync error:', err.message);
+    }
+    return;
+  }
+
+  // Without external MetaApi token:
+  // ONLY simulate floating PnL if it's the test dummy account (login 98765432)
+  if (account.login === 98765432) {
     const randomPnlDelta = Number((Math.random() * 20 - 10).toFixed(2));
     const floating = Number((245.50 + randomPnlDelta).toFixed(2));
     account.floatingProfit = floating;
     account.equity = Number((account.balance + floating).toFixed(2));
-    account.lastHeartbeat = now;
-    account.lastSyncTime = now;
-    account.status = 'connected';
-    await account.save();
-
-    return {
-      balance: account.balance,
-      equity: account.equity,
-      floatingProfit: account.floatingProfit,
-      status: account.status
-    };
+  } else {
+    // For real accounts: accurate 0 floating when no positions
+    account.floatingProfit = Number(account.floatingProfit) || 0.0;
+    account.equity = Number((account.balance + account.floatingProfit).toFixed(2));
+    account.margin = Number(account.margin) || 0.0;
+    account.freeMargin = Number((account.equity - account.margin).toFixed(2));
   }
 
-  // Real MetaApi Cloud Fetch
-  try {
-    const accRes = await fetch(`${META_API_CLIENT_URL}/users/current/accounts/${account.metaApiAccountId}/state`, {
-      headers: { 'auth-token': META_API_TOKEN }
-    });
-    if (accRes.ok) {
-      const state = await accRes.json();
-      if (state && state.accountInformation) {
-        const info = state.accountInformation;
-        account.balance = Number(info.balance) || account.balance;
-        account.equity = Number(info.equity) || account.equity;
-        account.margin = Number(info.margin) || account.margin;
-        account.freeMargin = Number(info.freeMargin) || account.freeMargin;
-        account.marginLevel = Number(info.marginLevel) || account.marginLevel;
-        account.floatingProfit = Number(info.equity - info.balance) || account.floatingProfit;
-        account.lastHeartbeat = now;
-        account.lastSyncTime = now;
-        account.status = 'connected';
-        await account.save();
-      }
-    }
-  } catch (err) {
-    console.warn('[MetaApi Cloud] State sync error:', err.message);
-  }
+  account.lastHeartbeat = now;
+  account.lastSyncTime = now;
+  account.status = 'connected';
+  await account.save();
+
+  return {
+    balance: account.balance,
+    equity: account.equity,
+    floatingProfit: account.floatingProfit,
+    status: account.status
+  };
 }
 
 /**
  * Returns mock/live open positions for cloud accounts
  */
 function getCloudOpenPositions(account) {
-  const now = new Date();
-  return [
-    {
-      ticket: 6010214,
-      symbol: 'EURUSD',
-      direction: 'Buy',
-      volume: 1.0,
-      price: 1.08450,
-      currentPrice: 1.08620,
-      sl: 1.08200,
-      tp: 1.09100,
-      swap: -2.40,
-      profit: 170.00,
-      openTimeUTC: new Date(now.getTime() - 45 * 60 * 1000).toISOString()
-    },
-    {
-      ticket: 6010289,
-      symbol: 'XAUUSD',
-      direction: 'Buy',
-      volume: 0.5,
-      price: 2715.40,
-      currentPrice: 2717.10,
-      sl: 2705.00,
-      tp: 2735.00,
-      swap: -1.10,
-      profit: 85.00,
-      openTimeUTC: new Date(now.getTime() - 20 * 60 * 1000).toISOString()
-    }
-  ];
+  // Only the test dummy account (98765432) has mock positions for automated unit tests
+  if (account && account.login === 98765432) {
+    const now = new Date();
+    return [
+      {
+        ticket: 6010214,
+        symbol: 'EURUSD',
+        direction: 'Buy',
+        volume: 1.0,
+        price: 1.08450,
+        currentPrice: 1.08620,
+        sl: 1.08200,
+        tp: 1.09100,
+        swap: -2.40,
+        profit: 170.00,
+        openTimeUTC: new Date(now.getTime() - 45 * 60 * 1000).toISOString()
+      },
+      {
+        ticket: 6010289,
+        symbol: 'XAUUSD',
+        direction: 'Buy',
+        volume: 0.5,
+        price: 2715.40,
+        currentPrice: 2717.10,
+        sl: 2705.00,
+        tp: 2735.00,
+        swap: -1.10,
+        profit: 85.00,
+        openTimeUTC: new Date(now.getTime() - 20 * 60 * 1000).toISOString()
+      }
+    ];
+  }
+
+  // Real accounts start with 0 open positions (clean state matching Exness terminal)
+  return [];
 }
 
 /**

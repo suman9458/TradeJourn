@@ -193,11 +193,11 @@ export const AuthModal = ({ isOpen, onClose }) => {
             </>
           ) : (
             <label>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600' }}>User ID *</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600' }}>User ID or Email *</span>
               <input
                 type="text"
                 required
-                placeholder="User ID (e.g. @suman9458 or suman9458)"
+                placeholder="e.g. @suman9458"
                 value={loginId}
                 onChange={e => setLoginId(e.target.value)}
                 autoComplete="username"

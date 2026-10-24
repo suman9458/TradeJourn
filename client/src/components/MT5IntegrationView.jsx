@@ -34,7 +34,8 @@ import {
   Shield,
   Eye,
   EyeOff,
-  CheckCircle
+  CheckCircle,
+  Edit2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
@@ -81,6 +82,10 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [connectorConfigModalOpen, setConnectorConfigModalOpen] = useState(false);
   const [connectorConfig, setConnectorConfig] = useState(null);
   const [copiedConfig, setCopiedConfig] = useState(false);
+
+  // Edit Capital Modal
+  const [isEditCapitalOpen, setIsEditCapitalOpen] = useState(false);
+  const [editCapitalForm, setEditCapitalForm] = useState({ balance: 1000, currency: 'USD', leverage: 1000 });
 
   // Disconnect Modal
   const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
@@ -269,6 +274,33 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     navigator.clipboard.writeText(JSON.stringify(connectorConfig, null, 2));
     setCopiedConfig(true);
     setTimeout(() => setCopiedConfig(false), 2000);
+  };
+
+  const handleOpenEditCapital = () => {
+    if (!activeAccount) return;
+    setEditCapitalForm({
+      balance: activeAccount.balance || 1000,
+      currency: activeAccount.currency || 'USD',
+      leverage: activeAccount.leverage || 1000
+    });
+    setIsEditCapitalOpen(true);
+  };
+
+  const handleSaveCapital = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!activeAccount) return;
+    try {
+      await api.updateMT5Account(activeAccount._id, {
+        balance: Number(editCapitalForm.balance),
+        currency: editCapitalForm.currency,
+        leverage: Number(editCapitalForm.leverage)
+      });
+      setIsEditCapitalOpen(false);
+      setToastMessage('Account balance updated to ' + editCapitalForm.currency + ' ' + Number(editCapitalForm.balance).toFixed(2));
+      await fetchAccountsData();
+    } catch (err) {
+      alert('Failed to update balance: ' + err.message);
+    }
   };
 
   const handleConnectCloud = async (e) => {
@@ -516,6 +548,18 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
           {activeAccount && (
             <button
+              onClick={handleOpenEditCapital}
+              className="btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.8rem', fontWeight: '700' }}
+              title="Edit Account Balance & Settings"
+            >
+              <DollarSign size={14} color="var(--accent-cyan)" />
+              <span>Edit Balance</span>
+            </button>
+          )}
+
+          {activeAccount && (
+            <button
               onClick={handleOpenConnectorConfig}
               className="btn-secondary"
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.8rem', fontWeight: '700' }}
@@ -629,7 +673,30 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
           <div className="kpi-card neutral">
             <div className="kpi-top">
               <span>Account Balance</span>
-              <DollarSign size={15} color="var(--accent-cyan)" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={handleOpenEditCapital}
+                  title="Edit Account Balance"
+                  style={{
+                    background: 'rgba(14, 165, 233, 0.1)',
+                    border: '1px solid rgba(14, 165, 233, 0.3)',
+                    borderRadius: '5px',
+                    padding: '2px 7px',
+                    color: 'var(--accent-cyan)',
+                    cursor: 'pointer',
+                    fontSize: '0.7rem',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Edit2 size={11} />
+                  <span>Edit</span>
+                </button>
+                <DollarSign size={15} color="var(--accent-cyan)" />
+              </div>
             </div>
             <div className="kpi-value">
               {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
@@ -1629,6 +1696,124 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MODAL 6: Edit Account Balance & Capital Settings                        */}
+      {/* ---------------------------------------------------------------------- */}
+      {isEditCapitalOpen && activeAccount && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '440px', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <DollarSign size={20} color="var(--accent-cyan)" />
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                  Edit Account Capital
+                </h3>
+              </div>
+              <button onClick={() => setIsEditCapitalOpen(false)} className="btn-ghost" style={{ padding: '4px' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+              Update the balance and leverage for account <strong style={{ color: 'var(--text-white)' }}>#{activeAccount.login}</strong> to match your Exness terminal.
+            </p>
+
+            <form onSubmit={handleSaveCapital}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Account Balance ({editCapitalForm.currency})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={editCapitalForm.balance}
+                    onChange={(e) => setEditCapitalForm({ ...editCapitalForm, balance: e.target.value })}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-core)',
+                      border: '1px solid var(--border-medium)',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      color: 'var(--text-white)',
+                      fontSize: '1rem',
+                      fontWeight: '700'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      Currency
+                    </label>
+                    <select
+                      value={editCapitalForm.currency}
+                      onChange={(e) => setEditCapitalForm({ ...editCapitalForm, currency: e.target.value })}
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-core)',
+                        border: '1px solid var(--border-medium)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        color: 'var(--text-white)',
+                        fontSize: '0.88rem'
+                      }}
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                      <option value="INR">INR (₹)</option>
+                      <option value="JPY">JPY (¥)</option>
+                      <option value="USDT">USDT</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      Leverage (1:X)
+                    </label>
+                    <input
+                      type="number"
+                      value={editCapitalForm.leverage}
+                      onChange={(e) => setEditCapitalForm({ ...editCapitalForm, leverage: e.target.value })}
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-core)',
+                        border: '1px solid var(--border-medium)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        color: 'var(--text-white)',
+                        fontSize: '0.88rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditCapitalOpen(false)}
+                  className="btn-secondary"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '8px 20px', fontSize: '0.84rem' }}
+                >
+                  Save Balance
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

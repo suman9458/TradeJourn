@@ -517,3 +517,42 @@ exports.getConnectorConfig = async (req, res) => {
   }
 };
 
+/**
+ * Update MT5 account capital / balance / settings
+ * PUT /api/mt5/accounts/:id
+ */
+exports.updateAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { balance, currency, leverage, serverName, accountName, tradeMode } = req.body;
+
+    const account = await MT5Account.findOne({ _id: req.params.id, userId });
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    if (balance !== undefined && !isNaN(Number(balance))) {
+      account.balance = Number(balance);
+      account.equity = Number((account.balance + (account.floatingProfit || 0)).toFixed(2));
+      account.freeMargin = Number((account.equity - (account.margin || 0)).toFixed(2));
+    }
+    if (currency) account.currency = currency;
+    if (leverage) account.leverage = Number(leverage);
+    if (serverName) account.serverName = serverName;
+    if (accountName) account.accountName = accountName;
+    if (tradeMode) account.tradeMode = tradeMode;
+
+    await account.save();
+
+    res.status(200).json({
+      success: true,
+      account,
+      message: 'Account updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating account:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+

@@ -1,4 +1,4 @@
-@echo off
+@echo on
 title TradeJourn MT5 Desktop Connector
 echo =====================================================================
 echo  TradeJourn MetaTrader 5 (MT5) Desktop Connector Launcher

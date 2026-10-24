@@ -40,17 +40,7 @@ import {
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
 
-// Popular broker presets for 1-click server selection
-const BROKER_PRESETS = [
-  { label: 'IC Markets Demo', server: 'ICMarketsSC-Demo', mode: 'demo' },
-  { label: 'IC Markets Live', server: 'ICMarketsSC-Live', mode: 'live' },
-  { label: 'Exness Real', server: 'Exness-MT5Real', mode: 'live' },
-  { label: 'Exness Trial', server: 'Exness-MT5Trial', mode: 'demo' },
-  { label: 'FTMO Challenge', server: 'FTMO-Demo', mode: 'demo' },
-  { label: 'FundedNext', server: 'FundedNext-Server', mode: 'demo' },
-  { label: 'Pepperstone', server: 'Pepperstone-Live', mode: 'live' },
-  { label: 'MetaQuotes Demo', server: 'MetaQuotes-Demo', mode: 'demo' }
-];
+
 
 export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [accounts, setAccounts] = useState([]);
@@ -66,14 +56,14 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [cloudForm, setCloudForm] = useState({
-    serverName: 'Exness-MT5Real',
+    serverName: '',
     login: '',
     password: '',
     accountName: '',
-    tradeMode: 'live',
-    initialBalance: '5000',
+    tradeMode: 'demo',
+    initialBalance: '',
     currency: 'USD',
-    leverage: 500
+    leverage: 1000
   });
   const [connectingCloud, setConnectingCloud] = useState(false);
   const [cloudError, setCloudError] = useState('');
@@ -203,58 +193,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     setIsCloudModalOpen(true);
   };
 
-  const handleQuickFill = (presetType) => {
-    if (presetType === 'live') {
-      setCloudForm({
-        serverName: 'Exness-MT5Real',
-        login: '8829104',
-        password: 'InvestorPass#2026',
-        accountName: 'Exness Live Real Account',
-        tradeMode: 'live',
-        initialBalance: '5000',
-        currency: 'USD',
-        leverage: 500
-      });
-    } else {
-      setCloudForm({
-        serverName: 'ICMarketsSC-Demo',
-        login: '50123984',
-        password: 'DemoPass#2026',
-        accountName: 'IC Markets Demo Sandbox',
-        tradeMode: 'demo',
-        initialBalance: '10000',
-        currency: 'USD',
-        leverage: 100
-      });
-    }
-  };
 
-  const handleInstantLiveConnect = async () => {
-    setConnectingCloud(true);
-    try {
-      const res = await api.connectMT5CloudAccount({
-        serverName: 'Exness-MT5Real',
-        login: '8829104',
-        password: 'InvestorPass#2026',
-        accountName: 'Exness Live Real Account',
-        tradeMode: 'live',
-        initialBalance: 5000,
-        currency: 'USD',
-        leverage: 500
-      });
-      if (res.success) {
-        setToastMessage('Connected Live MT5 Account #8829104 (Exness Real Live)!');
-        await fetchAccountsData();
-        if (res.account?._id) setSelectedAccountId(res.account._id);
-      } else {
-        alert(res.message || 'Failed to connect live account');
-      }
-    } catch (err) {
-      alert('Connection failed: ' + err.message);
-    } finally {
-      setConnectingCloud(false);
-    }
-  };
 
   const handleOpenConnectorConfig = async () => {
     if (!activeAccount) return;
@@ -1041,100 +980,59 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               </div>
             )}
 
-            {/* Quick Fill Sample Badges */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('live')}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '5px', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
-              >
-                <Zap size={13} color="#f87171" />
-                <span>Fill Exness Real (Live $5,000)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('demo')}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '5px', borderColor: 'rgba(14, 165, 233, 0.4)', color: 'var(--accent-cyan)' }}
-              >
-                <Zap size={13} color="var(--accent-cyan)" />
-                <span>Fill IC Markets (Demo $10,000)</span>
-              </button>
-            </div>
-
             <form onSubmit={handleConnectCloud}>
-              {/* Field 1: Broker Server */}
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Broker Server Name
+              {/* Field 1: Broker Server Name */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Broker Server Name *
                 </label>
                 <input
                   type="text"
                   value={cloudForm.serverName}
                   onChange={e => setCloudForm({ ...cloudForm, serverName: e.target.value })}
-                  placeholder="e.g. ICMarketsSC-Demo or Exness-MT5Real"
+                  placeholder="Paste or type broker server (e.g. Exness-MT5Trial7 or Exness-MT5Real)"
                   required
                   style={{
                     width: '100%',
-                    padding: '10px 12px',
+                    padding: '11px 14px',
                     borderRadius: '8px',
                     background: 'var(--bg-core)',
                     color: 'var(--text-primary)',
                     border: '1px solid var(--border-medium)',
-                    fontSize: '0.86rem',
+                    fontSize: '0.92rem',
                     fontFamily: 'var(--font-mono)'
                   }}
                 />
-
-                {/* Quick Server Select Badges */}
-                <div style={{ marginTop: '8px' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Popular Broker Presets:
-                  </span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {BROKER_PRESETS.map((bp) => (
-                      <button
-                        key={bp.server}
-                        type="button"
-                        onClick={() => setCloudForm({ ...cloudForm, serverName: bp.server, tradeMode: bp.mode })}
-                        className={`broker-preset-btn ${cloudForm.serverName === bp.server ? 'active' : ''}`}
-                      >
-                        {bp.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* Field 2 & 3: Account Number & Password */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Account Login Number
+                  <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Account Login Number *
                   </label>
                   <input
                     type="number"
                     value={cloudForm.login}
                     onChange={e => setCloudForm({ ...cloudForm, login: e.target.value })}
-                    placeholder="e.g. 50123984"
+                    placeholder="e.g. 434413217"
                     required
                     style={{
                       width: '100%',
-                      padding: '10px 12px',
+                      padding: '11px 14px',
                       borderRadius: '8px',
                       background: 'var(--bg-core)',
                       color: 'var(--text-primary)',
                       border: '1px solid var(--border-medium)',
-                      fontSize: '0.86rem',
+                      fontSize: '0.92rem',
                       fontFamily: 'var(--font-mono)'
                     }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Investor Password
+                  <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Investor Password *
                   </label>
                   <div style={{ position: 'relative' }}>
                     <input
@@ -1145,12 +1043,12 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       required
                       style={{
                         width: '100%',
-                        padding: '10px 36px 10px 12px',
+                        padding: '11px 38px 11px 14px',
                         borderRadius: '8px',
                         background: 'var(--bg-core)',
                         color: 'var(--text-primary)',
                         border: '1px solid var(--border-medium)',
-                        fontSize: '0.86rem'
+                        fontSize: '0.92rem'
                       }}
                     />
                     <button
@@ -1158,7 +1056,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       onClick={() => setShowPassword(!showPassword)}
                       style={{
                         position: 'absolute',
-                        right: '10px',
+                        right: '12px',
                         top: '50%',
                         transform: 'translateY(-50%)',
                         background: 'none',
@@ -1168,132 +1066,34 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                         padding: '2px'
                       }}
                     >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Field 4 & 5: Trade Mode & Nickname */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Account Type
-                  </label>
-                  <select
-                    value={cloudForm.tradeMode}
-                    onChange={e => setCloudForm({ ...cloudForm, tradeMode: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-core)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-medium)',
-                      fontSize: '0.86rem'
-                    }}
-                  >
-                    <option value="demo">Demo Account</option>
-                    <option value="live">Live / Real Account</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Account Nickname (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={cloudForm.accountName}
-                    onChange={e => setCloudForm({ ...cloudForm, accountName: e.target.value })}
-                    placeholder="e.g. My Real Trading Account"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-core)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-medium)',
-                      fontSize: '0.86rem'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Field 6, 7 & 8: Capital & Margin Setup */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Account Balance
-                  </label>
-                  <input
-                    type="number"
-                    value={cloudForm.initialBalance}
-                    onChange={e => setCloudForm({ ...cloudForm, initialBalance: e.target.value })}
-                    placeholder="e.g. 5000"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-core)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-medium)',
-                      fontSize: '0.86rem'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Currency
-                  </label>
-                  <select
-                    value={cloudForm.currency}
-                    onChange={e => setCloudForm({ ...cloudForm, currency: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-core)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-medium)',
-                      fontSize: '0.86rem'
-                    }}
-                  >
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="INR">INR (₹)</option>
-                    <option value="AUD">AUD (A$)</option>
-                    <option value="CAD">CAD (C$)</option>
-                    <option value="JPY">JPY (¥)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Leverage
-                  </label>
-                  <select
-                    value={cloudForm.leverage}
-                    onChange={e => setCloudForm({ ...cloudForm, leverage: Number(e.target.value) })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-core)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-medium)',
-                      fontSize: '0.86rem'
-                    }}
-                  >
-                    <option value={100}>1:100</option>
-                    <option value={200}>1:200</option>
-                    <option value={500}>1:500</option>
-                    <option value={1000}>1:1000</option>
-                    <option value={30}>1:30</option>
-                  </select>
-                </div>
+              {/* Field 4: Account Type */}
+              <div style={{ marginBottom: '22px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Account Type
+                </label>
+                <select
+                  value={cloudForm.tradeMode}
+                  onChange={e => setCloudForm({ ...cloudForm, tradeMode: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-core)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  <option value="demo">Demo Account</option>
+                  <option value="live">Live / Real Account</option>
+                </select>
               </div>
 
               {/* Submit Buttons */}

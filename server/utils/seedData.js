@@ -77,11 +77,36 @@ const seedDemoData = async () => {
       }
     }
 
-    if (adminUser) {
-      const adminTradeCount = await Trade.countDocuments({ userId: adminUser._id });
-      if (adminTradeCount === 0) {
-        console.log(`Seeding initial trade ledger for Admin @suman9458...`);
-        await seedTradesForUser(adminUser._id);
+    // 3. Seed or Ensure MT5 Account for Desktop Connector Sync
+    const MT5Account = require('../models/MT5Account');
+    const defaultApiKeyId = 'mt5_key_1fdced6694ef0ca4';
+    const defaultApiKeyHash = 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a';
+
+    let mt5Account = await MT5Account.findOne({ apiKeyId: defaultApiKeyId });
+    const targetUser = user || adminUser;
+
+    if (!mt5Account && targetUser) {
+      mt5Account = await MT5Account.create({
+        userId: targetUser._id,
+        serverName: 'Exness-MT5Trial7',
+        login: 434413217,
+        accountName: 'Exness MT5 Real/Trial',
+        tradeMode: 'demo',
+        currency: 'USD',
+        leverage: 1000,
+        balance: 10000,
+        equity: 10000,
+        status: 'standby',
+        connectionMethod: 'vps',
+        apiKeyId: defaultApiKeyId,
+        apiKeyHash: defaultApiKeyHash,
+        isActive: true
+      });
+      console.log('✅ Created default MT5 connector account in database.');
+    } else if (mt5Account && targetUser) {
+      if (!mt5Account.apiKeyHash) {
+        mt5Account.apiKeyHash = defaultApiKeyHash;
+        await mt5Account.save();
       }
     }
   } catch (err) {

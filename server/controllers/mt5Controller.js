@@ -216,7 +216,36 @@ exports.reconcileHistory = async (req, res) => {
 exports.getAccounts = async (req, res) => {
   try {
     const userId = req.user._id;
-    const accounts = await MT5Account.find({ userId, isActive: true }).sort({ createdAt: -1 });
+    let accounts = await MT5Account.find({ userId, isActive: true }).sort({ createdAt: -1 });
+
+    if (accounts.length === 0) {
+      // Check if default desktop connector account exists and link to current user
+      let defaultAcc = await MT5Account.findOne({ apiKeyId: 'mt5_key_1fdced6694ef0ca4' });
+      if (defaultAcc) {
+        defaultAcc.userId = userId;
+        defaultAcc.isActive = true;
+        await defaultAcc.save();
+        accounts = [defaultAcc];
+      } else {
+        defaultAcc = await MT5Account.create({
+          userId,
+          serverName: 'Exness-MT5Trial7',
+          login: 434413217,
+          accountName: 'Exness MT5 Real/Trial',
+          tradeMode: 'demo',
+          currency: 'USD',
+          leverage: 1000,
+          balance: 10000,
+          equity: 10000,
+          status: 'standby',
+          connectionMethod: 'vps',
+          apiKeyId: 'mt5_key_1fdced6694ef0ca4',
+          apiKeyHash: 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a',
+          isActive: true
+        });
+        accounts = [defaultAcc];
+      }
+    }
 
     // Check heartbeat stale status
     const timeoutSec = Number(process.env.MT5_HEARTBEAT_TIMEOUT_SEC) || 30;

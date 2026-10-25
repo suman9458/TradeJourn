@@ -532,6 +532,9 @@ exports.getConnectorConfig = async (req, res) => {
     const host = req.get('host') || 'tradejourn.onrender.com';
     const backendUrl = `${protocol}://${host}`;
 
+    const hasCustomLogin = account.login && account.login > 0 && account.login !== 434413217;
+    const hasCustomServer = account.serverName && account.serverName !== 'Exness-MT5Trial7' && account.serverName !== 'MT5 Terminal (Local)';
+
     res.status(200).json({
       success: true,
       account,
@@ -539,9 +542,14 @@ exports.getConnectorConfig = async (req, res) => {
         backend_url: backendUrl,
         api_key_id: account.apiKeyId,
         api_secret: account.apiKeyHash,
-        server: account.serverName || 'Exness-MT5Trial7',
-        login: account.login || 0,
-        polling_interval_sec: 5
+        polling_interval_sec: 5,
+        history_backfill_days: 30,
+        mt5: {
+          login: hasCustomLogin ? account.login : "YOUR_MT5_LOGIN_NUMBER",
+          password: "YOUR_INVESTOR_PASSWORD",
+          server: hasCustomServer ? account.serverName : "YOUR_BROKER_SERVER_NAME",
+          path: ""
+        }
       }
     });
   } catch (err) {

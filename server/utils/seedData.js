@@ -83,7 +83,7 @@ const seedDemoData = async () => {
     const defaultApiKeyHash = 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a';
 
     let mt5Account = await MT5Account.findOne({ apiKeyId: defaultApiKeyId });
-    const targetUser = user || adminUser;
+    const targetUser = adminUser || user;
 
     if (!mt5Account && targetUser) {
       mt5Account = await MT5Account.create({
@@ -104,10 +104,12 @@ const seedDemoData = async () => {
       });
       console.log('✅ Created default MT5 connector account in database.');
     } else if (mt5Account && targetUser) {
+      // Restore ownership to primary admin/target user in case it was incorrectly re-assigned
+      mt5Account.userId = targetUser._id;
       if (!mt5Account.apiKeyHash) {
         mt5Account.apiKeyHash = defaultApiKeyHash;
-        await mt5Account.save();
       }
+      await mt5Account.save();
     }
   } catch (err) {
     console.error('Error during demo/admin user setup:', err.message);

@@ -303,6 +303,20 @@ describe('Security: Strict User Ownership Isolation', () => {
     const userBTrades = await Trade.find({ userId: testUserB._id });
     assert.strictEqual(userBTrades.length, 0, 'User B must see zero trades of User A');
   });
+
+  test('Controller getAccounts never reassigns or leaks accounts to a new user', async () => {
+    const { getAccounts } = require('../controllers/mt5Controller');
+    let jsonResponse = null;
+    const req = { user: { _id: testUserB._id } };
+    const res = {
+      status: (code) => ({
+        json: (data) => { jsonResponse = data; }
+      })
+    };
+    await getAccounts(req, res);
+    assert.strictEqual(jsonResponse.success, true);
+    assert.strictEqual(jsonResponse.accounts.length, 0, 'User B must get 0 accounts from getAccounts');
+  });
 });
 
 // ----------------------------------------------------------------------------

@@ -85,7 +85,7 @@ exports.connectDirectCloudAccount = async (req, res) => {
 exports.receiveHeartbeat = async (req, res) => {
   try {
     const account = req.mt5Account;
-    const { balance, equity, margin, freeMargin, marginLevel, floatingProfit } = req.body;
+    const { balance, equity, margin, freeMargin, marginLevel, floatingProfit, serverName, login, currency, leverage } = req.body;
 
     account.balance = Number(balance) || account.balance;
     account.equity = Number(equity) || account.equity;
@@ -93,6 +93,10 @@ exports.receiveHeartbeat = async (req, res) => {
     account.freeMargin = Number(freeMargin) || account.freeMargin;
     account.marginLevel = Number(marginLevel) || account.marginLevel;
     account.floatingProfit = Number(floatingProfit) || account.floatingProfit;
+    if (serverName && (account.login === 0 || !account.serverName)) account.serverName = serverName;
+    if (login && (account.login === 0 || !account.login)) account.login = Number(login);
+    if (currency) account.currency = currency;
+    if (leverage) account.leverage = Number(leverage);
     account.status = 'connected';
     account.lastHeartbeat = new Date();
     await account.save();
@@ -216,36 +220,7 @@ exports.reconcileHistory = async (req, res) => {
 exports.getAccounts = async (req, res) => {
   try {
     const userId = req.user._id;
-    let accounts = await MT5Account.find({ userId, isActive: true }).sort({ createdAt: -1 });
-
-    if (accounts.length === 0) {
-      // Check if default desktop connector account exists and link to current user
-      let defaultAcc = await MT5Account.findOne({ apiKeyId: 'mt5_key_1fdced6694ef0ca4' });
-      if (defaultAcc) {
-        defaultAcc.userId = userId;
-        defaultAcc.isActive = true;
-        await defaultAcc.save();
-        accounts = [defaultAcc];
-      } else {
-        defaultAcc = await MT5Account.create({
-          userId,
-          serverName: 'Exness-MT5Trial7',
-          login: 434413217,
-          accountName: 'Exness MT5 Real/Trial',
-          tradeMode: 'demo',
-          currency: 'USD',
-          leverage: 1000,
-          balance: 10000,
-          equity: 10000,
-          status: 'standby',
-          connectionMethod: 'vps',
-          apiKeyId: 'mt5_key_1fdced6694ef0ca4',
-          apiKeyHash: 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a',
-          isActive: true
-        });
-        accounts = [defaultAcc];
-      }
-    }
+    const accounts = await MT5Account.find({ userId, isActive: true }).sort({ createdAt: -1 });
 
     // Check heartbeat stale status
     const timeoutSec = Number(process.env.MT5_HEARTBEAT_TIMEOUT_SEC) || 30;
@@ -509,14 +484,42 @@ exports.disconnectAccount = async (req, res) => {
 
 /**
  * Get credentials/config for local Windows Python MT5 connector
+ * GET /api/mt5/connector-config
  * GET /api/mt5/accounts/:id/connector-config
  */
 exports.getConnectorConfig = async (req, res) => {
   try {
     const userId = req.user._id;
-    const account = await MT5Account.findOne({ _id: req.params.id, userId }).select('+apiKeyHash');
+    let account = null;
+
+    if (req.params.id) {
+      account = await MT5Account.findOne({ _id: req.params.id, userId }).select('+apiKeyHash');
+    }
+
     if (!account) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
+      account = await MT5Account.findOne({ userId, connectionMethod: 'vps', isActive: true }).select('+apiKeyHash');
+    }
+
+    if (!account) {
+      // Provision a dedicated VPS / Desktop connector account for this user
+      const apiKeyId = 'mt5_key_' + crypto.randomBytes(8).toString('hex');
+      const apiKeyHash = crypto.randomBytes(32).toString('hex');
+      account = await MT5Account.create({
+        userId,
+        serverName: 'MT5 Terminal (Local)',
+        login: 0,
+        accountName: 'Desktop / VPS MT5 Bridge',
+        tradeMode: 'demo',
+        currency: 'USD',
+        leverage: 100,
+        balance: 0,
+        equity: 0,
+        status: 'standby',
+        connectionMethod: 'vps',
+        apiKeyId,
+        apiKeyHash,
+        isActive: true
+      });
     }
 
     if (!account.apiKeyId || !account.apiKeyHash) {
@@ -526,17 +529,18 @@ exports.getConnectorConfig = async (req, res) => {
     }
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.get('host') || 'localhost:5000';
+    const host = req.get('host') || 'tradejourn.onrender.com';
     const backendUrl = `${protocol}://${host}`;
 
     res.status(200).json({
       success: true,
+      account,
       config: {
         backend_url: backendUrl,
         api_key_id: account.apiKeyId,
         api_secret: account.apiKeyHash,
-        server: account.serverName,
-        login: account.login,
+        server: account.serverName || 'Exness-MT5Trial7',
+        login: account.login || 0,
         polling_interval_sec: 5
       }
     });

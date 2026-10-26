@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, FileText, RefreshCw, Menu, Clock, Sun, Moon, Settings, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const LiveClock = () => {
   const [timeStr, setTimeStr] = useState(() => {
@@ -24,6 +25,7 @@ const LiveClock = () => {
 };
 
 export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar, onOpenSettings, onOpenAuth, theme = 'dark', onToggleTheme }) => {
+  const { user } = useAuth();
   return (
     <header className="topbar">
       <div className="topbar-main-row">
@@ -99,10 +101,19 @@ export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset,
               type="button"
               className="btn-secondary topbar-icon-btn topbar-user-btn"
               onClick={onOpenSettings || onOpenAuth}
-              title="Trader Settings & Profile"
+              title={user?.name ? `${user.name} - Settings & Profile` : "Trader Settings & Profile"}
               aria-label="Trader Settings & Profile"
+              style={user?.avatar ? { padding: '3px', overflow: 'hidden' } : {}}
             >
-              <Settings size={15} />
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name || 'Trader'}
+                  style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover' }}
+                />
+              ) : (
+                <Settings size={15} />
+              )}
             </button>
           )}
         </div>

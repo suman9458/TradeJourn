@@ -98,6 +98,7 @@ const registerUser = async (req, res, next) => {
         tradingExperience: user.tradingExperience,
         email: user.email,
         role: user.role,
+        avatar: user.avatar || '',
         settings: user.settings
       }
     });
@@ -153,6 +154,7 @@ const loginUser = async (req, res, next) => {
         tradingExperience: user.tradingExperience || 'Intermediate',
         email: user.email,
         role: user.role,
+        avatar: user.avatar || '',
         settings: user.settings
       }
     });
@@ -181,11 +183,15 @@ const getMe = async (req, res, next) => {
 // @access  Private
 const updateSettings = async (req, res, next) => {
   try {
-    const { settings, name, dob, email, userId, tradingExperience } = req.body;
+    const { settings, name, dob, email, userId, tradingExperience, avatar } = req.body;
     const updateFields = {};
 
     if (settings) {
       updateFields.settings = { ...req.user.settings, ...settings };
+    }
+
+    if (avatar !== undefined) {
+      updateFields.avatar = typeof avatar === 'string' ? avatar.trim() : '';
     }
 
     if (name && name.trim()) {
@@ -276,6 +282,7 @@ const demoLogin = async (req, res, next) => {
         tradingExperience: user.tradingExperience,
         email: user.email,
         role: user.role,
+        avatar: user.avatar || '',
         settings: user.settings
       }
     });
@@ -328,6 +335,7 @@ const socialLogin = async (req, res, next) => {
         tradingExperience: user.tradingExperience,
         email: user.email,
         role: user.role,
+        avatar: user.avatar || '',
         settings: user.settings
       }
     });

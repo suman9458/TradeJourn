@@ -1526,7 +1526,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 </strong>
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
-                Neeche diye gaye dono files ko download karein. <code style={{ color: 'var(--accent-cyan)' }}>tradejourn-mt5-connector.zip</code> me connector script aur launcher hai, aur <code style={{ color: 'var(--profit)' }}>config.json</code> me aapki TradeJourn API key pre-filled hai.
+                Download both files below. <code style={{ color: 'var(--accent-cyan)' }}>tradejourn-mt5-connector.zip</code> contains the connector script and launcher, and <code style={{ color: 'var(--profit)' }}>config.json</code> comes pre-configured with your TradeJourn API credentials.
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
@@ -1592,7 +1592,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Optional • Live Auto-Update</span>
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
-                Apna MT5 Login number aur Server yaha likhein. Neeche <code>config.json</code> me automatically fill ho jayega aur download karne par yahi values save hongi:
+                Enter your MT5 Login and Server details below. They will automatically sync into <code>config.json</code> and save when you download the file:
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '10px' }}>
@@ -1616,7 +1616,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                     }}
                   />
                   <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
-                    Aapka broker MT5 account number
+                    Your broker MT5 account number
                   </span>
                 </div>
 
@@ -1681,7 +1681,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 color: 'var(--profit)'
               }}>
                 <ShieldCheck size={14} />
-                <span><strong>100% Read-Only Safety:</strong> TradeJourn sirf MT5 ke deals aur closed trades read karta hai. TradeJourn connector ke paas trade place ya edit karne ki koi permission nahi hoti.</span>
+                <span><strong>100% Read-Only Safety:</strong> TradeJourn only reads MT5 deals and closed trades. The connector has zero permissions to place, modify, or execute trades.</span>
               </div>
             </div>
 
@@ -1703,21 +1703,21 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                   <span style={{ background: 'rgba(14, 165, 233, 0.15)', color: 'var(--accent-cyan)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.74rem' }}>1</span>
                   <span>
-                    <strong>Open Broker MT5 Terminal:</strong> Apne Windows PC ya VPS me apna Exness / broker MT5 desktop terminal open rakhein aur account <strong style={{ color: 'var(--text-white)' }}>#{connectorForm.login || 'your_login'}</strong> me logged-in rahein. <em>(MetaEditor kholne ki bilkul zaroorat nahi hai).</em>
+                    <strong>Open Broker MT5 Terminal:</strong> Keep your broker MT5 desktop terminal open on your Windows PC or VPS and logged in to account <strong style={{ color: 'var(--text-white)' }}>#{connectorForm.login || 'your_login'}</strong>. <em>(No need to open MetaEditor at all).</em>
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                   <span style={{ background: 'rgba(14, 165, 233, 0.15)', color: 'var(--accent-cyan)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.74rem' }}>2</span>
                   <span>
-                    <strong>Extract Zip &amp; Place config.json:</strong> <code style={{ color: 'var(--accent-cyan)' }}>tradejourn-mt5-connector.zip</code> ko extract karein aur downloaded <code style={{ color: 'var(--profit)' }}>config.json</code> ko usi folder ke andar daalein.
+                    <strong>Extract Zip &amp; Place config.json:</strong> Extract <code style={{ color: 'var(--accent-cyan)' }}>tradejourn-mt5-connector.zip</code> and place the downloaded <code style={{ color: 'var(--profit)' }}>config.json</code> inside that same folder.
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                   <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--profit)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', fontSize: '0.74rem' }}>3</span>
                   <span>
-                    <strong>Run Connector:</strong> Extracted folder me <code style={{ color: 'var(--profit)', fontWeight: 'bold' }}>run_connector.bat</code> par double-click karein! Python terminal se automatic connection banayega aur aapke trades TradeJourn me sync hone lagengi.
+                    <strong>Run Connector:</strong> Double-click <code style={{ color: 'var(--profit)', fontWeight: 'bold' }}>run_connector.bat</code> inside the extracted folder! It will automatically establish a connection to your MT5 terminal and start syncing trades with TradeJourn.
                   </span>
                 </div>
               </div>
@@ -1732,7 +1732,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 fontSize: '0.74rem',
                 color: '#eab308'
               }}>
-                <strong>📌 Python Prerequisite:</strong> Agar aapke PC/VPS me Python nahi hai to <a href="https://www.python.org/downloads/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>Python 3.10+ download karein</a>. Install karte waqt <strong>&ldquo;Add python.exe to PATH&rdquo;</strong> par zaroor checkmark karein.
+                <strong>📌 Python Prerequisite:</strong> If Python is not installed on your PC or VPS, <a href="https://www.python.org/downloads/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>download Python 3.10+</a>. Be sure to check <strong>&ldquo;Add python.exe to PATH&rdquo;</strong> during installation.
               </div>
             </div>
 
@@ -1746,13 +1746,13 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               fontSize: '0.76rem'
             }}>
               <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '8px' }}>
-                📖 config.json Fields Explanation (Aapko kya change karna hai):
+                📖 config.json Fields Reference:
               </strong>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '8px', color: 'var(--text-secondary)' }}>
-                <div><code style={{ color: 'var(--profit)' }}>api_key_id</code> &amp; <code style={{ color: 'var(--profit)' }}>api_secret</code>: 🔒 <em>TradeJourn account security key. <strong>Inhe kabhi mat badalna.</strong></em></div>
-                <div><code style={{ color: 'var(--accent-cyan)' }}>mt5.login</code>: 👤 <em>Aapka MT5 account login number.</em></div>
-                <div><code style={{ color: 'var(--accent-cyan)' }}>mt5.server</code>: 🌐 <em>Aapke broker ka server name (jaise Exness-MT5Real, FTMO-Demo).</em></div>
-                <div><code style={{ color: 'var(--accent-cyan)' }}>mt5.password</code>: 🔑 <em>Aapka Investor Password (Read-Only).</em></div>
+                <div><code style={{ color: 'var(--profit)' }}>api_key_id</code> &amp; <code style={{ color: 'var(--profit)' }}>api_secret</code>: 🔒 <em>TradeJourn security keys. <strong>Do not share or modify.</strong></em></div>
+                <div><code style={{ color: 'var(--accent-cyan)' }}>mt5.login</code>: 👤 <em>Your MT5 account login number.</em></div>
+                <div><code style={{ color: 'var(--accent-cyan)' }}>mt5.server</code>: 🌐 <em>Your broker's server name (e.g., Exness-MT5Real9, FTMO-Demo).</em></div>
+                <div><code style={{ color: 'var(--accent-cyan)' }}>mt5.password</code>: 🔑 <em>Your Investor Password (Read-Only).</em></div>
               </div>
             </div>
 

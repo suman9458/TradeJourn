@@ -270,6 +270,48 @@ body {
   background: inherit;
 }
 
+.sidebar-avatar-container {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sidebar-avatar-container:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 12px rgba(0, 245, 155, 0.3);
+}
+
+.sidebar-avatar-hover-badge {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 13, 24, 0.65);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(1px);
+}
+
+.sidebar-avatar-container:hover .sidebar-avatar-hover-badge {
+  opacity: 1;
+}
+
+.profile-photo-card {
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.profile-photo-card:hover {
+  border-color: rgba(0, 210, 255, 0.4);
+}
+
+[data-theme="light"] .profile-photo-card {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .profile-photo-card:hover {
+  border-color: #cbd5e1 !important;
+  background: #f1f5f9 !important;
+}
+
 .btn-ghost {
   background: transparent;
   border: 1px solid transparent;
@@ -298,24 +340,33 @@ body {
 .brand-badge {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #00f59b 0%, #00d2ff 100%);
-  display: grid;
-  place-items: center;
-  color: #031015;
-  font-weight: 900;
-  font-size: 1.15rem;
-  letter-spacing: -0.04em;
-  box-shadow: 0 0 24px rgba(0, 245, 155, 0.4);
+  border-radius: 50%;
+  background: #030a0f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(0, 245, 155, 0.4);
   position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 245, 155, 0.35);
+  flex-shrink: 0;
+}
+
+.brand-badge-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .brand-badge::after {
   content: '';
   position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: inset 0 0 6px rgba(0, 245, 155, 0.25);
 }
 
 .brand-info h1 {
@@ -2296,18 +2347,25 @@ label {
 }
 
 .hero-logo-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, #7c3aed 0%, #00f59b 100%);
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  font-size: 1.05rem;
-  color: #04080e;
-  box-shadow: 0 0 22px rgba(124, 58, 237, 0.45);
-  letter-spacing: -0.03em;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #030a0f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 22px rgba(0, 245, 155, 0.45);
   flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 245, 155, 0.4);
+}
+
+.hero-logo-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .hero-logo-info {

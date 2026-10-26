@@ -410,7 +410,9 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
           {/* Top Branding */}
           <div className="auth-hero-header">
             <div className="auth-hero-logo">
-              <span className="hero-logo-badge">TJ</span>
+              <span className="hero-logo-badge">
+                <img src="/logo.png" alt="TradeJourn Logo" />
+              </span>
               <div className="hero-logo-info">
                 <span className="hero-logo-title">TRADEJOURN</span>
                 <span className="hero-logo-subtitle">TRADE  |  ANALYZE  |  IMPROVE</span>

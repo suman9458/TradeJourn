@@ -3,6 +3,11 @@ const API_BASE = import.meta.env.VITE_API_URL
   : '';
 const BASE_URL = API_BASE ? `${API_BASE}/api` : '/api';
 
+const isLocal = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || 
+   window.location.hostname === '127.0.0.1' || 
+   window.location.hostname === '::1');
+
 const getToken = () => localStorage.getItem('tradejourn_token');
 
 const ensureToken = async () => {
@@ -16,7 +21,7 @@ const ensureToken = async () => {
           headers: { 'Content-Type': 'application/json' }
         });
       } catch (e) {
-        if (!API_BASE) {
+        if (!API_BASE && isLocal) {
           res = await fetch(`http://localhost:5000/api/auth/demo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
@@ -59,22 +64,26 @@ const request = async (endpoint, options = {}, isRetry = false) => {
   let response;
   try {
     response = await fetch(`${BASE_URL}${endpoint}`, config);
-    if (!API_BASE && (response.status === 502 || response.status === 503 || response.status === 504)) {
+    if (isLocal && !API_BASE && (response.status === 502 || response.status === 503 || response.status === 504)) {
       throw new Error('VITE_PROXY_502');
     }
   } catch (netErr) {
     if (API_BASE) {
       throw new Error(`Connection failed. Backend API server at ${API_BASE} is unreachable.`);
     }
-    // If proxy failed on local dev, retry directly against backend port 5000 (both 127.0.0.1 and localhost)
-    try {
-      response = await fetch(`http://127.0.0.1:5000/api${endpoint}`, config);
-    } catch (e1) {
+    // Only retry localhost / 127.0.0.1 during local development
+    if (isLocal) {
       try {
-        response = await fetch(`http://localhost:5000/api${endpoint}`, config);
-      } catch (directErr) {
-        throw new Error('Backend server on port 5000 is unreachable or offline. Please make sure backend is running (run "npm run dev").');
+        response = await fetch(`http://127.0.0.1:5000/api${endpoint}`, config);
+      } catch (e1) {
+        try {
+          response = await fetch(`http://localhost:5000/api${endpoint}`, config);
+        } catch (directErr) {
+          throw new Error('Backend server on port 5000 is unreachable or offline. Please make sure backend is running (run "npm run dev").');
+        }
       }
+    } else {
+      throw new Error('TradeJourn backend server is unreachable. If waking up from sleep, please wait a moment and refresh.');
     }
   }
 
@@ -93,7 +102,9 @@ const request = async (endpoint, options = {}, isRetry = false) => {
   } catch (parseErr) {
     if (!response.ok) {
       if (response.status === 502 || response.status === 503 || response.status === 504) {
-        throw new Error('Backend server unreachable (502 Bad Gateway). Please verify backend is running on port 5000.');
+        throw new Error(isLocal
+          ? 'Backend server unreachable (502 Bad Gateway). Please verify backend is running on port 5000.'
+          : 'TradeJourn server is waking up or temporarily unavailable (502/503). Please wait a few moments and try again.');
       }
       throw new Error(`Backend error (${response.status}): ${response.statusText || 'Server responded with invalid data'}`);
     }
@@ -120,7 +131,7 @@ export const api = {
   forgotPasswordReset: (payload) => request('/auth/forgot-password/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
   getMe: () => request('/auth/me'),
   updateSettings: (payload) => {
-    const body = (payload?.settings || payload?.name || payload?.dob || payload?.email || payload?.userId || payload?.tradingExperience)
+    const body = (payload?.settings || payload?.name || payload?.dob || payload?.email || payload?.userId || payload?.tradingExperience || payload?.avatar !== undefined)
       ? payload
       : { settings: payload };
     return request('/auth/settings', { method: 'PUT', body: JSON.stringify(body) });

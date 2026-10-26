@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   Zap,
   Cpu,
-  X
+  X,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -38,7 +39,9 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
       {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
       <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
         <div className="brand-section">
-          <div className="brand-badge">TJ</div>
+          <div className="brand-badge">
+            <img src="/logo.png" alt="TradeJourn Logo" className="brand-badge-img" />
+          </div>
           <div className="brand-info">
             <div className="brand-tag">
               <Zap size={11} />
@@ -144,11 +147,45 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
 
       {/* Trader Profile Footer (Always Pinned & Accessible) */}
       <div className="sidebar-profile-footer">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 210, 255, 0.2))', border: '1px solid var(--border-medium)', display: 'grid', placeItems: 'center', color: 'var(--profit)', fontWeight: '800', fontSize: '0.88rem', flexShrink: 0 }}>
-            {user?.name ? user.name.charAt(0).toUpperCase() : <User size={16} />}
+        <div
+          onClick={onOpenSettings}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden', cursor: 'pointer', flex: 1, minWidth: 0 }}
+          title="Click to view profile & change photo"
+        >
+          <div
+            className="sidebar-avatar-container"
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 210, 255, 0.2))',
+              border: '1px solid var(--border-medium)',
+              display: 'grid',
+              placeItems: 'center',
+              color: 'var(--profit)',
+              fontWeight: '800',
+              fontSize: '0.88rem',
+              flexShrink: 0,
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user?.name || 'Trader'}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : user?.name ? (
+              user.name.charAt(0).toUpperCase()
+            ) : (
+              <User size={16} />
+            )}
+            <div className="sidebar-avatar-hover-badge" title="Change profile photo">
+              <Camera size={10} color="#ffffff" strokeWidth={2.5} />
+            </div>
           </div>
-          <div style={{ overflow: 'hidden' }}>
+          <div style={{ overflow: 'hidden', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <p style={{ fontSize: '0.84rem', fontWeight: '700', color: 'var(--text-white)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {user?.name || 'Guest Trader'}

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 
 export const SettingsModal = ({ isOpen, onClose }) => {
   const { user, updateUserSettings } = useAuth();
@@ -12,6 +13,10 @@ export const SettingsModal = ({ isOpen, onClose }) => {
   const [dob, setDob] = useState('');
   const [email, setEmail] = useState('');
   const [tradingExperience, setTradingExperience] = useState('Intermediate');
+  const [avatar, setAvatar] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoSuccess, setPhotoSuccess] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Trading & System Settings
   const [currency, setCurrency] = useState('USD');
@@ -35,6 +40,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setDob(user.dob || '');
       setEmail(user.email || '');
       setTradingExperience(user.tradingExperience || 'Intermediate');
+      setAvatar(user.avatar || '');
       setCurrency(user.settings?.currency || 'USD');
       setRiskPerTrade(user.settings?.riskPerTrade ?? 1);
       setDefaultInstrument(user.settings?.defaultInstrument || 'EURUSD');
@@ -43,8 +49,94 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setAiApiKey(user.settings?.aiApiKey || '');
       setAiModel(user.settings?.aiModel || 'gemini-3.8-flash');
       setErrorMsg('');
+      setPhotoSuccess(false);
     }
   }, [user, isOpen]);
+
+  // Process & compress uploaded image file into centered square
+  const processImageFile = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('Please select an image file (PNG, JPG, WEBP)'));
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        reject(new Error('Image is too large. Please select an image under 10MB'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const targetSize = 256;
+          canvas.width = targetSize;
+          canvas.height = targetSize;
+          const ctx = canvas.getContext('2d');
+
+          // Centered square crop
+          const minDim = Math.min(img.width, img.height);
+          const startX = (img.width - minDim) / 2;
+          const startY = (img.height - minDim) / 2;
+
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, targetSize, targetSize);
+          const compressedDataUrl = canvas.toDataURL('image/webp', 0.88);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => reject(new Error('Failed to load image file'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file from disk'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    setErrorMsg('');
+    try {
+      const compressedDataUrl = await processImageFile(file);
+      let finalAvatarUrl = compressedDataUrl;
+
+      // Try uploading to Cloudinary CDN if configured
+      try {
+        const uploadRes = await api.uploadImage(compressedDataUrl);
+        if (uploadRes?.url) {
+          finalAvatarUrl = uploadRes.url;
+        }
+      } catch (cloudErr) {
+        // Fall back gracefully to direct base64 data URL
+        console.info('Cloudinary direct storage fallback active');
+      }
+
+      setAvatar(finalAvatarUrl);
+      await updateUserSettings({ avatar: finalAvatarUrl });
+      setPhotoSuccess(true);
+      setTimeout(() => setPhotoSuccess(false), 2500);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setUploadingPhoto(true);
+    setErrorMsg('');
+    try {
+      setAvatar('');
+      await updateUserSettings({ avatar: '' });
+      setPhotoSuccess(true);
+      setTimeout(() => setPhotoSuccess(false), 2500);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to remove photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -73,6 +165,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         dob: dob.trim(),
         email: email.trim(),
         tradingExperience,
+        avatar,
         settings: updatedSettings
       });
 
@@ -98,7 +191,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800' }}>Trader Profile & Account Settings</h3>
-              <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>Manage your personal identity, risk parameters, and AI coach configuration</p>
+              <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>Manage your personal identity, photo, risk parameters, and AI coach configuration</p>
             </div>
           </div>
           <button className="btn-close" onClick={onClose}><X size={20} /></button>
@@ -182,7 +275,150 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         <form onSubmit={handleSave} style={{ display: 'grid', gap: '16px', overflowY: 'auto', padding: '16px 2px 4px 2px' }}>
           {/* TAB 1: Profile & Personal Details */}
           {activeTab === 'profile' && (
-            <div style={{ display: 'grid', gap: '14px' }}>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {/* Profile Photo Upload Card */}
+              <div className="profile-photo-card" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border-medium)',
+                position: 'relative',
+                flexWrap: 'wrap'
+              }}>
+                {/* Photo Preview Circle */}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div style={{
+                    width: '68px',
+                    height: '68px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.25), rgba(0, 210, 255, 0.25))',
+                    border: '2px solid var(--accent-cyan)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 16px rgba(0, 210, 255, 0.2)',
+                    color: 'var(--profit)',
+                    fontSize: '1.6rem',
+                    fontWeight: '800'
+                  }}>
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt={name || 'Trader Avatar'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : name ? (
+                      name.charAt(0).toUpperCase()
+                    ) : (
+                      <User size={30} />
+                    )}
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    style={{
+                      position: 'absolute',
+                      bottom: '-4px',
+                      right: '-4px',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: 'var(--accent-cyan)',
+                      border: '2px solid var(--bg-surface)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      cursor: 'pointer',
+                      color: '#060c14',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                      transition: 'transform 0.15s ease'
+                    }}
+                    title="Choose photo from device"
+                    aria-label="Choose photo"
+                  >
+                    <Camera size={13} strokeWidth={2.5} />
+                  </button>
+                </div>
+
+                {/* Photo Actions & Text */}
+                <div style={{ flex: 1, minWidth: '180px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                      Trader Photo (Avatar)
+                    </h4>
+                    {photoSuccess && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--profit)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Check size={12} strokeWidth={3} /> Photo Updated!
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                    Upload your profile picture (JPG, PNG, WebP). It displays across your sidebar and trade logs.
+                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handlePhotoUpload}
+                      accept="image/png, image/jpeg, image/jpg, image/webp"
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                      className="btn-secondary"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.76rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {uploadingPhoto ? (
+                        <>
+                          <Loader2 size={13} className="spin" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={13} color="var(--accent-cyan)" />
+                          <span>{avatar ? 'Change Photo' : 'Upload Photo'}</span>
+                        </>
+                      )}
+                    </button>
+
+                    {avatar && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        disabled={uploadingPhoto}
+                        className="btn-ghost"
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: '0.76rem',
+                          color: 'var(--loss)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                        title="Remove custom photo and use letter avatar"
+                      >
+                        <Trash2 size={13} />
+                        <span>Remove</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="form-grid-2">
                 <label>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

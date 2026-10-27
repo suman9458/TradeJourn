@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { CURRENCY_GROUPS } from '../utils/currencyHelper';
+import { MAJOR_CURRENCIES } from '../utils/currencyHelper';
 
 export const SettingsModal = ({ isOpen, onClose }) => {
   const { user, updateUserSettings } = useAuth();
@@ -501,14 +501,10 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                 <label>
                   <span>Account Currency</span>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}>
-                    {CURRENCY_GROUPS.map(grp => (
-                      <optgroup key={grp.group} label={grp.group}>
-                        {grp.currencies.map(c => (
-                          <option key={c.code} value={c.code}>
-                            {c.code} ({c.symbol}) — {c.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                    {MAJOR_CURRENCIES.map(c => (
+                      <option key={c.code} value={c.code}>
+                        {c.code} ({c.symbol}) — {c.name}
+                      </option>
                     ))}
                   </select>
                 </label>

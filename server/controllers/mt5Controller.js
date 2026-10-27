@@ -346,6 +346,7 @@ exports.updateJournal = async (req, res) => {
       mistakes,
       notes,
       screenshotUrl,
+      images,
       journalStatus
     } = req.body;
 
@@ -358,7 +359,19 @@ exports.updateJournal = async (req, res) => {
     if (marketCondition) trade.marketCondition = marketCondition;
     if (Array.isArray(mistakes)) trade.mistakes = mistakes;
     if (notes !== undefined) trade.notes = notes;
-    if (screenshotUrl) trade.screenshotUrl = screenshotUrl;
+    if (images !== undefined) {
+      trade.images = Array.isArray(images)
+        ? images.filter(img => typeof img === 'string' && img.trim() !== '').slice(0, 3)
+        : [images].filter(Boolean).slice(0, 3);
+      trade.screenshotUrl = trade.images[0] || '';
+      trade.imageUrl = trade.images[0] || '';
+    } else if (screenshotUrl) {
+      trade.screenshotUrl = screenshotUrl;
+      trade.imageUrl = screenshotUrl;
+      if (!trade.images || trade.images.length === 0) {
+        trade.images = [screenshotUrl];
+      }
+    }
     if (journalStatus) trade.journalStatus = journalStatus;
 
     await trade.save();

@@ -10,6 +10,15 @@ export const AuthProvider = ({ children }) => {
 
   const initAuth = async (retryCount = 0) => {
     try {
+      if (typeof window !== 'undefined' && window.location.search.includes('demo=true') && !localStorage.getItem('tradejourn_token')) {
+        const demoData = await api.demoLogin();
+        localStorage.setItem('tradejourn_token', demoData.token);
+        setUser(demoData.user);
+        setToken(demoData.token);
+        setLoading(false);
+        return;
+      }
+
       const existingToken = localStorage.getItem('tradejourn_token');
       if (existingToken) {
         const data = await api.getMe();

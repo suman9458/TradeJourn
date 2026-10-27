@@ -25,7 +25,13 @@ import { exportTradeHistoryPDF } from './utils/exportPDF';
 
 const DashboardContent = () => {
   const { user, token, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('tab') || 'overview';
+    }
+    return 'overview';
+  });
 
   // Modals & Navigation
   const [isAddTradeOpen, setIsAddTradeOpen] = useState(false);
@@ -49,6 +55,10 @@ const DashboardContent = () => {
 
   // Global Theme State: dark | light
   const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('theme')) return params.get('theme');
+    }
     return localStorage.getItem('tradejourn_theme') || 'dark';
   });
 
@@ -267,6 +277,7 @@ const DashboardContent = () => {
             <TradesTableView
               initialTrades={allTrades}
               onTradeDeleted={handleRefresh}
+              onTradeUpdated={handleRefresh}
               title="Database Views & Complete Trade Ledger"
             />
           )}

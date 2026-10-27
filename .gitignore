@@ -26,3 +26,7 @@ client/.env.local
 # Connector secrets
 connectors/**/config.json
 !connectors/**/config.example.json
+
+# Temporary browser profiles
+screenshots/chrome_profile/
+

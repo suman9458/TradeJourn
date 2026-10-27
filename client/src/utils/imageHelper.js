@@ -109,3 +109,43 @@ export const processAndUploadChartImage = async (fileOrUrl) => {
   // Safe fallback to dataUrl
   return dataUrl;
 };
+
+/**
+ * Safely extracts up to 3 image URLs from any trade object,
+ * seamlessly bridging newer `images` arrays and legacy single `screenshotUrl`/`imageUrl`.
+ */
+export const getTradeImages = (trade) => {
+  if (!trade) return [];
+  if (Array.isArray(trade.images) && trade.images.length > 0) {
+    const list = trade.images
+      .filter((img) => typeof img === 'string' && img.trim() !== '')
+      .slice(0, 3);
+    if (list.length > 0) return list;
+  }
+  const fallback = trade.screenshotUrl || trade.imageUrl;
+  if (fallback && typeof fallback === 'string' && fallback.trim() !== '') {
+    return [fallback.trim()];
+  }
+  return [];
+};
+
+/**
+ * Batch processes up to the remaining allowed image count (maximum 3 total).
+ */
+export const processAndUploadMultipleImages = async (filesOrUrls, currentCount = 0, maxTotal = 3) => {
+  if (!filesOrUrls) return [];
+  const items = Array.isArray(filesOrUrls) ? filesOrUrls : Array.from(filesOrUrls);
+  const remainingSlots = Math.max(0, maxTotal - currentCount);
+  const toProcess = items.slice(0, remainingSlots);
+
+  const results = [];
+  for (const item of toProcess) {
+    try {
+      const url = await processAndUploadChartImage(item);
+      if (url) results.push(url);
+    } catch (err) {
+      console.warn('Failed to process image item:', err);
+    }
+  }
+  return results;
+};

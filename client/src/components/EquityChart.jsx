@@ -57,7 +57,7 @@ const getPointTakeProfitUSD = (p) => {
           rawTp = overrides[dateKey];
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   if (rawTp !== null && rawTp !== undefined && rawTp !== '') {
@@ -685,921 +685,921 @@ export const EquityChart = ({ curve = [] }) => {
         CHART: PIPS GROWTH & TRAJECTORY CURVE
         ========================================================================= */
     <div className="dashboard-panel" style={{ position: 'relative', overflow: 'hidden' }}>
-        {/* Top Header & Metrics HUD */}
-        <div className="panel-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={20} color="var(--profit)" />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>
-                Pips Growth & Trajectory Curve
-              </h3>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
-              Real-time execution performance tracking cumulative pips gained vs. loose pips
-              {processedPipsData.length > 0 && (
-                <span style={{ marginLeft: '8px', color: 'var(--accent-cyan)', fontSize: '0.74rem', fontWeight: '700' }}>
-                  • Showing {processedPipsData.length} {processedPipsData.length === 1 ? 'trade' : 'trades'} ({pipsTimeframe})
-                </span>
-              )}
+      {/* Top Header & Metrics HUD */}
+      <div className="panel-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Activity size={20} color="var(--profit)" />
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>
+              Pips Growth & Trajectory Curve
+            </h3>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
+            Real-time execution performance tracking cumulative pips gained vs. loose pips
+            {processedPipsData.length > 0 && (
+              <span style={{ marginLeft: '8px', color: 'var(--accent-cyan)', fontSize: '0.74rem', fontWeight: '700' }}>
+                • Showing {processedPipsData.length} {processedPipsData.length === 1 ? 'trade' : 'trades'} ({pipsTimeframe})
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Timeframe picker, Zoom Controls, and Pips Stats HUD */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Timeframe picker */}
+          <div className="pips-timeframe-picker">
+            {dynamicTimeframes.map(tf => {
+              const isActive = pipsTimeframe === tf.id;
+              return (
+                <button
+                  key={tf.id}
+                  type="button"
+                  disabled={tf.disabled}
+                  className={`pips-tf-btn ${isActive ? 'active' : ''}`}
+                  title={tf.disabled ? 'No trades in this timeframe' : `${tf.count} trades in ${tf.label}`}
+                  onClick={() => !tf.disabled && setPipsTimeframe(tf.id)}
+                >
+                  <span>{tf.label}</span>
+                  {tf.count !== undefined && tf.count > 0 && (
+                    <span className="pips-tf-count">{tf.count}</span>
+                  )}
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              className={`pips-tf-btn ${isSmooth ? 'active' : ''}`}
+              onClick={() => setIsSmooth(!isSmooth)}
+              title={isSmooth ? "Switch to Straight Linear Graph" : "Switch to Smooth Curved Graph"}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}
+            >
+              <Sparkles size={12} color={isSmooth ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
+              <span>{isSmooth ? 'Smooth' : 'Straight'}</span>
+            </button>
+          </div>
+
+
+
+        </div>
+      </div>        {/* Super Box HUD Container - Full Row Width */}
+      <div className="hud-super-box">
+        <div className="hud-super-grid">
+          {/* Box 1: NET PIPS */}
+          <div className={`hud-stat-box ${isPipsProfitable ? 'profit' : 'loss'}`}>
+            <span className="hud-stat-title">
+              Net Pips
+            </span>
+            <p className={`hud-stat-value ${isPipsProfitable ? 'profit' : 'loss'}`}>
+              {netPips >= 0 ? '+' : ''}{netPips.toFixed(1)} <span style={{ fontSize: '0.74rem', fontWeight: '600' }}>PIPS</span>
             </p>
           </div>
 
-          {/* Timeframe picker, Zoom Controls, and Pips Stats HUD */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            {/* Timeframe picker */}
-            <div className="pips-timeframe-picker">
-              {dynamicTimeframes.map(tf => {
-                const isActive = pipsTimeframe === tf.id;
+          {/* Box 2: PIPS GAIN */}
+          <div className="hud-stat-box profit">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ArrowUpRight size={13} color="var(--profit)" />
+              <span className="hud-stat-title profit">
+                Pips Gain
+              </span>
+            </div>
+            <p className="hud-stat-value profit">
+              +{totalPipsGain.toFixed(1)}
+            </p>
+          </div>
+
+          {/* Box 3: LOOSE PIPS */}
+          <div className="hud-stat-box loss">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ArrowDownRight size={13} color="var(--loss)" />
+              <span className="hud-stat-title loss">
+                Loose Pips
+              </span>
+            </div>
+            <p className="hud-stat-value loss">
+              -{totalLoosePips.toFixed(1)}
+            </p>
+          </div>
+
+          {/* Box 4: PEAK HIGH */}
+          <div className="hud-stat-box cyan">
+            <span className="hud-stat-title">
+              Peak High
+            </span>
+            <p className="hud-stat-value cyan">
+              +{peakPips.toFixed(1)}
+            </p>
+          </div>
+
+          {/* Box 5: MAX DRAWDOWN */}
+          <div className="hud-stat-box loss">
+            <span className="hud-stat-title">
+              Max Drawdown
+            </span>
+            <p className="hud-stat-value loss">
+              -{maxPipsDD.toFixed(1)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Visual Legend Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
+          <span><strong>Pips Gain</strong> (Winning Trades)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
+          <span><strong>Loose Pips</strong> (Losing Trades)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '18px', height: '2px', background: isPipsProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
+          <span><strong>Cumulative Net Pips</strong> Trajectory</span>
+        </div>
+        <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
+        </div>
+      </div>
+
+      {/* Interactive SVG Pips Chart Canvas */}
+      <div style={{ width: '100%', position: 'relative', marginTop: '16px' }}>
+        {processedPipsData.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+            <Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5, display: 'block' }} color="var(--accent-cyan)" />
+            <p style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-white)', margin: '0 0 6px' }}>
+              No trades recorded for {pipsTimeframe} timeframe
+            </p>
+            <p style={{ fontSize: '0.82rem', margin: 0 }}>
+              Select another timeframe (7D, 30D, ALL) or click <strong>+ Quick Add Trade</strong> to record execution.
+            </p>
+          </div>
+        ) : (
+          <>
+            <svg
+              ref={pipsSvgRef}
+              viewBox={`0 0 ${width} ${height}`}
+              style={{
+                width: '100%',
+                height: 'auto',
+                overflow: 'visible',
+                cursor: isPipsDragging ? 'grabbing' : isPipsZoomed ? 'grab' : 'crosshair',
+                touchAction: 'none',
+                userSelect: 'none'
+              }}
+              onMouseDown={handlePipsPointerDown}
+              onMouseMove={handlePipsPointerMove}
+              onMouseUp={handlePipsPointerUp}
+              onTouchStart={handlePipsPointerDown}
+              onTouchMove={handlePipsPointerMove}
+              onTouchEnd={handlePipsPointerUp}
+              onMouseLeave={() => {
+                handlePipsPointerUp();
+                setHoveredPipsPoint(null);
+              }}
+            >
+              <defs>
+                <linearGradient id="pipsEquityFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.28" />
+                  <stop offset="60%" stopColor="#00d2ff" stopOpacity="0.06" />
+                  <stop offset="100%" stopColor="#00d2ff" stopOpacity="0.0" />
+                </linearGradient>
+
+                <linearGradient id="gainBarGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#00f59b" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#00f59b" stopOpacity="0.1" />
+                </linearGradient>
+
+                <linearGradient id="lossBarGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ff3366" stopOpacity="0.1" />
+                  <stop offset="100%" stopColor="#ff3366" stopOpacity="0.8" />
+                </linearGradient>
+              </defs>
+
+              {/* Faded Horizontal Grid Lines */}
+              {pipsGridTicks.map((val, i) => {
+                const y = getPipsY(val);
+                if (y < paddingY - 5 || y > height - paddingY + 5) return null;
+
+                const topY = maxPipsVal > 0 ? getPipsY(maxPipsVal) : -999;
+                const botY = minPipsVal < 0 ? getPipsY(minPipsVal) : -999;
+
+                const isTooCloseToZero = Math.abs(y - pipsZeroY) < 16;
+                const isTooCloseToTop = Math.abs(y - topY) < 16;
+                const isTooCloseToBot = Math.abs(y - botY) < 16;
+                const hideText = isTooCloseToZero || isTooCloseToTop || isTooCloseToBot;
+
                 return (
-                  <button
-                    key={tf.id}
-                    type="button"
-                    disabled={tf.disabled}
-                    className={`pips-tf-btn ${isActive ? 'active' : ''}`}
-                    title={tf.disabled ? 'No trades in this timeframe' : `${tf.count} trades in ${tf.label}`}
-                    onClick={() => !tf.disabled && setPipsTimeframe(tf.id)}
-                  >
-                    <span>{tf.label}</span>
-                    {tf.count !== undefined && tf.count > 0 && (
-                      <span className="pips-tf-count">{tf.count}</span>
+                  <g key={`pips-hgrid-${i}`}>
+                    <line
+                      className="chart-grid-line"
+                      x1={paddingX}
+                      y1={y}
+                      x2={width - paddingX}
+                      y2={y}
+                      strokeWidth="1"
+                      strokeDasharray="3 3"
+                    />
+                    {!hideText && (
+                      <text
+                        className="chart-axis-text"
+                        x={paddingX - 10}
+                        y={y + 3}
+                        fontSize="10"
+                        textAnchor="end"
+                        fontFamily="var(--font-mono)"
+                      >
+                        {Math.round(val)}
+                      </text>
                     )}
-                  </button>
+                  </g>
                 );
               })}
 
-              <button
-                type="button"
-                className={`pips-tf-btn ${isSmooth ? 'active' : ''}`}
-                onClick={() => setIsSmooth(!isSmooth)}
-                title={isSmooth ? "Switch to Straight Linear Graph" : "Switch to Smooth Curved Graph"}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}
-              >
-                <Sparkles size={12} color={isSmooth ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
-                <span>{isSmooth ? 'Smooth' : 'Straight'}</span>
-              </button>
-            </div>
-
-
-
-          </div>
-        </div>        {/* Super Box HUD Container - Full Row Width */}
-        <div className="hud-super-box">
-          <div className="hud-super-grid">
-            {/* Box 1: NET PIPS */}
-            <div className={`hud-stat-box ${isPipsProfitable ? 'profit' : 'loss'}`}>
-              <span className="hud-stat-title">
-                Net Pips
-              </span>
-              <p className={`hud-stat-value ${isPipsProfitable ? 'profit' : 'loss'}`}>
-                {netPips >= 0 ? '+' : ''}{netPips.toFixed(1)} <span style={{ fontSize: '0.74rem', fontWeight: '600' }}>PIPS</span>
-              </p>
-            </div>
-
-            {/* Box 2: PIPS GAIN */}
-            <div className="hud-stat-box profit">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ArrowUpRight size={13} color="var(--profit)" />
-                <span className="hud-stat-title profit">
-                  Pips Gain
-                </span>
-              </div>
-              <p className="hud-stat-value profit">
-                +{totalPipsGain.toFixed(1)}
-              </p>
-            </div>
-
-            {/* Box 3: LOOSE PIPS */}
-            <div className="hud-stat-box loss">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ArrowDownRight size={13} color="var(--loss)" />
-                <span className="hud-stat-title loss">
-                  Loose Pips
-                </span>
-              </div>
-              <p className="hud-stat-value loss">
-                -{totalLoosePips.toFixed(1)}
-              </p>
-            </div>
-
-            {/* Box 4: PEAK HIGH */}
-            <div className="hud-stat-box cyan">
-              <span className="hud-stat-title">
-                Peak High
-              </span>
-              <p className="hud-stat-value cyan">
-                +{peakPips.toFixed(1)}
-              </p>
-            </div>
-
-            {/* Box 5: MAX DRAWDOWN */}
-            <div className="hud-stat-box loss">
-              <span className="hud-stat-title">
-                Max Drawdown
-              </span>
-              <p className="hud-stat-value loss">
-                -{maxPipsDD.toFixed(1)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Visual Legend Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
-            <span><strong>Pips Gain</strong> (Winning Trades)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
-            <span><strong>Loose Pips</strong> (Losing Trades)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '18px', height: '2px', background: isPipsProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
-            <span><strong>Cumulative Net Pips</strong> Trajectory</span>
-          </div>
-          <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
-          </div>
-        </div>
-
-        {/* Interactive SVG Pips Chart Canvas */}
-        <div style={{ width: '100%', position: 'relative', marginTop: '16px' }}>
-          {processedPipsData.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-              <Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5, display: 'block' }} color="var(--accent-cyan)" />
-              <p style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-white)', margin: '0 0 6px' }}>
-                No trades recorded for {pipsTimeframe} timeframe
-              </p>
-              <p style={{ fontSize: '0.82rem', margin: 0 }}>
-                Select another timeframe (7D, 30D, ALL) or click <strong>+ Quick Add Trade</strong> to record execution.
-              </p>
-            </div>
-          ) : (
-            <>
-              <svg
-                ref={pipsSvgRef}
-                viewBox={`0 0 ${width} ${height}`}
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  overflow: 'visible',
-                  cursor: isPipsDragging ? 'grabbing' : isPipsZoomed ? 'grab' : 'crosshair',
-                  touchAction: 'none',
-                  userSelect: 'none'
-                }}
-                onMouseDown={handlePipsPointerDown}
-                onMouseMove={handlePipsPointerMove}
-                onMouseUp={handlePipsPointerUp}
-                onTouchStart={handlePipsPointerDown}
-                onTouchMove={handlePipsPointerMove}
-                onTouchEnd={handlePipsPointerUp}
-                onMouseLeave={() => {
-                  handlePipsPointerUp();
-                  setHoveredPipsPoint(null);
-                }}
-              >
-            <defs>
-              <linearGradient id="pipsEquityFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.28" />
-                <stop offset="60%" stopColor="#00d2ff" stopOpacity="0.06" />
-                <stop offset="100%" stopColor="#00d2ff" stopOpacity="0.0" />
-              </linearGradient>
-
-              <linearGradient id="gainBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00f59b" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#00f59b" stopOpacity="0.1" />
-              </linearGradient>
-
-              <linearGradient id="lossBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ff3366" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="#ff3366" stopOpacity="0.8" />
-              </linearGradient>
-            </defs>
-
-            {/* Faded Horizontal Grid Lines */}
-            {pipsGridTicks.map((val, i) => {
-              const y = getPipsY(val);
-              if (y < paddingY - 5 || y > height - paddingY + 5) return null;
-
-              const topY = maxPipsVal > 0 ? getPipsY(maxPipsVal) : -999;
-              const botY = minPipsVal < 0 ? getPipsY(minPipsVal) : -999;
-
-              const isTooCloseToZero = Math.abs(y - pipsZeroY) < 16;
-              const isTooCloseToTop = Math.abs(y - topY) < 16;
-              const isTooCloseToBot = Math.abs(y - botY) < 16;
-              const hideText = isTooCloseToZero || isTooCloseToTop || isTooCloseToBot;
-
-              return (
-                <g key={`pips-hgrid-${i}`}>
+              {/* Faded Vertical Grid Lines */}
+              {visiblePipsDataPoints.map((p, i) => {
+                const cx = getXPips(i);
+                const isHovered = hoveredPipsPoint === p;
+                return (
                   <line
-                    className="chart-grid-line"
+                    key={`pips-vgrid-${i}`}
+                    className={`chart-vgrid-line ${isHovered ? 'hovered' : ''}`}
+                    x1={cx}
+                    y1={paddingY}
+                    x2={cx}
+                    y2={height - paddingY}
+                    strokeDasharray={isHovered ? "none" : "3 3"}
+                  />
+                );
+              })}
+
+              {/* Zero Pips Reference Baseline */}
+              <line
+                className="chart-zero-line"
+                x1={paddingX}
+                y1={pipsZeroY}
+                x2={width - paddingX}
+                y2={pipsZeroY}
+                strokeDasharray="4 4"
+                strokeWidth="1.2"
+              />
+              <text
+                x={paddingX - 10}
+                y={pipsZeroY + 4}
+                fill="var(--accent-cyan)"
+                fontSize="11"
+                textAnchor="end"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
+              >
+                0 Pips
+              </text>
+
+              {/* Top Maximum Reference Line */}
+              {maxPipsVal > 0 && (
+                <>
+                  <line
                     x1={paddingX}
-                    y1={y}
+                    y1={getPipsY(maxPipsVal)}
                     x2={width - paddingX}
-                    y2={y}
+                    y2={getPipsY(maxPipsVal)}
+                    stroke="rgba(0, 245, 155, 0.25)"
                     strokeWidth="1"
-                    strokeDasharray="3 3"
+                    strokeDasharray="2 3"
                   />
-                  {!hideText && (
-                    <text
-                      className="chart-axis-text"
-                      x={paddingX - 10}
-                      y={y + 3}
-                      fontSize="10"
-                      textAnchor="end"
-                      fontFamily="var(--font-mono)"
-                    >
-                      {Math.round(val)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+                  <text
+                    x={paddingX - 10}
+                    y={getPipsY(maxPipsVal) + 4}
+                    fill="var(--profit)"
+                    fontSize="11"
+                    textAnchor="end"
+                    fontFamily="var(--font-mono)"
+                    fontWeight="800"
+                  >
+                    +{Math.round(maxPipsVal)}
+                  </text>
+                </>
+              )}
 
-            {/* Faded Vertical Grid Lines */}
-            {visiblePipsDataPoints.map((p, i) => {
-              const cx = getXPips(i);
-              const isHovered = hoveredPipsPoint === p;
-              return (
-                <line
-                  key={`pips-vgrid-${i}`}
-                  className={`chart-vgrid-line ${isHovered ? 'hovered' : ''}`}
-                  x1={cx}
-                  y1={paddingY}
-                  x2={cx}
-                  y2={height - paddingY}
-                  strokeDasharray={isHovered ? "none" : "3 3"}
-                />
-              );
-            })}
-
-            {/* Zero Pips Reference Baseline */}
-            <line
-              className="chart-zero-line"
-              x1={paddingX}
-              y1={pipsZeroY}
-              x2={width - paddingX}
-              y2={pipsZeroY}
-              strokeDasharray="4 4"
-              strokeWidth="1.2"
-            />
-            <text
-              x={paddingX - 10}
-              y={pipsZeroY + 4}
-              fill="var(--accent-cyan)"
-              fontSize="11"
-              textAnchor="end"
-              fontFamily="var(--font-mono)"
-              fontWeight="800"
-            >
-              0 Pips
-            </text>
-
-            {/* Top Maximum Reference Line */}
-            {maxPipsVal > 0 && (
-              <>
-                <line
-                  x1={paddingX}
-                  y1={getPipsY(maxPipsVal)}
-                  x2={width - paddingX}
-                  y2={getPipsY(maxPipsVal)}
-                  stroke="rgba(0, 245, 155, 0.25)"
-                  strokeWidth="1"
-                  strokeDasharray="2 3"
-                />
-                <text
-                  x={paddingX - 10}
-                  y={getPipsY(maxPipsVal) + 4}
-                  fill="var(--profit)"
-                  fontSize="11"
-                  textAnchor="end"
-                  fontFamily="var(--font-mono)"
-                  fontWeight="800"
-                >
-                  +{Math.round(maxPipsVal)}
-                </text>
-              </>
-            )}
-
-            {/* Bottom Negative Reference Line */}
-            {minPipsVal < 0 && (
-              <>
-                <line
-                  x1={paddingX}
-                  y1={getPipsY(minPipsVal)}
-                  x2={width - paddingX}
-                  y2={getPipsY(minPipsVal)}
-                  stroke="rgba(255, 51, 102, 0.25)"
-                  strokeWidth="1"
-                  strokeDasharray="2 3"
-                />
-                <text
-                  x={paddingX - 10}
-                  y={getPipsY(minPipsVal) + 4}
-                  fill="var(--loss)"
-                  fontSize="11"
-                  textAnchor="end"
-                  fontFamily="var(--font-mono)"
-                  fontWeight="800"
-                >
-                  {Math.round(minPipsVal)}
-                </text>
-              </>
-            )}
-
-            {/* Per-Trade Pips Pillars */}
-            {visiblePipsDataPoints.map((p, i) => {
-              const cx = getXPips(i);
-              const isGain = p.pips > 0;
-              const barHeight = Math.min(graphHeight * 0.45, (Math.abs(p.pips) / rangePips) * graphHeight);
-
-              if (p.pips === 0) return null;
-
-              return (
-                <g key={`pips-pillar-${i}`} opacity={hoveredPipsPoint === p ? 0.9 : 0.45}>
-                  {isGain ? (
-                    <rect
-                      x={cx - 5}
-                      y={pipsZeroY - barHeight}
-                      width={10}
-                      height={barHeight}
-                      rx={3}
-                      fill="url(#gainBarGrad)"
-                    />
-                  ) : (
-                    <rect
-                      x={cx - 5}
-                      y={pipsZeroY}
-                      width={10}
-                      height={barHeight}
-                      rx={3}
-                      fill="url(#lossBarGrad)"
-                    />
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Shaded Area under Cumulative Pips Curve */}
-            <path d={pipsAreaPathD} fill="url(#pipsEquityFill)" />
-
-            {/* Cumulative Pips Smooth Thin Blue Curve */}
-            <path
-              className="chart-curve-path"
-              d={pipsPathD}
-              fill="none"
-              stroke="var(--accent-cyan)"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* Data Point Dots & Hover Interactivity */}
-            {visiblePipsDataPoints.map((p, i) => {
-              const cx = getXPips(i);
-              const cy = getPipsY(p.cumulativePips);
-              const isWin = p.result === 'WIN';
-              const isLoss = p.result === 'LOSS';
-              const isHovered = hoveredPipsPoint === p;
-              const isBaseline = p.tradeIndex === 0;
-
-              return (
-                <g
-                  key={`pips-dot-${i}`}
-                  onMouseEnter={() => !isBaseline && setHoveredPipsPoint(p)}
-                  style={{ cursor: !isBaseline ? 'pointer' : 'default' }}
-                >
-                  <circle
-                    className="chart-data-dot"
-                    cx={cx}
-                    cy={cy}
-                    r={isHovered ? 6.5 : isBaseline ? 3 : 4}
-                    fill={isBaseline ? 'var(--accent-cyan)' : isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--warning)'}
-                    strokeWidth={isHovered ? 2 : 1.2}
-                    style={{ transition: 'all 0.15s ease' }}
+              {/* Bottom Negative Reference Line */}
+              {minPipsVal < 0 && (
+                <>
+                  <line
+                    x1={paddingX}
+                    y1={getPipsY(minPipsVal)}
+                    x2={width - paddingX}
+                    y2={getPipsY(minPipsVal)}
+                    stroke="rgba(255, 51, 102, 0.25)"
+                    strokeWidth="1"
+                    strokeDasharray="2 3"
                   />
-                </g>
-              );
-            })}
+                  <text
+                    x={paddingX - 10}
+                    y={getPipsY(minPipsVal) + 4}
+                    fill="var(--loss)"
+                    fontSize="11"
+                    textAnchor="end"
+                    fontFamily="var(--font-mono)"
+                    fontWeight="800"
+                  >
+                    {Math.round(minPipsVal)}
+                  </text>
+                </>
+              )}
 
-            {/* Dynamic Date X-Axis Labels */}
-            {visiblePipsDataPoints.map((p, i) => {
-              if (visiblePipsDataPoints.length > 15 && i % Math.ceil(visiblePipsDataPoints.length / 10) !== 0 && i !== visiblePipsDataPoints.length - 1) {
-                return null;
-              }
-              const cx = getXPips(i);
-              return (
-                <text
-                  key={`pips-xlabel-${i}`}
-                  x={cx}
-                  y={height - 10}
-                  fill="var(--text-muted)"
-                  fontSize="10"
-                  textAnchor="middle"
-                  fontFamily="var(--font-mono)"
-                >
-                  {p.date ? (p.date.length > 5 ? p.date.slice(5).replace('-', '/') : p.date) : ''}
-                </text>
-              );
-            })}
-          </svg>
+              {/* Per-Trade Pips Pillars */}
+              {visiblePipsDataPoints.map((p, i) => {
+                const cx = getXPips(i);
+                const isGain = p.pips > 0;
+                const barHeight = Math.min(graphHeight * 0.45, (Math.abs(p.pips) / rangePips) * graphHeight);
 
-          {/* Floating Hover Tooltip for Pips Chart */}
-          {hoveredPipsPoint && (
-            <div
-              className="chart-floating-tooltip"
-              style={{
-                top: `${Math.max(10, getPipsY(hoveredPipsPoint.cumulativePips) - 70)}px`,
-                left: `${Math.min(width - 220, Math.max(20, getXPips(visiblePipsDataPoints.indexOf(hoveredPipsPoint)) - 90))}px`
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: '800', color: 'var(--text-white)' }}>{hoveredPipsPoint.tradeName}</span>
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: '800',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    background: hoveredPipsPoint.result === 'WIN' ? 'rgba(0,245,155,0.18)' : hoveredPipsPoint.result === 'LOSS' ? 'rgba(255,51,102,0.18)' : 'rgba(245,158,11,0.18)',
-                    color: hoveredPipsPoint.result === 'WIN' ? '#00f59b' : hoveredPipsPoint.result === 'LOSS' ? '#ff3366' : '#f59e0b'
-                  }}
-                >
-                  {hoveredPipsPoint.result}
-                </span>
+                if (p.pips === 0) return null;
+
+                return (
+                  <g key={`pips-pillar-${i}`} opacity={hoveredPipsPoint === p ? 0.9 : 0.45}>
+                    {isGain ? (
+                      <rect
+                        x={cx - 5}
+                        y={pipsZeroY - barHeight}
+                        width={10}
+                        height={barHeight}
+                        rx={3}
+                        fill="url(#gainBarGrad)"
+                      />
+                    ) : (
+                      <rect
+                        x={cx - 5}
+                        y={pipsZeroY}
+                        width={10}
+                        height={barHeight}
+                        rx={3}
+                        fill="url(#lossBarGrad)"
+                      />
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* Shaded Area under Cumulative Pips Curve */}
+              <path d={pipsAreaPathD} fill="url(#pipsEquityFill)" />
+
+              {/* Cumulative Pips Smooth Thin Blue Curve */}
+              <path
+                className="chart-curve-path"
+                d={pipsPathD}
+                fill="none"
+                stroke="var(--accent-cyan)"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* Data Point Dots & Hover Interactivity */}
+              {visiblePipsDataPoints.map((p, i) => {
+                const cx = getXPips(i);
+                const cy = getPipsY(p.cumulativePips);
+                const isWin = p.result === 'WIN';
+                const isLoss = p.result === 'LOSS';
+                const isHovered = hoveredPipsPoint === p;
+                const isBaseline = p.tradeIndex === 0;
+
+                return (
+                  <g
+                    key={`pips-dot-${i}`}
+                    onMouseEnter={() => !isBaseline && setHoveredPipsPoint(p)}
+                    style={{ cursor: !isBaseline ? 'pointer' : 'default' }}
+                  >
+                    <circle
+                      className="chart-data-dot"
+                      cx={cx}
+                      cy={cy}
+                      r={isHovered ? 6.5 : isBaseline ? 3 : 4}
+                      fill={isBaseline ? 'var(--accent-cyan)' : isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--warning)'}
+                      strokeWidth={isHovered ? 2 : 1.2}
+                      style={{ transition: 'all 0.15s ease' }}
+                    />
+                  </g>
+                );
+              })}
+
+              {/* Dynamic Date X-Axis Labels */}
+              {visiblePipsDataPoints.map((p, i) => {
+                if (visiblePipsDataPoints.length > 15 && i % Math.ceil(visiblePipsDataPoints.length / 10) !== 0 && i !== visiblePipsDataPoints.length - 1) {
+                  return null;
+                }
+                const cx = getXPips(i);
+                return (
+                  <text
+                    key={`pips-xlabel-${i}`}
+                    x={cx}
+                    y={height - 10}
+                    fill="var(--text-muted)"
+                    fontSize="10"
+                    textAnchor="middle"
+                    fontFamily="var(--font-mono)"
+                  >
+                    {p.date ? (p.date.length > 5 ? p.date.slice(5).replace('-', '/') : p.date) : ''}
+                  </text>
+                );
+              })}
+            </svg>
+
+            {/* Floating Hover Tooltip for Pips Chart */}
+            {hoveredPipsPoint && (
+              <div
+                className="chart-floating-tooltip"
+                style={{
+                  top: `${Math.max(10, getPipsY(hoveredPipsPoint.cumulativePips) - 70)}px`,
+                  left: `${Math.min(width - 220, Math.max(20, getXPips(visiblePipsDataPoints.indexOf(hoveredPipsPoint)) - 90))}px`
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: '800', color: 'var(--text-white)' }}>{hoveredPipsPoint.tradeName}</span>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: '800',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      background: hoveredPipsPoint.result === 'WIN' ? 'rgba(0,245,155,0.18)' : hoveredPipsPoint.result === 'LOSS' ? 'rgba(255,51,102,0.18)' : 'rgba(245,158,11,0.18)',
+                      color: hoveredPipsPoint.result === 'WIN' ? '#00f59b' : hoveredPipsPoint.result === 'LOSS' ? '#ff3366' : '#f59e0b'
+                    }}
+                  >
+                    {hoveredPipsPoint.result}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {hoveredPipsPoint.date} • {hoveredPipsPoint.instrument}
+                </div>
+                <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
+                  Outcome Pips: <span style={{ color: hoveredPipsPoint.pips >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{hoveredPipsPoint.pips >= 0 ? '+' : ''}{hoveredPipsPoint.pips}</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                  Cumulative Pips: {hoveredPipsPoint.cumulativePips >= 0 ? '+' : ''}{hoveredPipsPoint.cumulativePips}
+                </div>
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {hoveredPipsPoint.date} • {hoveredPipsPoint.instrument}
-              </div>
-              <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-                Outcome Pips: <span style={{ color: hoveredPipsPoint.pips >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{hoveredPipsPoint.pips >= 0 ? '+' : ''}{hoveredPipsPoint.pips}</span>
-              </div>
-              <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-                Cumulative Pips: {hoveredPipsPoint.cumulativePips >= 0 ? '+' : ''}{hoveredPipsPoint.cumulativePips}
-              </div>
-            </div>
-          )}
+            )}
           </>
         )}
-        </div>
-
-
       </div>
+
+
+    </div>
   );
 
   const renderProfitChart = () => (
-      /* =========================================================================
-          CHART: PROFIT GROWTH & TRAJECTORY CURVE (USD)
-          ========================================================================= */
-      <div className="dashboard-panel" style={{ position: 'relative', overflow: 'hidden' }}>
-        {/* Top Header & USD Metrics HUD */}
-        <div className="panel-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <DollarSign size={20} color="var(--profit)" />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>
-                Profit Growth & Trajectory Curve (USD)
-              </h3>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
-              Real-time execution performance tracking cumulative USD net profit, total gross profit vs. total gross loss
-              {processedProfitData.length > 0 && (
-                <span style={{ marginLeft: '8px', color: 'var(--accent-cyan)', fontSize: '0.74rem', fontWeight: '700' }}>
-                  • Showing {processedProfitData.length} {processedProfitData.length === 1 ? 'trade' : 'trades'} ({profitTimeframe})
-                </span>
-              )}
+    /* =========================================================================
+        CHART: PROFIT GROWTH & TRAJECTORY CURVE (USD)
+        ========================================================================= */
+    <div className="dashboard-panel" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Top Header & USD Metrics HUD */}
+      <div className="panel-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <DollarSign size={20} color="var(--profit)" />
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>
+              Profit Growth & Trajectory Curve (USD)
+            </h3>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
+            Real-time execution performance tracking cumulative USD net profit, total gross profit vs. total gross loss
+            {processedProfitData.length > 0 && (
+              <span style={{ marginLeft: '8px', color: 'var(--accent-cyan)', fontSize: '0.74rem', fontWeight: '700' }}>
+                • Showing {processedProfitData.length} {processedProfitData.length === 1 ? 'trade' : 'trades'} ({profitTimeframe})
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Timeframe picker, Zoom Controls, and Profit Stats HUD */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Timeframe picker */}
+          <div className="pips-timeframe-picker">
+            {dynamicTimeframes.map(tf => {
+              const isActive = profitTimeframe === tf.id;
+              return (
+                <button
+                  key={tf.id}
+                  type="button"
+                  disabled={tf.disabled}
+                  className={`pips-tf-btn ${isActive ? 'active' : ''}`}
+                  title={tf.disabled ? 'No trades in this timeframe' : `${tf.count} trades in ${tf.label}`}
+                  onClick={() => !tf.disabled && setProfitTimeframe(tf.id)}
+                >
+                  <span>{tf.label}</span>
+                  {tf.count !== undefined && tf.count > 0 && (
+                    <span className="pips-tf-count">{tf.count}</span>
+                  )}
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              className={`pips-tf-btn ${isSmooth ? 'active' : ''}`}
+              onClick={() => setIsSmooth(!isSmooth)}
+              title={isSmooth ? "Switch to Straight Linear Graph" : "Switch to Smooth Curved Graph"}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}
+            >
+              <Sparkles size={12} color={isSmooth ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
+              <span>{isSmooth ? 'Smooth' : 'Straight'}</span>
+            </button>
+          </div>
+
+
+
+        </div>
+      </div>
+
+      {/* Super Box HUD Container - Full Row Width */}
+      <div className="hud-super-box">
+        <div className="hud-super-grid">
+          {/* Box 1: NET LOSS / PROFIT */}
+          <div className={`hud-stat-box ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
+            <span className="hud-stat-title">
+              Net Loss / Profit
+            </span>
+            <p className={`hud-stat-value ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
+              {formatUSDMetric(netProfitUSD, true)}
             </p>
           </div>
 
-          {/* Timeframe picker, Zoom Controls, and Profit Stats HUD */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            {/* Timeframe picker */}
-            <div className="pips-timeframe-picker">
-              {dynamicTimeframes.map(tf => {
-                const isActive = profitTimeframe === tf.id;
-                return (
-                  <button
-                    key={tf.id}
-                    type="button"
-                    disabled={tf.disabled}
-                    className={`pips-tf-btn ${isActive ? 'active' : ''}`}
-                    title={tf.disabled ? 'No trades in this timeframe' : `${tf.count} trades in ${tf.label}`}
-                    onClick={() => !tf.disabled && setProfitTimeframe(tf.id)}
+          {/* Box 2: TOTAL PROFIT */}
+          <div className="hud-stat-box profit">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ArrowUpRight size={13} color="var(--profit)" />
+              <span className="hud-stat-title profit">
+                Total Profit
+              </span>
+            </div>
+            <p className="hud-stat-value profit">
+              +{formatUSDMetric(totalGrossProfitUSD, false)}
+            </p>
+          </div>
+
+          {/* Box 3: TOTAL LOSS */}
+          <div className="hud-stat-box loss">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ArrowDownRight size={13} color="var(--loss)" />
+              <span className="hud-stat-title loss">
+                Total Loss
+              </span>
+            </div>
+            <p className="hud-stat-value loss">
+              -{formatUSDMetric(totalGrossLossUSD, false)}
+            </p>
+          </div>
+
+          {/* Box 4: MAX PROFIT */}
+          <div className="hud-stat-box cyan">
+            <span className="hud-stat-title">
+              Max Profit
+            </span>
+            <p className="hud-stat-value cyan">
+              +{formatUSDMetric(peakProfitUSD, false)}
+            </p>
+          </div>
+
+          {/* Box 5: MAX LOSS */}
+          <div className="hud-stat-box loss">
+            <span className="hud-stat-title">
+              Max Loss
+            </span>
+            <p className="hud-stat-value loss">
+              -{formatUSDMetric(maxProfitDD, false)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Visual Legend Bar for Profit Curve */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
+          <span><strong>Profit Gain ($)</strong> (Winning Trades)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
+          <span><strong>Loss Drag ($)</strong> (Losing Trades)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '18px', height: '2px', background: isProfitUSDProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
+          <span><strong>Cumulative Net Profit (USD)</strong> Trajectory</span>
+        </div>
+        <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
+        </div>
+      </div>
+
+      {/* Interactive SVG Profit Chart Canvas */}
+      <div style={{ width: '100%', position: 'relative', marginTop: '16px' }}>
+        <svg
+          ref={profitSvgRef}
+          viewBox={`0 0 ${width} ${height}`}
+          style={{
+            width: '100%',
+            height: 'auto',
+            overflow: 'visible',
+            cursor: isProfitDragging ? 'grabbing' : isProfitZoomed ? 'grab' : 'crosshair',
+            touchAction: 'none',
+            userSelect: 'none'
+          }}
+          onMouseDown={handleProfitPointerDown}
+          onMouseMove={handleProfitPointerMove}
+          onMouseUp={handleProfitPointerUp}
+          onTouchStart={handleProfitPointerDown}
+          onTouchMove={handleProfitPointerMove}
+          onTouchEnd={handleProfitPointerUp}
+          onMouseLeave={() => {
+            handleProfitPointerUp();
+            setHoveredProfitPoint(null);
+          }}
+        >
+          <defs>
+            <linearGradient id="profitEquityFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.28" />
+              <stop offset="60%" stopColor="#00d2ff" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="#00d2ff" stopOpacity="0.0" />
+            </linearGradient>
+
+            <linearGradient id="profitGainBarGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#00f59b" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#00f59b" stopOpacity="0.1" />
+            </linearGradient>
+
+            <linearGradient id="profitLossBarGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ff3366" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#ff3366" stopOpacity="0.8" />
+            </linearGradient>
+          </defs>
+
+          {/* Faded Horizontal Grid Lines */}
+          {profitGridTicks.map((val, i) => {
+            const y = getProfitY(val);
+            if (y < paddingY - 5 || y > height - paddingY + 5) return null;
+
+            const topY = maxProfitVal > 0 ? getProfitY(maxProfitVal) : -999;
+            const botY = minProfitVal < 0 ? getProfitY(minProfitVal) : -999;
+
+            const isTooCloseToZero = Math.abs(y - profitZeroY) < 16;
+            const isTooCloseToTop = Math.abs(y - topY) < 16;
+            const isTooCloseToBot = Math.abs(y - botY) < 16;
+            const hideText = isTooCloseToZero || isTooCloseToTop || isTooCloseToBot;
+
+            return (
+              <g key={`profit-hgrid-${i}`}>
+                <line
+                  className="chart-grid-line"
+                  x1={paddingX}
+                  y1={y}
+                  x2={width - paddingX}
+                  y2={y}
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                />
+                {!hideText && (
+                  <text
+                    className="chart-axis-text"
+                    x={paddingX - 10}
+                    y={y + 3}
+                    fontSize="10"
+                    textAnchor="end"
+                    fontFamily="var(--font-mono)"
                   >
-                    <span>{tf.label}</span>
-                    {tf.count !== undefined && tf.count > 0 && (
-                      <span className="pips-tf-count">{tf.count}</span>
-                    )}
-                  </button>
-                );
-              })}
+                    {formatUSDMetric(val, false)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
-              <button
-                type="button"
-                className={`pips-tf-btn ${isSmooth ? 'active' : ''}`}
-                onClick={() => setIsSmooth(!isSmooth)}
-                title={isSmooth ? "Switch to Straight Linear Graph" : "Switch to Smooth Curved Graph"}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}
+          {/* Faded Vertical Grid Lines */}
+          {visibleProfitDataPoints.map((p, i) => {
+            const cx = getXProfit(i);
+            const isHovered = hoveredProfitPoint === p;
+            return (
+              <line
+                key={`profit-vgrid-${i}`}
+                className={`chart-vgrid-line ${isHovered ? 'hovered' : ''}`}
+                x1={cx}
+                y1={paddingY}
+                x2={cx}
+                y2={height - paddingY}
+                strokeDasharray={isHovered ? "none" : "3 3"}
+              />
+            );
+          })}
+
+          {/* Zero USD Reference Baseline */}
+          <line
+            className="chart-zero-line"
+            x1={paddingX}
+            y1={profitZeroY}
+            x2={width - paddingX}
+            y2={profitZeroY}
+            strokeDasharray="4 4"
+            strokeWidth="1.2"
+          />
+          <text
+            x={paddingX - 10}
+            y={profitZeroY + 4}
+            fill="var(--accent-cyan)"
+            fontSize="11"
+            textAnchor="end"
+            fontFamily="var(--font-mono)"
+            fontWeight="800"
+          >
+            $0
+          </text>
+
+          {/* Top Maximum Reference Line */}
+          {maxProfitVal > 0 && (
+            <>
+              <line
+                x1={paddingX}
+                y1={getProfitY(maxProfitVal)}
+                x2={width - paddingX}
+                y2={getProfitY(maxProfitVal)}
+                stroke="rgba(0, 245, 155, 0.25)"
+                strokeWidth="1"
+                strokeDasharray="2 3"
+              />
+              <text
+                x={paddingX - 10}
+                y={getProfitY(maxProfitVal) + 4}
+                fill="var(--profit)"
+                fontSize="11"
+                textAnchor="end"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
               >
-                <Sparkles size={12} color={isSmooth ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
-                <span>{isSmooth ? 'Smooth' : 'Straight'}</span>
-              </button>
-            </div>
+                +{formatUSDMetric(maxProfitVal, false)}
+              </text>
+            </>
+          )}
 
+          {/* Bottom Negative Reference Line */}
+          {minProfitVal < 0 && (
+            <>
+              <line
+                x1={paddingX}
+                y1={getProfitY(minProfitVal)}
+                x2={width - paddingX}
+                y2={getProfitY(minProfitVal)}
+                stroke="rgba(255, 51, 102, 0.25)"
+                strokeWidth="1"
+                strokeDasharray="2 3"
+              />
+              <text
+                x={paddingX - 10}
+                y={getProfitY(minProfitVal) + 4}
+                fill="var(--loss)"
+                fontSize="11"
+                textAnchor="end"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
+              >
+                -{formatUSDMetric(Math.abs(minProfitVal), false)}
+              </text>
+            </>
+          )}
 
+          {/* Per-Trade USD Pillars */}
+          {visibleProfitDataPoints.map((p, i) => {
+            const cx = getXProfit(i);
+            const isGain = p.profitUSD > 0;
+            const barHeight = Math.min(graphHeight * 0.45, (Math.abs(p.profitUSD) / rangeProfit) * graphHeight);
 
-          </div>
-        </div>
+            if (p.profitUSD === 0) return null;
 
-        {/* Super Box HUD Container - Full Row Width */}
-        <div className="hud-super-box">
-          <div className="hud-super-grid">
-            {/* Box 1: NET LOSS / PROFIT */}
-            <div className={`hud-stat-box ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
-              <span className="hud-stat-title">
-                Net Loss / Profit
-              </span>
-              <p className={`hud-stat-value ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
-                {formatUSDMetric(netProfitUSD, true)}
-              </p>
-            </div>
+            return (
+              <g key={`profit-pillar-${i}`} opacity={hoveredProfitPoint === p ? 0.9 : 0.45}>
+                {isGain ? (
+                  <rect
+                    x={cx - 5}
+                    y={profitZeroY - barHeight}
+                    width={10}
+                    height={barHeight}
+                    rx={3}
+                    fill="url(#profitGainBarGrad)"
+                  />
+                ) : (
+                  <rect
+                    x={cx - 5}
+                    y={profitZeroY}
+                    width={10}
+                    height={barHeight}
+                    rx={3}
+                    fill="url(#profitLossBarGrad)"
+                  />
+                )}
+              </g>
+            );
+          })}
 
-            {/* Box 2: TOTAL PROFIT */}
-            <div className="hud-stat-box profit">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ArrowUpRight size={13} color="var(--profit)" />
-                <span className="hud-stat-title profit">
-                  Total Profit
-                </span>
-              </div>
-              <p className="hud-stat-value profit">
-                +{formatUSDMetric(totalGrossProfitUSD, false)}
-              </p>
-            </div>
+          {/* Shaded Area under Cumulative USD Profit Curve */}
+          <path d={profitAreaPathD} fill="url(#profitEquityFill)" />
 
-            {/* Box 3: TOTAL LOSS */}
-            <div className="hud-stat-box loss">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ArrowDownRight size={13} color="var(--loss)" />
-                <span className="hud-stat-title loss">
-                  Total Loss
-                </span>
-              </div>
-              <p className="hud-stat-value loss">
-                -{formatUSDMetric(totalGrossLossUSD, false)}
-              </p>
-            </div>
+          {/* Cumulative USD Profit Smooth Thin Blue Curve */}
+          <path
+            className="chart-curve-path"
+            d={profitPathD}
+            fill="none"
+            stroke="var(--accent-cyan)"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
 
-            {/* Box 4: MAX PROFIT */}
-            <div className="hud-stat-box cyan">
-              <span className="hud-stat-title">
-                Max Profit
-              </span>
-              <p className="hud-stat-value cyan">
-                +{formatUSDMetric(peakProfitUSD, false)}
-              </p>
-            </div>
+          {/* Data Point Dots & Hover Interactivity */}
+          {visibleProfitDataPoints.map((p, i) => {
+            const cx = getXProfit(i);
+            const cy = getProfitY(p.cumulativeProfitUSD);
+            const isWin = p.result === 'WIN';
+            const isLoss = p.result === 'LOSS';
+            const isHovered = hoveredProfitPoint === p;
+            const isBaseline = p.tradeIndex === 0;
 
-            {/* Box 5: MAX LOSS */}
-            <div className="hud-stat-box loss">
-              <span className="hud-stat-title">
-                Max Loss
-              </span>
-              <p className="hud-stat-value loss">
-                -{formatUSDMetric(maxProfitDD, false)}
-              </p>
-            </div>
-          </div>
-        </div>
+            return (
+              <g
+                key={`profit-dot-${i}`}
+                onMouseEnter={() => !isBaseline && setHoveredProfitPoint(p)}
+                style={{ cursor: !isBaseline ? 'pointer' : 'default' }}
+              >
+                <circle
+                  className="chart-data-dot"
+                  cx={cx}
+                  cy={cy}
+                  r={isHovered ? 6.5 : isBaseline ? 3 : 4}
+                  fill={isBaseline ? 'var(--accent-cyan)' : isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--warning)'}
+                  strokeWidth={isHovered ? 2 : 1.2}
+                  style={{ transition: 'all 0.15s ease' }}
+                />
+              </g>
+            );
+          })}
 
-        {/* Visual Legend Bar for Profit Curve */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
-            <span><strong>Profit Gain ($)</strong> (Winning Trades)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
-            <span><strong>Loss Drag ($)</strong> (Losing Trades)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '18px', height: '2px', background: isProfitUSDProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
-            <span><strong>Cumulative Net Profit (USD)</strong> Trajectory</span>
-          </div>
-          <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
-          </div>
-        </div>
+          {/* Dynamic Date X-Axis Labels */}
+          {visibleProfitDataPoints.map((p, i) => {
+            if (visibleProfitDataPoints.length > 15 && i % Math.ceil(visibleProfitDataPoints.length / 10) !== 0 && i !== visibleProfitDataPoints.length - 1) {
+              return null;
+            }
+            const cx = getXProfit(i);
+            return (
+              <text
+                key={`profit-xlabel-${i}`}
+                x={cx}
+                y={height - 10}
+                fill="var(--text-muted)"
+                fontSize="10"
+                textAnchor="middle"
+                fontFamily="var(--font-mono)"
+              >
+                {p.date ? (p.date.length > 5 ? p.date.slice(5).replace('-', '/') : p.date) : ''}
+              </text>
+            );
+          })}
+        </svg>
 
-        {/* Interactive SVG Profit Chart Canvas */}
-        <div style={{ width: '100%', position: 'relative', marginTop: '16px' }}>
-          <svg
-            ref={profitSvgRef}
-            viewBox={`0 0 ${width} ${height}`}
+        {/* Floating Hover Tooltip for Profit Chart */}
+        {hoveredProfitPoint && (
+          <div
+            className="chart-floating-tooltip"
             style={{
-              width: '100%',
-              height: 'auto',
-              overflow: 'visible',
-              cursor: isProfitDragging ? 'grabbing' : isProfitZoomed ? 'grab' : 'crosshair',
-              touchAction: 'none',
-              userSelect: 'none'
-            }}
-            onMouseDown={handleProfitPointerDown}
-            onMouseMove={handleProfitPointerMove}
-            onMouseUp={handleProfitPointerUp}
-            onTouchStart={handleProfitPointerDown}
-            onTouchMove={handleProfitPointerMove}
-            onTouchEnd={handleProfitPointerUp}
-            onMouseLeave={() => {
-              handleProfitPointerUp();
-              setHoveredProfitPoint(null);
+              top: `${Math.max(10, getProfitY(hoveredProfitPoint.cumulativeProfitUSD) - 70)}px`,
+              left: `${Math.min(width - 220, Math.max(20, getXProfit(visibleProfitDataPoints.indexOf(hoveredProfitPoint)) - 90))}px`
             }}
           >
-            <defs>
-              <linearGradient id="profitEquityFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.28" />
-                <stop offset="60%" stopColor="#00d2ff" stopOpacity="0.06" />
-                <stop offset="100%" stopColor="#00d2ff" stopOpacity="0.0" />
-              </linearGradient>
-
-              <linearGradient id="profitGainBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00f59b" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#00f59b" stopOpacity="0.1" />
-              </linearGradient>
-
-              <linearGradient id="profitLossBarGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ff3366" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="#ff3366" stopOpacity="0.8" />
-              </linearGradient>
-            </defs>
-
-            {/* Faded Horizontal Grid Lines */}
-            {profitGridTicks.map((val, i) => {
-              const y = getProfitY(val);
-              if (y < paddingY - 5 || y > height - paddingY + 5) return null;
-
-              const topY = maxProfitVal > 0 ? getProfitY(maxProfitVal) : -999;
-              const botY = minProfitVal < 0 ? getProfitY(minProfitVal) : -999;
-
-              const isTooCloseToZero = Math.abs(y - profitZeroY) < 16;
-              const isTooCloseToTop = Math.abs(y - topY) < 16;
-              const isTooCloseToBot = Math.abs(y - botY) < 16;
-              const hideText = isTooCloseToZero || isTooCloseToTop || isTooCloseToBot;
-
-              return (
-                <g key={`profit-hgrid-${i}`}>
-                  <line
-                    className="chart-grid-line"
-                    x1={paddingX}
-                    y1={y}
-                    x2={width - paddingX}
-                    y2={y}
-                    strokeWidth="1"
-                    strokeDasharray="3 3"
-                  />
-                  {!hideText && (
-                    <text
-                      className="chart-axis-text"
-                      x={paddingX - 10}
-                      y={y + 3}
-                      fontSize="10"
-                      textAnchor="end"
-                      fontFamily="var(--font-mono)"
-                    >
-                      {formatUSDMetric(val, false)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Faded Vertical Grid Lines */}
-            {visibleProfitDataPoints.map((p, i) => {
-              const cx = getXProfit(i);
-              const isHovered = hoveredProfitPoint === p;
-              return (
-                <line
-                  key={`profit-vgrid-${i}`}
-                  className={`chart-vgrid-line ${isHovered ? 'hovered' : ''}`}
-                  x1={cx}
-                  y1={paddingY}
-                  x2={cx}
-                  y2={height - paddingY}
-                  strokeDasharray={isHovered ? "none" : "3 3"}
-                />
-              );
-            })}
-
-            {/* Zero USD Reference Baseline */}
-            <line
-              className="chart-zero-line"
-              x1={paddingX}
-              y1={profitZeroY}
-              x2={width - paddingX}
-              y2={profitZeroY}
-              strokeDasharray="4 4"
-              strokeWidth="1.2"
-            />
-            <text
-              x={paddingX - 10}
-              y={profitZeroY + 4}
-              fill="var(--accent-cyan)"
-              fontSize="11"
-              textAnchor="end"
-              fontFamily="var(--font-mono)"
-              fontWeight="800"
-            >
-              $0
-            </text>
-
-            {/* Top Maximum Reference Line */}
-            {maxProfitVal > 0 && (
-              <>
-                <line
-                  x1={paddingX}
-                  y1={getProfitY(maxProfitVal)}
-                  x2={width - paddingX}
-                  y2={getProfitY(maxProfitVal)}
-                  stroke="rgba(0, 245, 155, 0.25)"
-                  strokeWidth="1"
-                  strokeDasharray="2 3"
-                />
-                <text
-                  x={paddingX - 10}
-                  y={getProfitY(maxProfitVal) + 4}
-                  fill="var(--profit)"
-                  fontSize="11"
-                  textAnchor="end"
-                  fontFamily="var(--font-mono)"
-                  fontWeight="800"
-                >
-                  +{formatUSDMetric(maxProfitVal, false)}
-                </text>
-              </>
-            )}
-
-            {/* Bottom Negative Reference Line */}
-            {minProfitVal < 0 && (
-              <>
-                <line
-                  x1={paddingX}
-                  y1={getProfitY(minProfitVal)}
-                  x2={width - paddingX}
-                  y2={getProfitY(minProfitVal)}
-                  stroke="rgba(255, 51, 102, 0.25)"
-                  strokeWidth="1"
-                  strokeDasharray="2 3"
-                />
-                <text
-                  x={paddingX - 10}
-                  y={getProfitY(minProfitVal) + 4}
-                  fill="var(--loss)"
-                  fontSize="11"
-                  textAnchor="end"
-                  fontFamily="var(--font-mono)"
-                  fontWeight="800"
-                >
-                  -{formatUSDMetric(Math.abs(minProfitVal), false)}
-                </text>
-              </>
-            )}
-
-            {/* Per-Trade USD Pillars */}
-            {visibleProfitDataPoints.map((p, i) => {
-              const cx = getXProfit(i);
-              const isGain = p.profitUSD > 0;
-              const barHeight = Math.min(graphHeight * 0.45, (Math.abs(p.profitUSD) / rangeProfit) * graphHeight);
-
-              if (p.profitUSD === 0) return null;
-
-              return (
-                <g key={`profit-pillar-${i}`} opacity={hoveredProfitPoint === p ? 0.9 : 0.45}>
-                  {isGain ? (
-                    <rect
-                      x={cx - 5}
-                      y={profitZeroY - barHeight}
-                      width={10}
-                      height={barHeight}
-                      rx={3}
-                      fill="url(#profitGainBarGrad)"
-                    />
-                  ) : (
-                    <rect
-                      x={cx - 5}
-                      y={profitZeroY}
-                      width={10}
-                      height={barHeight}
-                      rx={3}
-                      fill="url(#profitLossBarGrad)"
-                    />
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Shaded Area under Cumulative USD Profit Curve */}
-            <path d={profitAreaPathD} fill="url(#profitEquityFill)" />
-
-            {/* Cumulative USD Profit Smooth Thin Blue Curve */}
-            <path
-              className="chart-curve-path"
-              d={profitPathD}
-              fill="none"
-              stroke="var(--accent-cyan)"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* Data Point Dots & Hover Interactivity */}
-            {visibleProfitDataPoints.map((p, i) => {
-              const cx = getXProfit(i);
-              const cy = getProfitY(p.cumulativeProfitUSD);
-              const isWin = p.result === 'WIN';
-              const isLoss = p.result === 'LOSS';
-              const isHovered = hoveredProfitPoint === p;
-              const isBaseline = p.tradeIndex === 0;
-
-              return (
-                <g
-                  key={`profit-dot-${i}`}
-                  onMouseEnter={() => !isBaseline && setHoveredProfitPoint(p)}
-                  style={{ cursor: !isBaseline ? 'pointer' : 'default' }}
-                >
-                  <circle
-                    className="chart-data-dot"
-                    cx={cx}
-                    cy={cy}
-                    r={isHovered ? 6.5 : isBaseline ? 3 : 4}
-                    fill={isBaseline ? 'var(--accent-cyan)' : isWin ? 'var(--profit)' : isLoss ? 'var(--loss)' : 'var(--warning)'}
-                    strokeWidth={isHovered ? 2 : 1.2}
-                    style={{ transition: 'all 0.15s ease' }}
-                  />
-                </g>
-              );
-            })}
-
-            {/* Dynamic Date X-Axis Labels */}
-            {visibleProfitDataPoints.map((p, i) => {
-              if (visibleProfitDataPoints.length > 15 && i % Math.ceil(visibleProfitDataPoints.length / 10) !== 0 && i !== visibleProfitDataPoints.length - 1) {
-                return null;
-              }
-              const cx = getXProfit(i);
-              return (
-                <text
-                  key={`profit-xlabel-${i}`}
-                  x={cx}
-                  y={height - 10}
-                  fill="var(--text-muted)"
-                  fontSize="10"
-                  textAnchor="middle"
-                  fontFamily="var(--font-mono)"
-                >
-                  {p.date ? (p.date.length > 5 ? p.date.slice(5).replace('-', '/') : p.date) : ''}
-                </text>
-              );
-            })}
-          </svg>
-
-          {/* Floating Hover Tooltip for Profit Chart */}
-          {hoveredProfitPoint && (
-            <div
-              className="chart-floating-tooltip"
-              style={{
-                top: `${Math.max(10, getProfitY(hoveredProfitPoint.cumulativeProfitUSD) - 70)}px`,
-                left: `${Math.min(width - 220, Math.max(20, getXProfit(visibleProfitDataPoints.indexOf(hoveredProfitPoint)) - 90))}px`
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: '800', color: 'var(--text-white)' }}>{hoveredProfitPoint.tradeName}</span>
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: '800',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    background: hoveredProfitPoint.result === 'WIN' ? 'rgba(0,245,155,0.18)' : hoveredProfitPoint.result === 'LOSS' ? 'rgba(255,51,102,0.18)' : 'rgba(245,158,11,0.18)',
-                    color: hoveredProfitPoint.result === 'WIN' ? '#00f59b' : hoveredProfitPoint.result === 'LOSS' ? '#ff3366' : '#f59e0b'
-                  }}
-                >
-                  {hoveredProfitPoint.result}
-                </span>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {hoveredProfitPoint.date} • {hoveredProfitPoint.instrument}
-              </div>
-              <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-                Trade Profit: <span style={{ color: hoveredProfitPoint.profitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSDMetric(hoveredProfitPoint.profitUSD, true)}</span>
-              </div>
-              <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-                Cumulative Profit: {formatUSDMetric(hoveredProfitPoint.cumulativeProfitUSD, true)}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontWeight: '800', color: 'var(--text-white)' }}>{hoveredProfitPoint.tradeName}</span>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: '800',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: hoveredProfitPoint.result === 'WIN' ? 'rgba(0,245,155,0.18)' : hoveredProfitPoint.result === 'LOSS' ? 'rgba(255,51,102,0.18)' : 'rgba(245,158,11,0.18)',
+                  color: hoveredProfitPoint.result === 'WIN' ? '#00f59b' : hoveredProfitPoint.result === 'LOSS' ? '#ff3366' : '#f59e0b'
+                }}
+              >
+                {hoveredProfitPoint.result}
+              </span>
             </div>
-          )}
-        </div>
-
-
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {hoveredProfitPoint.date} • {hoveredProfitPoint.instrument}
+            </div>
+            <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
+              Trade Profit: <span style={{ color: hoveredProfitPoint.profitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSDMetric(hoveredProfitPoint.profitUSD, true)}</span>
+            </div>
+            <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+              Cumulative Profit: {formatUSDMetric(hoveredProfitPoint.cumulativeProfitUSD, true)}
+            </div>
+          </div>
+        )}
       </div>
+
+
+    </div>
   );
 
   return (

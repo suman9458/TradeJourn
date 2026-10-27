@@ -158,6 +158,12 @@ const createTrade = async (req, res, next) => {
       userId: req.user._id
     };
 
+    if (req.body.images !== undefined) {
+      tradeData.images = Array.isArray(req.body.images)
+        ? req.body.images.filter((img) => typeof img === 'string' && img.trim() !== '').slice(0, 3)
+        : [req.body.images].filter(Boolean).slice(0, 3);
+    }
+
     const trade = new Trade(tradeData);
     await trade.save();
 
@@ -187,6 +193,14 @@ const updateTrade = async (req, res, next) => {
         : (req.body.takeProfitUSD !== undefined && req.body.takeProfitUSD !== null && req.body.takeProfitUSD !== '' ? Number(req.body.takeProfitUSD) : 0);
       req.body.takeProfit = rawTp;
       req.body.takeProfitUSD = rawTp;
+    }
+
+    if (req.body.images !== undefined) {
+      req.body.images = Array.isArray(req.body.images)
+        ? req.body.images.filter((img) => typeof img === 'string' && img.trim() !== '').slice(0, 3)
+        : [req.body.images].filter(Boolean).slice(0, 3);
+      req.body.screenshotUrl = req.body.images[0] || '';
+      req.body.imageUrl = req.body.images[0] || '';
     }
 
     Object.assign(trade, req.body);
@@ -284,7 +298,7 @@ const exportTradesCSV = async (req, res, next) => {
       t.disciplineScore,
       t.tradeGrade,
       `"${(t.notes || '').replace(/"/g, '""')}"`,
-      `"${(t.screenshotUrl || t.imageUrl || '').replace(/"/g, '""')}"`
+      `"${(Array.isArray(t.images) && t.images.length > 0 ? t.images.join('; ') : t.screenshotUrl || t.imageUrl || '').replace(/"/g, '""')}"`
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

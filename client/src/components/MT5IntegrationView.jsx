@@ -36,10 +36,13 @@ import {
   EyeOff,
   CheckCircle,
   Edit2,
-  Download
+  Download,
+  Plus,
+  UploadCloud,
+  Maximize2
 } from 'lucide-react';
 import { api } from '../services/api';
-import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
 
 
 
@@ -100,9 +103,13 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     reasonEarlyExit: 'None',
     mistakes: ['None'],
     notes: '',
+    images: [],
     screenshotUrl: ''
   });
   const [savingJournal, setSavingJournal] = useState(false);
+  const [uploadingJournalImages, setUploadingJournalImages] = useState(false);
+  const [journalLightboxImage, setJournalLightboxImage] = useState(null);
+  const journalFileInputRef = useRef(null);
 
   // Link Manual Trade Modal
   const [linkModalTrade, setLinkModalTrade] = useState(null);
@@ -363,6 +370,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
   // Open Journal Modal
   const handleOpenCompleteJournal = (trade) => {
     setJournalModalTrade(trade);
+    const imgs = getTradeImages(trade);
     setJournalForm({
       setupRating: trade.setupRating || 'A+',
       session: trade.session || 'London',
@@ -373,7 +381,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
       reasonEarlyExit: trade.reasonEarlyExit || 'None',
       mistakes: Array.isArray(trade.mistakes) ? trade.mistakes : ['None'],
       notes: trade.notes || '',
-      screenshotUrl: trade.screenshotUrl || trade.imageUrl || ''
+      images: imgs,
+      screenshotUrl: imgs[0] || ''
     });
   };
 
@@ -382,8 +391,12 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     if (!journalModalTrade) return;
     try {
       setSavingJournal(true);
+      const finalImages = (journalForm.images || []).slice(0, 3);
       await api.updateMT5Journal(journalModalTrade._id, {
         ...journalForm,
+        images: finalImages,
+        screenshotUrl: finalImages[0] || '',
+        imageUrl: finalImages[0] || '',
         journalStatus: status
       });
       setJournalModalTrade(null);
@@ -393,6 +406,37 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     } finally {
       setSavingJournal(false);
     }
+  };
+
+  const handleAddJournalImages = async (filesOrUrls) => {
+    try {
+      setUploadingJournalImages(true);
+      const current = journalForm.images || [];
+      const newUrls = await processAndUploadMultipleImages(filesOrUrls, current.length, 3);
+      if (!newUrls.length) return;
+      const nextImages = [...current, ...newUrls].slice(0, 3);
+      setJournalForm(prev => ({
+        ...prev,
+        images: nextImages,
+        screenshotUrl: nextImages[0] || ''
+      }));
+    } catch (err) {
+      alert('Failed to process image: ' + err.message);
+    } finally {
+      setUploadingJournalImages(false);
+      if (journalFileInputRef.current) journalFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveJournalImageAt = (idxToRemove) => {
+    setJournalForm(prev => {
+      const next = (prev.images || []).filter((_, i) => i !== idxToRemove);
+      return {
+        ...prev,
+        images: next,
+        screenshotUrl: next[0] || ''
+      };
+    });
   };
 
   // Link Manual Trade Flow
@@ -423,25 +467,21 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
     const handlePaste = async (e) => {
       const items = e.clipboardData?.items;
       if (!items) return;
+      const files = [];
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
-          if (file) {
-            e.preventDefault();
-            try {
-              const cdnUrl = await processAndUploadChartImage(file);
-              setJournalForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
-            } catch (err) {
-              console.warn('Paste failed:', err);
-            }
-          }
-          break;
+          if (file) files.push(file);
         }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        handleAddJournalImages(files);
       }
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [journalModalTrade]);
+  }, [journalModalTrade, journalForm.images]);
 
   // Non-MT5 manual trades for linking dropdown
   const manualTrades = trades.filter(t => !t.isFromMT5);
@@ -1323,34 +1363,113 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               />
             </div>
 
-            {/* Screenshot Drag/Paste Area */}
+            {/* Screenshot Drag/Paste Area - Up to 3 images */}
             <div style={{ marginBottom: '18px' }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                Chart Screenshot (Press Ctrl+V to paste or click to upload)
-              </label>
-              {journalForm.screenshotUrl ? (
-                <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', maxHeight: '180px', border: '1px solid var(--border-subtle)' }}>
-                  <img src={journalForm.screenshotUrl} alt="Chart" style={{ width: '100%', height: 'auto', display: 'block' }} />
-                  <button
-                    onClick={() => setJournalForm({ ...journalForm, screenshotUrl: '' })}
-                    className="btn-ghost"
-                    style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px' }}
-                  >
-                    <X size={14} />
-                  </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                  Chart Screenshots (Up to 3: Setup, Trigger, Exit)
+                </label>
+                <span style={{ fontSize: '0.72rem', color: (journalForm.images?.length || 0) >= 3 ? 'var(--profit)' : 'var(--text-muted)' }}>
+                  {(journalForm.images?.length || 0)} / 3 Attached
+                </span>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={journalFileInputRef}
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={e => e.target.files?.length && handleAddJournalImages(Array.from(e.target.files))}
+              />
+
+              {/* Multi-slot Grid if images exist */}
+              {journalForm.images?.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+                  {journalForm.images.map((img, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border-medium)',
+                        background: '#04080e',
+                        aspectRatio: '16/10'
+                      }}
+                    >
+                      <img src={img} alt={`Chart ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <div style={{
+                        position: 'absolute',
+                        top: '4px',
+                        left: '4px',
+                        background: 'rgba(0,0,0,0.75)',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.68rem',
+                        fontWeight: '700',
+                        color: 'var(--accent-cyan)'
+                      }}>
+                        Chart {idx + 1}
+                      </div>
+                      <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '3px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setJournalLightboxImage(img)}
+                          className="btn-ghost"
+                          title="Preview full size"
+                          style={{ background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '3px', borderRadius: '4px' }}
+                        >
+                          <Maximize2 size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveJournalImageAt(idx)}
+                          className="btn-ghost"
+                          title="Remove image"
+                          style={{ background: 'rgba(0,0,0,0.75)', color: 'var(--loss)', padding: '3px', borderRadius: '4px' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div style={{
-                  border: '1px dashed var(--border-subtle)',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  textAlign: 'center',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.78rem'
-                }}>
-                  <Camera size={20} style={{ margin: '0 auto 6px', display: 'block' }} />
-                  <span>Paste screenshot directly with Ctrl+V from TradingView or Snipping Tool</span>
+              )}
+
+              {/* Upload Drop Zone if < 3 */}
+              {(journalForm.images?.length || 0) < 3 && (
+                <div
+                  onClick={() => journalFileInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault();
+                    const files = Array.from(e.dataTransfer.files || []);
+                    if (files.length) handleAddJournalImages(files);
+                  }}
+                  style={{
+                    border: '1px dashed var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: (journalForm.images?.length || 0) > 0 ? '10px' : '16px',
+                    textAlign: 'center',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-cyan)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                >
+                  <Camera size={18} style={{ margin: '0 auto 4px', display: 'block', color: 'var(--accent-cyan)' }} />
+                  <span>
+                    {uploadingJournalImages
+                      ? 'Uploading chart...'
+                      : (journalForm.images?.length || 0) > 0
+                        ? `+ Add Another Chart (${3 - (journalForm.images?.length || 0)} left) • Click or Paste Ctrl+V`
+                        : 'Click to upload or press Ctrl+V to paste chart (Up to 3 images)'}
+                  </span>
                 </div>
               )}
             </div>
@@ -1378,6 +1497,41 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <span>Submit &amp; Audit Journal</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox for MT5 journal screenshot */}
+      {journalLightboxImage && (
+        <div
+          className="modal-backdrop"
+          style={{ zIndex: 130000, background: 'rgba(0,0,0,0.92)' }}
+          onClick={() => setJournalLightboxImage(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '92vw',
+              maxHeight: '92vh',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setJournalLightboxImage(null)}
+              style={{ position: 'absolute', top: '-36px', right: '0', color: '#fff' }}
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={journalLightboxImage}
+              alt="Chart preview"
+              style={{ maxWidth: '90vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-medium)' }}
+            />
           </div>
         </div>
       )}

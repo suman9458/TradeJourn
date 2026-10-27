@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import richRiskImg from '../assets/rich-risk.jpg';
 import { TradesTableView } from './TradesTableView';
 import { api } from '../services/api';
-import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
 import {
   BarChart2,
   TrendingUp,
@@ -159,32 +159,45 @@ export const ModernPipsDashboard = ({
   const [selectedYear, setSelectedYear] = useState(() => availableYears[0] || '2026');
   const [dashboardLightboxImage, setDashboardLightboxImage] = useState(null);
   const [activeDashboardChartTrade, setActiveDashboardChartTrade] = useState(null);
+  const [activeDashboardChartImageIndex, setActiveDashboardChartImageIndex] = useState(0);
   const [uploadingDashboardChart, setUploadingDashboardChart] = useState(false);
   const [dashboardChartUrlInput, setDashboardChartUrlInput] = useState('');
   const [isDashboardChartDragging, setIsDashboardChartDragging] = useState(false);
   const dashboardChartFileInputRef = useRef(null);
 
-  // Paste screenshot with Ctrl+V while Dashboard Chart Modal is open
+  // Keyboard navigation & Paste screenshot with Ctrl+V while Dashboard Chart Modal is open
   useEffect(() => {
     if (!activeDashboardChartTrade) return;
 
     const handlePaste = async (e) => {
       const items = e.clipboardData?.items;
       if (!items) return;
+      const files = [];
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
-          if (file) {
-            e.preventDefault();
-            handleSaveDashboardChart(activeDashboardChartTrade, file);
-          }
-          break;
+          if (file) files.push(file);
         }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        handleSaveDashboardChart(activeDashboardChartTrade, files);
       }
     };
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setActiveDashboardChartTrade(null);
+      if (e.key === 'Escape') {
+        setActiveDashboardChartTrade(null);
+        return;
+      }
+      const imgs = getTradeImages(activeDashboardChartTrade);
+      if (imgs.length > 1) {
+        if (e.key === 'ArrowLeft') {
+          setActiveDashboardChartImageIndex(prev => (prev === 0 ? imgs.length - 1 : prev - 1));
+        } else if (e.key === 'ArrowRight') {
+          setActiveDashboardChartImageIndex(prev => (prev === imgs.length - 1 ? 0 : prev + 1));
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -195,14 +208,27 @@ export const ModernPipsDashboard = ({
     };
   }, [activeDashboardChartTrade]);
 
-  const handleSaveDashboardChart = async (targetTrade, fileOrUrl) => {
+  const handleSaveDashboardChart = async (targetTrade, fileOrFilesOrUrl) => {
     if (!targetTrade) return;
     try {
       setUploadingDashboardChart(true);
-      const cdnUrl = await processAndUploadChartImage(fileOrUrl);
-      const updated = { ...targetTrade, screenshotUrl: cdnUrl, imageUrl: cdnUrl };
-      await api.updateTrade(targetTrade._id, { screenshotUrl: cdnUrl, imageUrl: cdnUrl });
+      const currentImgs = getTradeImages(targetTrade);
+      const newUrls = await processAndUploadMultipleImages(fileOrFilesOrUrl, currentImgs.length, 3);
+      if (!newUrls.length) return;
+      const updatedImages = [...currentImgs, ...newUrls].slice(0, 3);
+      const updated = {
+        ...targetTrade,
+        images: updatedImages,
+        screenshotUrl: updatedImages[0] || '',
+        imageUrl: updatedImages[0] || ''
+      };
+      await api.updateTrade(targetTrade._id, {
+        images: updatedImages,
+        screenshotUrl: updatedImages[0] || '',
+        imageUrl: updatedImages[0] || ''
+      });
       setActiveDashboardChartTrade(updated);
+      setActiveDashboardChartImageIndex(updatedImages.length - 1);
       onTradeUpdated && onTradeUpdated();
     } catch (err) {
       alert('Failed to save chart image: ' + err.message);
@@ -212,13 +238,27 @@ export const ModernPipsDashboard = ({
     }
   };
 
-  const handleRemoveDashboardChart = async () => {
+  const handleRemoveDashboardChart = async (idxToRemove = activeDashboardChartImageIndex) => {
     if (!activeDashboardChartTrade) return;
     try {
       setUploadingDashboardChart(true);
-      const updated = { ...activeDashboardChartTrade, screenshotUrl: '', imageUrl: '' };
-      await api.updateTrade(activeDashboardChartTrade._id, { screenshotUrl: '', imageUrl: '' });
+      const currentImgs = getTradeImages(activeDashboardChartTrade);
+      const nextImages = currentImgs.filter((_, idx) => idx !== idxToRemove);
+      const updated = {
+        ...activeDashboardChartTrade,
+        images: nextImages,
+        screenshotUrl: nextImages[0] || '',
+        imageUrl: nextImages[0] || ''
+      };
+      await api.updateTrade(activeDashboardChartTrade._id, {
+        images: nextImages,
+        screenshotUrl: nextImages[0] || '',
+        imageUrl: nextImages[0] || ''
+      });
       setActiveDashboardChartTrade(updated);
+      if (activeDashboardChartImageIndex >= nextImages.length) {
+        setActiveDashboardChartImageIndex(Math.max(0, nextImages.length - 1));
+      }
       onTradeUpdated && onTradeUpdated();
     } catch (err) {
       alert('Failed to remove chart: ' + err.message);
@@ -1721,70 +1761,81 @@ export const ModernPipsDashboard = ({
                   {recentTradesList.map((t, i) => (
                     <tr key={i}>
                       <td className="cell-chart" style={{ width: '52px', padding: '6px 8px', textAlign: 'center' }}>
-                        {(t.screenshotUrl || t.imageUrl) ? (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveDashboardChartTrade(t);
-                            }}
-                            title="Click to view chart (only chart)"
-                            style={{
-                              width: '44px',
-                              height: '30px',
-                              borderRadius: '6px',
-                              overflow: 'hidden',
-                              border: '1px solid rgba(0, 210, 255, 0.45)',
-                              background: '#04080e',
-                              cursor: 'pointer',
-                              display: 'inline-block',
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                              transition: 'transform 0.15s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
-                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                          >
-                            <img
-                              src={t.screenshotUrl || t.imageUrl}
-                              alt="Chart"
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveDashboardChartTrade(t);
-                            }}
-                            title="Add chart image"
-                            style={{
-                              width: '44px',
-                              height: '30px',
-                              borderRadius: '6px',
-                              border: '1px dashed rgba(0, 210, 255, 0.45)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '2px',
-                              color: 'var(--accent-cyan)',
-                              cursor: 'pointer',
-                              background: 'rgba(0, 210, 255, 0.05)',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = 'var(--accent-cyan)';
-                              e.currentTarget.style.background = 'rgba(0, 210, 255, 0.15)';
-                              e.currentTarget.style.transform = 'scale(1.08)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = 'rgba(0, 210, 255, 0.45)';
-                              e.currentTarget.style.background = 'rgba(0, 210, 255, 0.05)';
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}
-                          >
-                            <Camera size={13} />
-                            <Plus size={10} strokeWidth={3} />
-                          </div>
-                        )}
+                        {(() => {
+                          const tImgs = getTradeImages(t);
+                          return tImgs.length > 0 ? (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDashboardChartTrade(t);
+                                setActiveDashboardChartImageIndex(0);
+                              }}
+                              title={`Click to view ${tImgs.length} chart${tImgs.length > 1 ? 's' : ''}`}
+                              style={{
+                                width: '44px',
+                                height: '30px',
+                                borderRadius: '6px',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(0, 210, 255, 0.45)',
+                                background: '#04080e',
+                                cursor: 'pointer',
+                                display: 'inline-block',
+                                position: 'relative',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
+                              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                              <img
+                                src={tImgs[0]}
+                                alt="Chart"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              />
+                              {tImgs.length > 1 && (
+                                <span className="table-chart-count-badge">
+                                  {tImgs.length}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDashboardChartTrade(t);
+                                setActiveDashboardChartImageIndex(0);
+                              }}
+                              title="Add chart image (up to 3)"
+                              style={{
+                                width: '44px',
+                                height: '30px',
+                                borderRadius: '6px',
+                                border: '1px dashed rgba(0, 210, 255, 0.45)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '2px',
+                                color: 'var(--accent-cyan)',
+                                cursor: 'pointer',
+                                background: 'rgba(0, 210, 255, 0.05)',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--accent-cyan)';
+                                e.currentTarget.style.background = 'rgba(0, 210, 255, 0.15)';
+                                e.currentTarget.style.transform = 'scale(1.08)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(0, 210, 255, 0.45)';
+                                e.currentTarget.style.background = 'rgba(0, 210, 255, 0.05)';
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}
+                            >
+                              <Camera size={13} />
+                              <Plus size={10} strokeWidth={3} />
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="cell-date">{t.date}</td>
                       <td className="cell-asset">
@@ -1987,6 +2038,7 @@ export const ModernPipsDashboard = ({
               <TradesTableView
                 initialTrades={allTrades}
                 onTradeDeleted={onTradeUpdated}
+                onTradeUpdated={onTradeUpdated}
                 onClose={() => setIsFullScreenOpen(false)}
                 isFullScreen={true}
                 title="Complete Institutional Trade Journal"
@@ -2000,230 +2052,363 @@ export const ModernPipsDashboard = ({
           DEDICATED CHART MODAL - SHOWS ONLY CHART (NO OTHER TRADE DATA)
           OR CLEAN "ADD CHART" INTERFACE IF NO IMAGE IS ATTACHED
           ========================================================================= */}
-      {activeDashboardChartTrade && (
-        <div className="modal-overlay" style={{ zIndex: 125000, background: 'rgba(2, 6, 12, 0.92)', backdropFilter: 'blur(10px)' }} onClick={() => setActiveDashboardChartTrade(null)}>
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              maxWidth: (activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl) ? '95vw' : '520px',
-              width: '100%',
-              maxHeight: '94vh',
-              position: 'relative',
-              background: '#060c15',
-              padding: (activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl) ? '14px 18px' : '22px 24px',
-              borderRadius: '16px',
-              border: '1px solid var(--border-bright)',
-              boxShadow: '0 30px 80px rgba(0, 0, 0, 0.95)',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* Hidden file input for dashboard chart */}
-            <input
-              type="file"
-              ref={dashboardChartFileInputRef}
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={(e) => e.target.files?.[0] && handleSaveDashboardChart(activeDashboardChartTrade, e.target.files[0])}
-            />
+      {activeDashboardChartTrade && (() => {
+        const chartImages = getTradeImages(activeDashboardChartTrade);
+        const hasImages = chartImages.length > 0;
+        const currentImg = chartImages[activeDashboardChartImageIndex] || chartImages[0];
 
-            {(activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl) ? (
-              /* SHOW ONLY CHART IMAGE - ZERO OTHER TRADE DATA */
-              <>
-                {/* Minimal Top Control Bar (No Trade Metadata) */}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '10px'
-                  }}
-                >
-                  <a
-                    href={activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl}
-                    download={`trade-chart-${Date.now()}.png`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-ghost"
-                    title="Download Chart Screenshot"
-                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
-                  >
-                    <Download size={13} /> Download
-                  </a>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => dashboardChartFileInputRef.current?.click()}
-                    disabled={uploadingDashboardChart}
-                    title="Replace Chart Image"
-                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <UploadCloud size={13} /> {uploadingDashboardChart ? 'Uploading...' : 'Replace'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={handleRemoveDashboardChart}
-                    disabled={uploadingDashboardChart}
-                    title="Remove Chart Image"
-                    style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <Trash2 size={13} /> Remove
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setActiveDashboardChartTrade(null)}
-                    title="Close"
-                    style={{ marginLeft: '4px' }}
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
+        return (
+          <div className="modal-overlay" style={{ zIndex: 125000, background: 'rgba(2, 6, 12, 0.92)', backdropFilter: 'blur(10px)' }} onClick={() => setActiveDashboardChartTrade(null)}>
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: hasImages ? '95vw' : '520px',
+                width: '100%',
+                maxHeight: '94vh',
+                position: 'relative',
+                background: '#060c15',
+                padding: hasImages ? '14px 18px' : '22px 24px',
+                borderRadius: '16px',
+                border: '1px solid var(--border-bright)',
+                boxShadow: '0 30px 80px rgba(0, 0, 0, 0.95)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              {/* Hidden file input for dashboard chart */}
+              <input
+                type="file"
+                ref={dashboardChartFileInputRef}
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files?.length) {
+                    handleSaveDashboardChart(activeDashboardChartTrade, Array.from(e.target.files));
+                  }
+                }}
+              />
 
-                {/* Pure Chart Viewport */}
-                <div
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'auto',
-                    background: '#020509',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-subtle)',
-                    padding: '8px'
-                  }}
-                >
-                  <img
-                    src={activeDashboardChartTrade.screenshotUrl || activeDashboardChartTrade.imageUrl}
-                    alt="Trade Chart Setup"
-                    crossOrigin="anonymous"
-                    style={{
-                      maxWidth: '92vw',
-                      maxHeight: '82vh',
-                      objectFit: 'contain',
-                      borderRadius: '6px',
-                      display: 'block'
-                    }}
-                  />
-                </div>
-              </>
-            ) : (
-              /* SHOW CLEAN ADD CHART INTERFACE (NO OTHER TRADE DATA) */
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '16px',
-                    paddingBottom: '10px',
-                    borderBottom: '1px solid var(--border-subtle)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(0, 210, 255, 0.12)',
-                        color: 'var(--accent-cyan)',
-                        display: 'grid',
-                        placeItems: 'center'
-                      }}
-                    >
-                      <Camera size={16} />
-                    </div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)', fontWeight: '700' }}>
-                      Add Chart Image
-                    </h4>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setActiveDashboardChartTrade(null)}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {/* Drag & Drop Upload Zone */}
+              {hasImages ? (
+                /* SHOW MULTI-IMAGE CHART VIEWPORT WITH TABS & ZERO CLUTTER */
+                <>
+                  {/* Top Control Bar with Image Switcher & Actions */}
                   <div
-                    onDragOver={(e) => { e.preventDefault(); setIsDashboardChartDragging(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDashboardChartDragging(false); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDashboardChartDragging(false);
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) handleSaveDashboardChart(activeDashboardChartTrade, file);
-                    }}
-                    onClick={() => dashboardChartFileInputRef.current?.click()}
                     style={{
-                      border: `2px dashed ${isDashboardChartDragging ? 'var(--accent-cyan)' : 'rgba(0, 210, 255, 0.45)'}`,
-                      background: isDashboardChartDragging ? 'rgba(0, 210, 255, 0.12)' : 'var(--bg-glass)',
-                      borderRadius: '12px',
-                      padding: '36px 20px',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '10px',
+                      flexWrap: 'wrap'
                     }}
                   >
-                    <div
-                      style={{
-                        width: '52px',
-                        height: '52px',
-                        borderRadius: '50%',
-                        background: 'rgba(0, 210, 255, 0.12)',
-                        color: 'var(--accent-cyan)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        margin: '0 auto 12px'
-                      }}
-                    >
-                      <UploadCloud size={26} />
+                    {/* Left: Multi-Image Tabs & Add Slot */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '3px', gap: '3px' }}>
+                        {chartImages.map((img, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveDashboardChartImageIndex(idx)}
+                            style={{
+                              background: activeDashboardChartImageIndex === idx ? 'var(--accent-cyan)' : 'transparent',
+                              color: activeDashboardChartImageIndex === idx ? '#000' : 'var(--text-secondary)',
+                              fontWeight: activeDashboardChartImageIndex === idx ? '800' : '500',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '5px 12px',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <Camera size={13} />
+                            Chart {idx + 1}
+                          </button>
+                        ))}
+                      </div>
+
+                      {chartImages.length < 3 && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => dashboardChartFileInputRef.current?.click()}
+                          disabled={uploadingDashboardChart}
+                          style={{ fontSize: '0.74rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--profit)' }}
+                          title="Add up to 3 chart images to this recorded trade"
+                        >
+                          <Plus size={13} /> Add Chart ({chartImages.length}/3)
+                        </button>
+                      )}
                     </div>
-                    <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                      {uploadingDashboardChart ? 'Uploading chart screenshot...' : 'Click to Upload or Drag & Drop Chart'}
-                    </strong>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      PNG, JPG, WebP • Or press <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>Ctrl+V</kbd> to paste
-                    </p>
+
+                    {/* Right: Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <a
+                        href={currentImg}
+                        download={`trade-chart-${Date.now()}-${activeDashboardChartImageIndex + 1}.png`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ghost"
+                        title="Download Chart Screenshot"
+                        style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                      >
+                        <Download size={13} /> Download
+                      </a>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => handleRemoveDashboardChart(activeDashboardChartImageIndex)}
+                        disabled={uploadingDashboardChart}
+                        title={`Remove Chart ${activeDashboardChartImageIndex + 1}`}
+                        style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                      >
+                        <Trash2 size={13} /> Remove
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => setActiveDashboardChartTrade(null)}
+                        title="Close"
+                        style={{ marginLeft: '4px' }}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Direct Image URL Option */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="url"
-                      placeholder="Or paste chart image URL (TradingView, Imgur link)..."
-                      value={dashboardChartUrlInput}
-                      onChange={e => setDashboardChartUrlInput(e.target.value)}
-                      style={{ flex: 1, fontSize: '0.84rem' }}
+                  {/* Pure Chart Viewport */}
+                  <div
+                    style={{
+                      flex: 1,
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      background: '#020509',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '8px',
+                      minHeight: '400px'
+                    }}
+                  >
+                    <img
+                      src={currentImg}
+                      alt={`Trade Chart ${activeDashboardChartImageIndex + 1}`}
+                      crossOrigin="anonymous"
+                      style={{
+                        maxWidth: '92vw',
+                        maxHeight: chartImages.length > 1 ? '74vh' : '82vh',
+                        objectFit: 'contain',
+                        borderRadius: '6px',
+                        display: 'block'
+                      }}
                     />
+
+                    {/* Prev / Next Chevrons for multi-chart */}
+                    {chartImages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDashboardChartImageIndex(prev => (prev === 0 ? chartImages.length - 1 : prev - 1))}
+                          style={{
+                            position: 'absolute',
+                            left: '14px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            border: '1px solid var(--border-bright)',
+                            color: '#fff',
+                            display: 'grid',
+                            placeItems: 'center',
+                            cursor: 'pointer',
+                            zIndex: 10
+                          }}
+                          title="Previous Chart (or ArrowLeft)"
+                        >
+                          <ChevronLeft size={22} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDashboardChartImageIndex(prev => (prev === chartImages.length - 1 ? 0 : prev + 1))}
+                          style={{
+                            position: 'absolute',
+                            right: '14px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            border: '1px solid var(--border-bright)',
+                            color: '#fff',
+                            display: 'grid',
+                            placeItems: 'center',
+                            cursor: 'pointer',
+                            zIndex: 10
+                          }}
+                          title="Next Chart (or ArrowRight)"
+                        >
+                          <ChevronRight size={22} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Bottom Thumbnail Bar & Multi-Image Status */}
+                  <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                    {chartImages.length > 1 ? (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {chartImages.map((img, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setActiveDashboardChartImageIndex(idx)}
+                            style={{
+                              width: '56px',
+                              height: '40px',
+                              borderRadius: '6px',
+                              overflow: 'hidden',
+                              border: activeDashboardChartImageIndex === idx ? '2px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                              cursor: 'pointer',
+                              opacity: activeDashboardChartImageIndex === idx ? 1 : 0.6,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <img src={img} alt={`Thumb ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div />}
+
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>Paste screenshot with <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px' }}>Ctrl+V</kbd> to add</span>
+                      {chartImages.length < 3 && <span>• Up to {3 - chartImages.length} more allowed</span>}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* SHOW CLEAN ADD CHART INTERFACE (NO OTHER TRADE DATA) */
+                <>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '16px',
+                      paddingBottom: '10px',
+                      borderBottom: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(0, 210, 255, 0.12)',
+                          color: 'var(--accent-cyan)',
+                          display: 'grid',
+                          placeItems: 'center'
+                        }}
+                      >
+                        <Camera size={16} />
+                      </div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)', fontWeight: '700' }}>
+                        Add Chart Image (Up to 3)
+                      </h4>
+                    </div>
                     <button
                       type="button"
-                      className="btn-primary"
-                      disabled={!dashboardChartUrlInput.trim() || uploadingDashboardChart}
-                      onClick={() => {
-                        if (dashboardChartUrlInput.trim()) {
-                          handleSaveDashboardChart(activeDashboardChartTrade, dashboardChartUrlInput.trim());
-                          setDashboardChartUrlInput('');
-                        }
-                      }}
-                      style={{ padding: '0 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                      className="btn-close"
+                      onClick={() => setActiveDashboardChartTrade(null)}
                     >
-                      Attach URL
+                      <X size={18} />
                     </button>
                   </div>
-                </div>
-              </>
-            )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {/* Drag & Drop Upload Zone */}
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setIsDashboardChartDragging(true); }}
+                      onDragLeave={(e) => { e.preventDefault(); setIsDashboardChartDragging(false); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDashboardChartDragging(false);
+                        const files = Array.from(e.dataTransfer.files || []);
+                        if (files.length) handleSaveDashboardChart(activeDashboardChartTrade, files);
+                      }}
+                      onClick={() => dashboardChartFileInputRef.current?.click()}
+                      style={{
+                        border: `2px dashed ${isDashboardChartDragging ? 'var(--accent-cyan)' : 'rgba(0, 210, 255, 0.45)'}`,
+                        background: isDashboardChartDragging ? 'rgba(0, 210, 255, 0.12)' : 'var(--bg-glass)',
+                        borderRadius: '12px',
+                        padding: '36px 20px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '52px',
+                          height: '52px',
+                          borderRadius: '50%',
+                          background: 'rgba(0, 210, 255, 0.12)',
+                          color: 'var(--accent-cyan)',
+                          display: 'grid',
+                          placeItems: 'center',
+                          margin: '0 auto 12px'
+                        }}
+                      >
+                        <UploadCloud size={26} />
+                      </div>
+                      <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                        {uploadingDashboardChart ? 'Uploading chart screenshots...' : 'Click to Upload or Drag & Drop Charts'}
+                      </strong>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Select up to 3 charts • Or press <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>Ctrl+V</kbd> to paste
+                      </p>
+                    </div>
+
+                    {/* Direct Image URL Option */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="url"
+                        placeholder="Or paste chart image URL (TradingView, Imgur link)..."
+                        value={dashboardChartUrlInput}
+                        onChange={e => setDashboardChartUrlInput(e.target.value)}
+                        style={{ flex: 1, fontSize: '0.84rem' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={!dashboardChartUrlInput.trim() || uploadingDashboardChart}
+                        onClick={() => {
+                          if (dashboardChartUrlInput.trim()) {
+                            handleSaveDashboardChart(activeDashboardChartTrade, dashboardChartUrlInput.trim());
+                            setDashboardChartUrlInput('');
+                          }
+                        }}
+                        style={{ padding: '0 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                      >
+                        Attach URL
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

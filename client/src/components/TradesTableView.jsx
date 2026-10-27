@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles, Camera, Image as ImageIcon, UploadCloud, Maximize2, LayoutGrid, List, Plus, Download } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles, Camera, Image as ImageIcon, UploadCloud, Maximize2, LayoutGrid, List, Plus, Download, Edit3, Check } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportTradeHistoryPDF } from '../utils/exportPDF';
-import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
 
 import { getTradeTakeProfitUSD } from './ModernPipsDashboard';
 
@@ -80,6 +80,7 @@ const matchesViewFilter = (trade, view) => {
 export const TradesTableView = ({
   initialTrades = [],
   onTradeDeleted,
+  onTradeUpdated,
   title = 'Database Ledger & Trade History',
   onClose,
   isFullScreen = false
@@ -95,12 +96,30 @@ export const TradesTableView = ({
   const [viewFilter, setViewFilter] = useState('All Trades');
   const [sortBy, setSortBy] = useState('date');
   const [order, setOrder] = useState('desc');
-  const [selectedTrade, setSelectedTrade] = useState(null);
+  const [selectedTrade, setSelectedTrade] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('openDetail=true')) {
+      return (Array.isArray(initialTrades) && initialTrades[0]) ? initialTrades[0] : null;
+    }
+    return null;
+  });
+  const [isEditingNotes, setIsEditingNotes] = useState(() => {
+    return typeof window !== 'undefined' && window.location.search.includes('editNotes=true');
+  });
+  const [editedNotes, setEditedNotes] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('openDetail=true')) {
+      const trade = (Array.isArray(initialTrades) && initialTrades[0]) ? initialTrades[0] : null;
+      return trade?.notes || '';
+    }
+    return '';
+  });
+  const [savingNotes, setSavingNotes] = useState(false);
   const [detailZoom, setDetailZoom] = useState(false);
+  const [detailZoomIndex, setDetailZoomIndex] = useState(0);
   const [updatingImage, setUpdatingImage] = useState(false);
   const [layoutMode, setLayoutMode] = useState('table'); // 'table' | 'gallery'
   const [lightboxImage, setLightboxImage] = useState(null);
   const [activeChartTrade, setActiveChartTrade] = useState(null);
+  const [activeChartImageIndex, setActiveChartImageIndex] = useState(0);
   const [uploadingChart, setUploadingChart] = useState(false);
   const [chartUrlInput, setChartUrlInput] = useState('');
   const [isChartDragging, setIsChartDragging] = useState(false);
@@ -108,13 +127,16 @@ export const TradesTableView = ({
   const detailFileInputRef = useRef(null);
   const [seeding, setSeeding] = useState(false);
 
-  // Clipboard paste support while Chart Modal is open
+  // Keyboard navigation & Clipboard paste support while Chart Modal is open
   useEffect(() => {
     if (!activeChartTrade) return;
 
     const handleWindowPaste = async (e) => {
       const items = e.clipboardData?.items;
       if (!items) return;
+      const currentImgs = getTradeImages(activeChartTrade);
+      if (currentImgs.length >= 3) return;
+
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
@@ -128,7 +150,19 @@ export const TradesTableView = ({
     };
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setActiveChartTrade(null);
+      if (e.key === 'Escape') {
+        setActiveChartTrade(null);
+      } else if (e.key === 'ArrowLeft') {
+        const currentImgs = getTradeImages(activeChartTrade);
+        if (currentImgs.length > 1) {
+          setActiveChartImageIndex(prev => (prev - 1 + currentImgs.length) % currentImgs.length);
+        }
+      } else if (e.key === 'ArrowRight') {
+        const currentImgs = getTradeImages(activeChartTrade);
+        if (currentImgs.length > 1) {
+          setActiveChartImageIndex(prev => (prev + 1) % currentImgs.length);
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -141,14 +175,31 @@ export const TradesTableView = ({
 
   const handleSaveChartForTrade = async (targetTrade, fileOrUrl) => {
     if (!targetTrade) return;
+    const currentImgs = getTradeImages(targetTrade);
+    if (currentImgs.length >= 3) {
+      alert('Maximum 3 images allowed per trade. Please remove an existing image first.');
+      return;
+    }
     try {
       setUploadingChart(true);
       const cdnUrl = await processAndUploadChartImage(fileOrUrl);
-      const updated = { ...targetTrade, screenshotUrl: cdnUrl, imageUrl: cdnUrl };
-      await api.updateTrade(targetTrade._id, { screenshotUrl: cdnUrl, imageUrl: cdnUrl });
+      if (!cdnUrl) return;
+      const updatedImages = [...currentImgs, cdnUrl].slice(0, 3);
+      const updatePayload = {
+        images: updatedImages,
+        screenshotUrl: updatedImages[0] || '',
+        imageUrl: updatedImages[0] || ''
+      };
+      await api.updateTrade(targetTrade._id, updatePayload);
+      const updated = { ...targetTrade, ...updatePayload };
       setActiveChartTrade(updated);
+      setActiveChartImageIndex(updatedImages.length - 1);
       setTrades(prev => prev.map(t => t._id === targetTrade._id ? updated : t));
       setMasterTrades(prev => prev.map(t => t._id === targetTrade._id ? updated : t));
+      if (selectedTrade && selectedTrade._id === targetTrade._id) {
+        setSelectedTrade(updated);
+      }
+      if (onTradeUpdated) onTradeUpdated(updated);
     } catch (err) {
       alert('Failed to save chart image: ' + err.message);
     } finally {
@@ -157,15 +208,27 @@ export const TradesTableView = ({
     }
   };
 
-  const handleRemoveActiveChart = async () => {
+  const handleRemoveActiveChart = async (indexToRemove = activeChartImageIndex) => {
     if (!activeChartTrade) return;
+    const currentImgs = getTradeImages(activeChartTrade);
+    const updatedImages = currentImgs.filter((_, idx) => idx !== indexToRemove);
     try {
       setUploadingChart(true);
-      const updated = { ...activeChartTrade, screenshotUrl: '', imageUrl: '' };
-      await api.updateTrade(activeChartTrade._id, { screenshotUrl: '', imageUrl: '' });
+      const updatePayload = {
+        images: updatedImages,
+        screenshotUrl: updatedImages[0] || '',
+        imageUrl: updatedImages[0] || ''
+      };
+      await api.updateTrade(activeChartTrade._id, updatePayload);
+      const updated = { ...activeChartTrade, ...updatePayload };
       setActiveChartTrade(updated);
+      setActiveChartImageIndex(prev => Math.min(prev, Math.max(0, updatedImages.length - 1)));
       setTrades(prev => prev.map(t => t._id === activeChartTrade._id ? updated : t));
       setMasterTrades(prev => prev.map(t => t._id === activeChartTrade._id ? updated : t));
+      if (selectedTrade && selectedTrade._id === activeChartTrade._id) {
+        setSelectedTrade(updated);
+      }
+      if (onTradeUpdated) onTradeUpdated(updated);
     } catch (err) {
       alert('Failed to remove chart image: ' + err.message);
     } finally {
@@ -175,14 +238,30 @@ export const TradesTableView = ({
 
   const handleUpdateTradeImage = async (file) => {
     if (!file || !selectedTrade) return;
+    const currentImgs = getTradeImages(selectedTrade);
+    if (currentImgs.length >= 3) {
+      alert('Maximum 3 images allowed per trade. Please remove an existing image first.');
+      return;
+    }
     try {
       setUpdatingImage(true);
       const cdnUrl = await processAndUploadChartImage(file);
-      const updated = { ...selectedTrade, screenshotUrl: cdnUrl, imageUrl: cdnUrl };
-      await api.updateTrade(selectedTrade._id, { screenshotUrl: cdnUrl, imageUrl: cdnUrl });
+      if (!cdnUrl) return;
+      const updatedImages = [...currentImgs, cdnUrl].slice(0, 3);
+      const updatePayload = {
+        images: updatedImages,
+        screenshotUrl: updatedImages[0] || '',
+        imageUrl: updatedImages[0] || ''
+      };
+      await api.updateTrade(selectedTrade._id, updatePayload);
+      const updated = { ...selectedTrade, ...updatePayload };
       setSelectedTrade(updated);
       setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
       setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+      if (activeChartTrade && activeChartTrade._id === selectedTrade._id) {
+        setActiveChartTrade(updated);
+      }
+      if (onTradeUpdated) onTradeUpdated(updated);
     } catch (err) {
       alert('Failed to update trade image: ' + err.message);
     } finally {
@@ -191,19 +270,55 @@ export const TradesTableView = ({
     }
   };
 
-  const handleRemoveTradeImage = async () => {
+  const handleRemoveTradeImageAt = async (indexToRemove) => {
     if (!selectedTrade) return;
+    const currentImgs = getTradeImages(selectedTrade);
+    const updatedImages = currentImgs.filter((_, idx) => idx !== indexToRemove);
     try {
       setUpdatingImage(true);
-      const updated = { ...selectedTrade, screenshotUrl: '', imageUrl: '' };
-      await api.updateTrade(selectedTrade._id, { screenshotUrl: '', imageUrl: '' });
+      const updatePayload = {
+        images: updatedImages,
+        screenshotUrl: updatedImages[0] || '',
+        imageUrl: updatedImages[0] || ''
+      };
+      await api.updateTrade(selectedTrade._id, updatePayload);
+      const updated = { ...selectedTrade, ...updatePayload };
       setSelectedTrade(updated);
       setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
       setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+      if (activeChartTrade && activeChartTrade._id === selectedTrade._id) {
+        setActiveChartTrade(updated);
+      }
+      if (onTradeUpdated) onTradeUpdated(updated);
     } catch (err) {
       alert('Failed to remove trade image: ' + err.message);
     } finally {
       setUpdatingImage(false);
+    }
+  };
+
+  const openTradeDetails = (trade) => {
+    setSelectedTrade(trade);
+    setIsEditingNotes(false);
+    setEditedNotes(trade?.notes || '');
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedTrade) return;
+    try {
+      setSavingNotes(true);
+      const updatedNotes = editedNotes.trim();
+      await api.updateTrade(selectedTrade._id, { notes: updatedNotes });
+      const updated = { ...selectedTrade, notes: updatedNotes };
+      setSelectedTrade(updated);
+      setTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+      setMasterTrades(prev => prev.map(t => t._id === selectedTrade._id ? updated : t));
+      setIsEditingNotes(false);
+      if (onTradeUpdated) onTradeUpdated(updated);
+    } catch (err) {
+      alert('Failed to save execution notes: ' + err.message);
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -230,6 +345,9 @@ export const TradesTableView = ({
       setTrades(prev => (prev.length === 0 && viewFilter === 'All Trades' && !search) ? initialTrades.slice(0, isFullScreen ? 20 : 15) : prev);
       setTotalCount(prev => prev === 0 ? initialTrades.length : prev);
       setTotalPages(prev => prev <= 1 ? Math.ceil(initialTrades.length / (isFullScreen ? 20 : 15)) : prev);
+      if (window.location.search.includes('openDetail=true')) {
+        setSelectedTrade(prev => prev || initialTrades[0]);
+      }
     }
   }, [initialTrades, isFullScreen, viewFilter, search]);
 
@@ -538,13 +656,14 @@ export const TradesTableView = ({
           ) : (
             <div className="gallery-grid">
               {trades.map(trade => {
-                const hasImg = Boolean(trade.screenshotUrl || trade.imageUrl);
+                const tradeImages = getTradeImages(trade);
+                const hasImg = tradeImages.length > 0;
                 const isWin = trade.result === 'WIN';
                 const isLoss = trade.result === 'LOSS';
                 return (
                   <div
                     key={trade._id}
-                    onClick={() => setSelectedTrade(trade)}
+                    onClick={() => openTradeDetails(trade)}
                     className="gallery-trade-card"
                   >
                     {/* Chart Banner */}
@@ -552,20 +671,42 @@ export const TradesTableView = ({
                       {hasImg ? (
                         <>
                           <img
-                            src={trade.screenshotUrl || trade.imageUrl}
+                            src={tradeImages[0]}
                             alt={trade.tradeName}
                             className="gallery-chart-img"
                           />
+                          {tradeImages.length > 1 && (
+                            <span style={{
+                              position: 'absolute',
+                              bottom: '8px',
+                              left: '8px',
+                              background: 'rgba(3, 6, 11, 0.85)',
+                              border: '1px solid var(--border-bright)',
+                              color: 'var(--accent-cyan)',
+                              fontSize: '0.68rem',
+                              fontWeight: '800',
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-pill)',
+                              backdropFilter: 'blur(6px)',
+                              zIndex: 2,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <Camera size={11} /> {tradeImages.length} Charts
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveChartTrade(trade);
+                              setActiveChartImageIndex(0);
                             }}
-                            title="Click to view chart (only chart)"
+                            title="Click to view charts"
                             className="gallery-view-chart-btn"
                           >
-                            <Maximize2 size={12} /> View Chart
+                            <Maximize2 size={12} /> View {tradeImages.length > 1 ? `${tradeImages.length} Charts` : 'Chart'}
                           </button>
                         </>
                       ) : (
@@ -573,6 +714,7 @@ export const TradesTableView = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveChartTrade(trade);
+                            setActiveChartImageIndex(0);
                           }}
                           className="gallery-chart-empty"
                         >
@@ -580,7 +722,7 @@ export const TradesTableView = ({
                             <Camera size={16} />
                             <Plus size={12} strokeWidth={3} />
                           </div>
-                          <span className="gallery-empty-label">+ Add Chart Image</span>
+                          <span className="gallery-empty-label">+ Add Chart (up to 3)</span>
                         </div>
                       )}
 
@@ -716,39 +858,52 @@ export const TradesTableView = ({
                 trades.map(trade => (
                   <tr
                     key={trade._id}
-                    onClick={() => setSelectedTrade(trade)}
+                    onClick={() => openTradeDetails(trade)}
                     style={{ cursor: 'pointer' }}
                   >
                     {/* Dedicated Chart Column: Only chart view or add icon */}
                     <td style={{ width: '58px', padding: '6px 8px', textAlign: 'center' }}>
-                      {(trade.screenshotUrl || trade.imageUrl) ? (
-                        <div
-                          className="table-chart-thumb"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveChartTrade(trade);
-                          }}
-                          title="Click to view chart (only chart)"
-                        >
-                          <img
-                            src={trade.screenshotUrl || trade.imageUrl}
-                            alt="Trade Chart"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          className="table-chart-add-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveChartTrade(trade);
-                          }}
-                          title="Add chart image"
-                        >
-                          <Camera size={13} />
-                          <Plus size={10} strokeWidth={3} />
-                        </div>
-                      )}
+                      {(() => {
+                        const tradeImages = getTradeImages(trade);
+                        if (tradeImages.length > 0) {
+                          return (
+                            <div
+                              className="table-chart-thumb"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveChartTrade(trade);
+                                setActiveChartImageIndex(0);
+                              }}
+                              title={tradeImages.length > 1 ? `${tradeImages.length} chart images attached • Click to view all` : 'Click to view chart'}
+                            >
+                              <img
+                                src={tradeImages[0]}
+                                alt="Trade Chart"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              />
+                              {tradeImages.length > 1 && (
+                                <span className="table-chart-count-badge">
+                                  {tradeImages.length}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div
+                            className="table-chart-add-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveChartTrade(trade);
+                              setActiveChartImageIndex(0);
+                            }}
+                            title="Add chart image (up to 3)"
+                          >
+                            <Camera size={13} />
+                            <Plus size={10} strokeWidth={3} />
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     <td style={{ fontWeight: '700', color: 'var(--text-white)' }}>
@@ -898,7 +1053,7 @@ export const TradesTableView = ({
 
               <div className="detail-stat-card">
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Setup & Emotion</span>
-                <p style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                <p className="detail-stat-white-text" style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-white)' }}>
                   {selectedTrade.setupRating} • {selectedTrade.emotion}
                 </p>
               </div>
@@ -961,25 +1116,105 @@ export const TradesTableView = ({
             </div>
 
             {/* Notes Section */}
-            <div className="detail-notes-card" style={{ marginTop: '16px', padding: '14px', borderRadius: '10px' }}>
-              <p style={{ color: 'var(--accent-cyan)', fontSize: '0.74rem', textTransform: 'uppercase', fontWeight: '800', marginBottom: '6px' }}>
-                Trader Execution Notes
-              </p>
-              <p style={{ color: 'var(--text-primary)', lineHeight: '1.5', fontSize: '0.9rem' }}>
-                {selectedTrade.notes || 'No execution notes entered for this trade.'}
-              </p>
+            <div className="detail-notes-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <p className="detail-notes-title">
+                    Trader Execution Notes
+                  </p>
+                  {selectedTrade.notes && (
+                    <span className="detail-notes-badge">
+                      Logged
+                    </span>
+                  )}
+                </div>
+
+                {!isEditingNotes && (
+                  <button
+                    type="button"
+                    className="detail-notes-action-btn"
+                    onClick={() => {
+                      setEditedNotes(selectedTrade.notes || '');
+                      setIsEditingNotes(true);
+                    }}
+                  >
+                    <Edit3 size={13} /> {selectedTrade.notes ? 'Edit Notes' : '+ Add Note'}
+                  </button>
+                )}
+              </div>
+
+              {isEditingNotes ? (
+                <div style={{ marginTop: '8px' }}>
+                  <textarea
+                    className="detail-notes-textarea"
+                    value={editedNotes}
+                    onChange={(e) => setEditedNotes(e.target.value)}
+                    placeholder="Enter your post-trade execution analysis, emotional state, psychology notes, or lessons learned..."
+                    rows={4}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      className="detail-notes-cancel-btn"
+                      onClick={() => setIsEditingNotes(false)}
+                      disabled={savingNotes}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="detail-notes-save-btn"
+                      onClick={handleSaveNotes}
+                      disabled={savingNotes}
+                    >
+                      <Check size={14} /> {savingNotes ? 'Saving...' : 'Save Notes'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {selectedTrade.notes ? (
+                    <p className="detail-notes-content-text">
+                      {selectedTrade.notes}
+                    </p>
+                  ) : (
+                    <div
+                      className="detail-notes-empty-box"
+                      onClick={() => {
+                        setEditedNotes('');
+                        setIsEditingNotes(true);
+                      }}
+                    >
+                      <p className="detail-notes-empty-text">
+                        No execution notes entered for this trade.
+                      </p>
+                      <span className="detail-notes-empty-action">
+                        <Plus size={13} /> Click here to add post-trade execution notes
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Chart Screenshot & Technical Execution Card */}
             <div className="detail-chart-card" style={{ marginTop: '16px', padding: '16px', borderRadius: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Camera size={16} style={{ color: 'var(--accent-cyan)' }} />
-                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: '800' }}>
-                    Chart Screenshot & Technical Execution
+                  <Camera size={16} className="detail-chart-icon" style={{ color: 'var(--accent-cyan)' }} />
+                  <span className="detail-chart-title" style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: '800' }}>
+                    Technical Charts & Screenshots
                   </span>
-                  <span style={{ fontSize: '0.68rem', background: 'rgba(148, 163, 184, 0.14)', color: 'var(--text-secondary)', padding: '2px 6px', borderRadius: 'var(--radius-pill)', fontWeight: '600' }}>
-                    Optional
+                  <span style={{
+                    fontSize: '0.68rem',
+                    background: getTradeImages(selectedTrade).length === 3 ? 'rgba(0, 245, 155, 0.15)' : 'rgba(0, 210, 255, 0.15)',
+                    color: getTradeImages(selectedTrade).length === 3 ? 'var(--profit)' : 'var(--accent-cyan)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-pill)',
+                    fontWeight: '700'
+                  }}>
+                    {getTradeImages(selectedTrade).length}/3 IMAGES
                   </span>
                 </div>
 
@@ -991,36 +1226,7 @@ export const TradesTableView = ({
                     style={{ display: 'none' }}
                     onChange={e => e.target.files?.[0] && handleUpdateTradeImage(e.target.files[0])}
                   />
-                  {(selectedTrade.screenshotUrl || selectedTrade.imageUrl) ? (
-                    <>
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        onClick={() => setDetailZoom(true)}
-                      >
-                        <Maximize2 size={13} /> Fullscreen
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-cyan)' }}
-                        onClick={() => detailFileInputRef.current?.click()}
-                        disabled={updatingImage}
-                      >
-                        <UploadCloud size={13} /> Replace
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--loss)' }}
-                        onClick={handleRemoveTradeImage}
-                        disabled={updatingImage}
-                      >
-                        <Trash2 size={13} /> Remove
-                      </button>
-                    </>
-                  ) : (
+                  {getTradeImages(selectedTrade).length < 3 && (
                     <button
                       type="button"
                       className="btn-secondary"
@@ -1028,331 +1234,626 @@ export const TradesTableView = ({
                       onClick={() => detailFileInputRef.current?.click()}
                       disabled={updatingImage}
                     >
-                      <UploadCloud size={13} /> {updatingImage ? 'Attaching...' : '+ Attach Chart Image'}
+                      <UploadCloud size={13} /> {updatingImage ? 'Attaching...' : `+ Attach Chart (${3 - getTradeImages(selectedTrade).length} left)`}
                     </button>
                   )}
                 </div>
               </div>
 
-              {(selectedTrade.screenshotUrl || selectedTrade.imageUrl) ? (
-                <div
-                  style={{
-                    position: 'relative',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    border: '1px solid var(--border-bright)',
-                    cursor: 'pointer',
-                    background: 'var(--bg-core, #04080e)',
-                    textAlign: 'center'
-                  }}
-                  onClick={() => setDetailZoom(true)}
-                >
-                  <img
-                    src={selectedTrade.screenshotUrl || selectedTrade.imageUrl}
-                    alt="Trade Chart Setup"
-                    crossOrigin="anonymous"
+              {(() => {
+                const detailImages = getTradeImages(selectedTrade);
+                if (detailImages.length > 0) {
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                      {detailImages.map((imgUrl, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            position: 'relative',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: '1px solid var(--border-bright)',
+                            background: '#04080e',
+                            display: 'flex',
+                            flexDirection: 'column'
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '5px 8px',
+                            background: 'rgba(3, 6, 11, 0.9)',
+                            borderBottom: '1px solid var(--border-subtle)',
+                            fontSize: '0.7rem',
+                            color: 'var(--accent-cyan)',
+                            fontWeight: '700'
+                          }}>
+                            <span>Chart {idx + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTradeImageAt(idx)}
+                              disabled={updatingImage}
+                              title="Remove this image"
+                              style={{ background: 'none', border: 'none', color: 'var(--loss)', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+
+                          <div
+                            style={{
+                              height: '130px',
+                              position: 'relative',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              background: '#020509'
+                            }}
+                            onClick={() => {
+                              setDetailZoomIndex(idx);
+                              setDetailZoom(true);
+                            }}
+                          >
+                            <img
+                              src={imgUrl}
+                              alt={`Trade Chart ${idx + 1}`}
+                              crossOrigin="anonymous"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                            <div style={{ position: 'absolute', bottom: '6px', right: '6px', background: 'rgba(0,0,0,0.75)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <Maximize2 size={11} /> Expand
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {detailImages.length < 3 && (
+                        <div
+                          onClick={() => detailFileInputRef.current?.click()}
+                          style={{
+                            borderRadius: '8px',
+                            border: '1.5px dashed var(--border-medium)',
+                            background: 'rgba(0, 210, 255, 0.02)',
+                            padding: '16px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minHeight: '150px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Camera size={20} style={{ color: 'var(--accent-cyan)', marginBottom: '6px' }} />
+                          <strong style={{ fontSize: '0.8rem', color: 'var(--text-white)', marginBottom: '2px' }}>
+                            + Add Chart {detailImages.length + 1} of 3
+                          </strong>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Click to upload</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    className="detail-chart-empty"
+                    onClick={() => detailFileInputRef.current?.click()}
                     style={{
-                      width: '100%',
-                      maxHeight: '320px',
-                      objectFit: 'contain',
-                      display: 'block'
+                      borderRadius: '8px',
+                      padding: '20px',
+                      textAlign: 'center',
+                      cursor: 'pointer'
                     }}
-                  />
-                  <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.7)', padding: '3px 8px', borderRadius: '4px', fontSize: '0.7rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Maximize2 size={11} /> Click to expand
+                  >
+                    <Camera size={22} style={{ color: 'var(--text-muted)', margin: '0 auto 6px', display: 'block' }} />
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      No chart image attached yet. Click to attach up to 3 screenshots.
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <div
-                  className="detail-chart-empty"
-                  onClick={() => detailFileInputRef.current?.click()}
-                  style={{
-                    borderRadius: '8px',
-                    padding: '20px',
-                    textAlign: 'center',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Camera size={22} style={{ color: 'var(--text-muted)', margin: '0 auto 6px', display: 'block' }} />
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    No chart image attached yet. Click to attach an optional screenshot.
-                  </p>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
       )}
 
-      {/* Lightbox Modal for Detail Zoom */}
-      {detailZoom && selectedTrade && (selectedTrade.screenshotUrl || selectedTrade.imageUrl) && (
+      {/* Lightbox Modal for Detail Zoom with Multi-Image Navigation */}
+      {detailZoom && selectedTrade && (
         <div className="modal-overlay" style={{ zIndex: 120000 }} onClick={() => setDetailZoom(false)}>
-          <div
-            style={{
-              maxWidth: '92vw',
-              maxHeight: '92vh',
-              position: 'relative',
-              background: 'var(--bg-card, #04080e)',
-              padding: '12px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-bright)',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setDetailZoom(false)}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                zIndex: 2,
-                background: 'rgba(0,0,0,0.7)',
-                borderRadius: '50%'
-              }}
-            >
-              <X size={20} />
-            </button>
-            <img
-              src={selectedTrade.screenshotUrl || selectedTrade.imageUrl}
-              alt="Trade Chart Setup Enlarged"
-              crossOrigin="anonymous"
-              style={{
-                maxWidth: '90vw',
-                maxHeight: '88vh',
-                objectFit: 'contain',
-                display: 'block',
-                borderRadius: '8px'
-              }}
-            />
-          </div>
-        </div>
-      )}
+          {(() => {
+            const zoomImages = getTradeImages(selectedTrade);
+            const activeImg = zoomImages[detailZoomIndex] || zoomImages[0];
+            return (
+              <div
+                style={{
+                  maxWidth: '92vw',
+                  maxHeight: '92vh',
+                  position: 'relative',
+                  background: 'var(--bg-card, #04080e)',
+                  padding: '16px',
+                  borderRadius: '14px',
+                  border: '1px solid var(--border-bright)',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.95)',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-white)' }}>
+                      Chart {detailZoomIndex + 1} of {zoomImages.length}
+                    </span>
+                    {zoomImages.length > 1 && (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {zoomImages.map((_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setDetailZoomIndex(idx)}
+                            style={{
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              border: '1px solid',
+                              borderColor: detailZoomIndex === idx ? 'var(--accent-cyan)' : 'var(--border-subtle)',
+                              background: detailZoomIndex === idx ? 'var(--accent-cyan-soft)' : 'rgba(255,255,255,0.05)',
+                              color: detailZoomIndex === idx ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                              fontSize: '0.72rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {idx + 1}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-      {/* =========================================================================
-          DEDICATED CHART MODAL - SHOWS ONLY CHART (NO OTHER TRADE DATA)
-          OR CLEAN "ADD CHART" INTERFACE IF NO IMAGE IS ATTACHED
-          ========================================================================= */}
-      {activeChartTrade && (
-        <div className="modal-overlay" style={{ zIndex: 125000 }} onClick={() => setActiveChartTrade(null)}>
-          <div
-            className="chart-preview-modal-card"
-            onClick={e => e.stopPropagation()}
-            style={{
-              maxWidth: (activeChartTrade.screenshotUrl || activeChartTrade.imageUrl) ? '95vw' : '520px',
-              width: '100%',
-              maxHeight: '94vh',
-              position: 'relative',
-              padding: (activeChartTrade.screenshotUrl || activeChartTrade.imageUrl) ? '14px 18px' : '22px 24px',
-              borderRadius: '16px',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* Hidden file input for this trade */}
-            <input
-              type="file"
-              ref={chartUploadInputRef}
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={(e) => e.target.files?.[0] && handleSaveChartForTrade(activeChartTrade, e.target.files[0])}
-            />
-
-            {(activeChartTrade.screenshotUrl || activeChartTrade.imageUrl) ? (
-              /* SHOW ONLY CHART IMAGE - ZERO OTHER TRADE DATA */
-              <>
-                {/* Minimal Top Control Bar (No Trade Metadata) */}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '10px'
-                  }}
-                >
-                  <a
-                    href={activeChartTrade.screenshotUrl || activeChartTrade.imageUrl}
-                    download={`trade-chart-${Date.now()}.png`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-ghost"
-                    title="Download Chart Screenshot"
-                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
-                  >
-                    <Download size={13} /> Download
-                  </a>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => chartUploadInputRef.current?.click()}
-                    disabled={uploadingChart}
-                    title="Replace Chart Image"
-                    style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <UploadCloud size={13} /> {uploadingChart ? 'Uploading...' : 'Replace'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={handleRemoveActiveChart}
-                    disabled={uploadingChart}
-                    title="Remove Chart Image"
-                    style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <Trash2 size={13} /> Remove
-                  </button>
                   <button
                     type="button"
                     className="btn-close"
-                    onClick={() => setActiveChartTrade(null)}
-                    title="Close"
-                    style={{ marginLeft: '4px' }}
+                    onClick={() => setDetailZoom(false)}
                   >
                     <X size={20} />
                   </button>
                 </div>
 
-                {/* Pure Chart Viewport */}
-                <div
-                  className="chart-preview-viewport"
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'auto',
-                    borderRadius: '10px',
-                    padding: '8px'
-                  }}
-                >
-                  <img
-                    src={activeChartTrade.screenshotUrl || activeChartTrade.imageUrl}
-                    alt="Trade Chart"
-                    crossOrigin="anonymous"
-                    style={{
-                      maxWidth: '92vw',
-                      maxHeight: '82vh',
-                      objectFit: 'contain',
-                      borderRadius: '6px',
-                      display: 'block'
-                    }}
-                  />
-                </div>
-              </>
-            ) : (
-              /* SHOW CLEAN ADD CHART INTERFACE (NO OTHER TRADE DATA) */
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '16px',
-                    paddingBottom: '10px',
-                    borderBottom: '1px solid var(--border-subtle)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(0, 210, 255, 0.12)',
-                        color: 'var(--accent-cyan)',
-                        display: 'grid',
-                        placeItems: 'center'
-                      }}
-                    >
-                      <Camera size={16} />
-                    </div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-white)', fontWeight: '700' }}>
-                      Add Chart Image
-                    </h4>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setActiveChartTrade(null)}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {/* Drag & Drop Upload Zone */}
-                  <div
-                    className="chart-upload-dropzone"
-                    onDragOver={(e) => { e.preventDefault(); setIsChartDragging(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsChartDragging(false); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsChartDragging(false);
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) handleSaveChartForTrade(activeChartTrade, file);
-                    }}
-                    onClick={() => chartUploadInputRef.current?.click()}
-                    style={{
-                      borderRadius: '12px',
-                      padding: '36px 20px',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '52px',
-                        height: '52px',
-                        borderRadius: '50%',
-                        background: 'rgba(0, 210, 255, 0.12)',
-                        color: 'var(--accent-cyan)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        margin: '0 auto 12px'
-                      }}
-                    >
-                      <UploadCloud size={26} />
-                    </div>
-                    <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--text-white)', marginBottom: '6px' }}>
-                      {uploadingChart ? 'Uploading chart screenshot...' : 'Click to Upload or Drag & Drop Chart'}
-                    </strong>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      PNG, JPG, WebP • Or press <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>Ctrl+V</kbd> to paste
-                    </p>
-                  </div>
-
-                  {/* Direct Image URL Option */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="url"
-                      placeholder="Or paste chart image URL (TradingView, Imgur link)..."
-                      value={chartUrlInput}
-                      onChange={e => setChartUrlInput(e.target.value)}
-                      style={{ flex: 1, fontSize: '0.84rem' }}
-                    />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: '80vh', overflow: 'hidden' }}>
+                  {zoomImages.length > 1 && (
                     <button
                       type="button"
-                      className="btn-primary"
-                      disabled={!chartUrlInput.trim() || uploadingChart}
-                      onClick={() => {
-                        if (chartUrlInput.trim()) {
-                          handleSaveChartForTrade(activeChartTrade, chartUrlInput.trim());
-                          setChartUrlInput('');
-                        }
+                      onClick={() => setDetailZoomIndex(prev => (prev - 1 + zoomImages.length) % zoomImages.length)}
+                      style={{
+                        position: 'absolute',
+                        left: '12px',
+                        zIndex: 3,
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: 'rgba(3, 6, 11, 0.8)',
+                        border: '1px solid var(--border-bright)',
+                        color: 'var(--text-white)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer'
                       }}
-                      style={{ padding: '0 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
                     >
-                      Attach URL
+                      <ChevronLeft size={20} />
                     </button>
-                  </div>
+                  )}
+
+                  <img
+                    src={activeImg}
+                    alt={`Trade Chart Setup ${detailZoomIndex + 1}`}
+                    crossOrigin="anonymous"
+                    style={{
+                      maxWidth: '88vw',
+                      maxHeight: '78vh',
+                      objectFit: 'contain',
+                      display: 'block',
+                      borderRadius: '8px'
+                    }}
+                  />
+
+                  {zoomImages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setDetailZoomIndex(prev => (prev + 1) % zoomImages.length)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        zIndex: 3,
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: 'rgba(3, 6, 11, 0.8)',
+                        border: '1px solid var(--border-bright)',
+                        color: 'var(--text-white)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* =========================================================================
+          DEDICATED CHART MODAL - SHOWS UP TO 3 CHARTS WITH TAB/SELECTOR NAVIGATION,
+          DOWNLOAD, REMOVE, AND DIRECT ADD/ATTACH FLOW FOR RECORDED TRADES
+          ========================================================================= */}
+      {activeChartTrade && (
+        <div className="modal-overlay" style={{ zIndex: 125000 }} onClick={() => setActiveChartTrade(null)}>
+          {(() => {
+            const chartImages = getTradeImages(activeChartTrade);
+            const currentImg = chartImages[activeChartImageIndex] || chartImages[0];
+            return (
+              <div
+                className="chart-preview-modal-card"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  maxWidth: chartImages.length > 0 ? '95vw' : '520px',
+                  width: '100%',
+                  maxHeight: '94vh',
+                  position: 'relative',
+                  padding: chartImages.length > 0 ? '14px 18px' : '22px 24px',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                {/* Hidden file input for this trade */}
+                <input
+                  type="file"
+                  ref={chartUploadInputRef}
+                  accept="image/*"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length > 0) handleSaveChartForTrade(activeChartTrade, files[0]);
+                  }}
+                />
+
+                {chartImages.length > 0 ? (
+                  /* SHOW CHARTS WITH MULTI-IMAGE CAROUSEL & ACTIONS */
+                  <>
+                    {/* Top Control Bar with Image Switcher Tabs & Controls */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '10px',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      {/* Left: Image Tabs */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {chartImages.map((_, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveChartImageIndex(idx)}
+                              style={{
+                                border: '1px solid',
+                                borderColor: activeChartImageIndex === idx ? 'var(--accent-cyan)' : 'var(--border-subtle)',
+                                background: activeChartImageIndex === idx ? 'var(--accent-cyan-soft)' : 'rgba(255, 255, 255, 0.04)',
+                                color: activeChartImageIndex === idx ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                padding: '5px 12px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <Camera size={13} />
+                              Chart {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+
+                        {chartImages.length < 3 && (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => chartUploadInputRef.current?.click()}
+                            disabled={uploadingChart}
+                            style={{ fontSize: '0.74rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--profit)' }}
+                            title="Add up to 3 chart images to this recorded trade"
+                          >
+                            <Plus size={13} /> Add Chart ({chartImages.length}/3)
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <a
+                          href={currentImg}
+                          download={`trade-chart-${activeChartTrade.tradeName || 'chart'}-${activeChartImageIndex + 1}.png`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-ghost"
+                          title="Download Chart Screenshot"
+                          style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                        >
+                          <Download size={13} /> Download
+                        </a>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => handleRemoveActiveChart(activeChartImageIndex)}
+                          disabled={uploadingChart}
+                          title="Remove this Chart Screenshot"
+                          style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        >
+                          <Trash2 size={13} /> Remove Chart
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-close"
+                          onClick={() => setActiveChartTrade(null)}
+                          title="Close"
+                          style={{ marginLeft: '4px' }}
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Viewport with Keyboard & Arrow Navigation */}
+                    <div
+                      className="chart-preview-viewport"
+                      style={{
+                        flex: 1,
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'auto',
+                        borderRadius: '10px',
+                        padding: '8px',
+                        background: '#020509'
+                      }}
+                    >
+                      {chartImages.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveChartImageIndex(prev => (prev - 1 + chartImages.length) % chartImages.length)}
+                          style={{
+                            position: 'absolute',
+                            left: '14px',
+                            zIndex: 4,
+                            width: '38px',
+                            height: '38px',
+                            borderRadius: '50%',
+                            background: 'rgba(3, 6, 11, 0.85)',
+                            border: '1px solid var(--border-bright)',
+                            color: 'var(--text-white)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Previous Chart"
+                        >
+                          <ChevronLeft size={22} />
+                        </button>
+                      )}
+
+                      <img
+                        src={currentImg}
+                        alt={`Trade Chart ${activeChartImageIndex + 1}`}
+                        crossOrigin="anonymous"
+                        style={{
+                          maxWidth: '92vw',
+                          maxHeight: '74vh',
+                          objectFit: 'contain',
+                          borderRadius: '6px',
+                          display: 'block'
+                        }}
+                      />
+
+                      {chartImages.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveChartImageIndex(prev => (prev + 1) % chartImages.length)}
+                          style={{
+                            position: 'absolute',
+                            right: '14px',
+                            zIndex: 4,
+                            width: '38px',
+                            height: '38px',
+                            borderRadius: '50%',
+                            background: 'rgba(3, 6, 11, 0.85)',
+                            border: '1px solid var(--border-bright)',
+                            color: 'var(--text-white)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Next Chart"
+                        >
+                          <ChevronRight size={22} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Bottom Mini Thumbnails Bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+                      {chartImages.map((img, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setActiveChartImageIndex(idx)}
+                          style={{
+                            width: '56px',
+                            height: '38px',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            border: '2px solid',
+                            borderColor: activeChartImageIndex === idx ? 'var(--accent-cyan)' : 'transparent',
+                            cursor: 'pointer',
+                            opacity: activeChartImageIndex === idx ? 1 : 0.6,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      ))}
+
+                      {chartImages.length < 3 && (
+                        <button
+                          type="button"
+                          onClick={() => chartUploadInputRef.current?.click()}
+                          disabled={uploadingChart}
+                          style={{
+                            width: '56px',
+                            height: '38px',
+                            borderRadius: '6px',
+                            border: '1px dashed var(--border-medium)',
+                            background: 'rgba(0, 210, 255, 0.05)',
+                            color: 'var(--accent-cyan)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Add another chart image"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* SHOW CLEAN ADD CHART INTERFACE (NO OTHER TRADE DATA) */
+                  <>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '16px',
+                        paddingBottom: '10px',
+                        borderBottom: '1px solid var(--border-subtle)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'rgba(0, 210, 255, 0.12)',
+                            color: 'var(--accent-cyan)',
+                            display: 'grid',
+                            placeItems: 'center'
+                          }}
+                        >
+                          <Camera size={16} />
+                        </div>
+                        <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-white)', fontWeight: '700' }}>
+                          Add Chart Images (Up to 3)
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => setActiveChartTrade(null)}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* Drag & Drop Upload Zone */}
+                      <div
+                        className="chart-upload-dropzone"
+                        onDragOver={(e) => { e.preventDefault(); setIsChartDragging(true); }}
+                        onDragLeave={(e) => { e.preventDefault(); setIsChartDragging(false); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsChartDragging(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) handleSaveChartForTrade(activeChartTrade, file);
+                        }}
+                        onClick={() => chartUploadInputRef.current?.click()}
+                        style={{
+                          borderRadius: '12px',
+                          padding: '36px 20px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '52px',
+                            height: '52px',
+                            borderRadius: '50%',
+                            background: 'rgba(0, 210, 255, 0.12)',
+                            color: 'var(--accent-cyan)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            margin: '0 auto 12px'
+                          }}
+                        >
+                          <UploadCloud size={26} />
+                        </div>
+                        <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--text-white)', marginBottom: '6px' }}>
+                          {uploadingChart ? 'Uploading chart screenshot...' : 'Click to Upload or Drag & Drop Chart'}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          PNG, JPG, WebP • Or press <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>Ctrl+V</kbd> to paste
+                        </p>
+                      </div>
+
+                      {/* Direct Image URL Option */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="url"
+                          placeholder="Or paste chart image URL (TradingView, Imgur link)..."
+                          value={chartUrlInput}
+                          onChange={e => setChartUrlInput(e.target.value)}
+                          style={{ flex: 1, fontSize: '0.84rem' }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          disabled={!chartUrlInput.trim() || uploadingChart}
+                          onClick={() => {
+                            if (chartUrlInput.trim()) {
+                              handleSaveChartForTrade(activeChartTrade, chartUrlInput.trim());
+                              setChartUrlInput('');
+                            }
+                          }}
+                          style={{ padding: '0 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                        >
+                          Attach URL
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

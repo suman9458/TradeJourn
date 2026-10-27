@@ -161,6 +161,10 @@ const tradeSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    images: {
+      type: [String],
+      default: []
+    },
     // Derived Analytics & Scores
     disciplineScore: {
       type: Number,
@@ -251,10 +255,32 @@ tradeSchema.pre('save', function (next) {
   this.earlyExitFlag = this.reasonEarlyExit && this.reasonEarlyExit !== 'None' ? 1 : 0;
   this.emotionalTradeFlag = emotionalRiskSet.has(emotion) ? 1 : 0;
 
-  if (this.screenshotUrl && !this.imageUrl) {
-    this.imageUrl = this.screenshotUrl;
-  } else if (this.imageUrl && !this.screenshotUrl) {
-    this.screenshotUrl = this.imageUrl;
+  // Normalize and synchronize up to 3 images per trade
+  if (Array.isArray(this.images)) {
+    this.images = this.images
+      .filter((img) => typeof img === 'string' && img.trim() !== '')
+      .slice(0, 3);
+  } else if (typeof this.images === 'string' && this.images.trim() !== '') {
+    this.images = [this.images.trim()];
+  } else {
+    this.images = [];
+  }
+
+  // Fallback to legacy single image if images array is empty
+  if (this.images.length === 0) {
+    const legacyUrl = this.screenshotUrl || this.imageUrl;
+    if (legacyUrl && typeof legacyUrl === 'string' && legacyUrl.trim() !== '') {
+      this.images = [legacyUrl.trim()];
+    }
+  }
+
+  // Ensure first image is mirrored to legacy fields for backward compatibility
+  if (this.images.length > 0) {
+    this.screenshotUrl = this.images[0];
+    this.imageUrl = this.images[0];
+  } else {
+    this.screenshotUrl = '';
+    this.imageUrl = '';
   }
 
   if (this.takeProfit !== undefined && this.takeProfit !== null) {

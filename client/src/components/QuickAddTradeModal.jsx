@@ -14,10 +14,12 @@ import {
   Link as LinkIcon,
   Trash2,
   Maximize2,
-  Eye
+  Eye,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { api } from '../services/api';
-import { compressImageFile, processAndUploadChartImage } from '../utils/imageHelper';
+import { compressImageFile, processAndUploadChartImage, processAndUploadMultipleImages } from '../utils/imageHelper';
 
 const emotionalRiskList = ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Frustrated', 'Anxious', 'Overconfident'];
 
@@ -47,7 +49,8 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
     marketCondition: 'Trending',
     mistakes: ['None'],
     notes: '',
-    screenshotUrl: ''
+    screenshotUrl: '',
+    images: []
   });
 
   const [imageMode, setImageMode] = useState('upload'); // 'upload' | 'url'
@@ -55,6 +58,7 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isPreviewZoomOpen, setIsPreviewZoomOpen] = useState(false);
+  const [previewZoomIndex, setPreviewZoomIndex] = useState(0);
   const fileInputRef = useRef(null);
 
   const [saving, setSaving] = useState(false);
@@ -68,6 +72,10 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
       const items = e.clipboardData?.items;
       if (!items) return;
 
+      // Check current images count
+      const currentImages = Array.isArray(form.images) ? form.images : [];
+      if (currentImages.length >= 3) return;
+
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
@@ -76,7 +84,18 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
             try {
               setIsCompressing(true);
               const cdnUrl = await processAndUploadChartImage(file);
-              setForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
+              if (cdnUrl) {
+                setForm(prev => {
+                  const curr = Array.isArray(prev.images) ? prev.images : [];
+                  if (curr.length >= 3) return prev;
+                  const nextImages = [...curr, cdnUrl].slice(0, 3);
+                  return {
+                    ...prev,
+                    images: nextImages,
+                    screenshotUrl: nextImages[0] || ''
+                  };
+                });
+              }
             } catch (err) {
               console.warn('Clipboard image compression failed:', err);
             } finally {
@@ -90,15 +109,31 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
     window.addEventListener('paste', handleWindowPaste);
     return () => window.removeEventListener('paste', handleWindowPaste);
-  }, [isOpen]);
+  }, [isOpen, form.images]);
 
   const handleFileSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const currentImages = Array.isArray(form.images) ? form.images : [];
+    if (currentImages.length >= 3) {
+      setError('Maximum 3 images allowed per trade. Please remove an existing image first.');
+      return;
+    }
     try {
       setIsCompressing(true);
-      const cdnUrl = await processAndUploadChartImage(file);
-      setForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
+      setError('');
+      const uploaded = await processAndUploadMultipleImages(files, currentImages.length, 3);
+      if (uploaded.length > 0) {
+        setForm(prev => {
+          const curr = Array.isArray(prev.images) ? prev.images : [];
+          const nextImages = [...curr, ...uploaded].slice(0, 3);
+          return {
+            ...prev,
+            images: nextImages,
+            screenshotUrl: nextImages[0] || ''
+          };
+        });
+      }
     } catch (err) {
       setError(err.message || 'Failed to process image');
     } finally {
@@ -120,12 +155,28 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
   const handleDrop = async (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length === 0) return;
+    const currentImages = Array.isArray(form.images) ? form.images : [];
+    if (currentImages.length >= 3) {
+      setError('Maximum 3 images allowed per trade. Please remove an existing image first.');
+      return;
+    }
     try {
       setIsCompressing(true);
-      const cdnUrl = await processAndUploadChartImage(file);
-      setForm(prev => ({ ...prev, screenshotUrl: cdnUrl }));
+      setError('');
+      const uploaded = await processAndUploadMultipleImages(files, currentImages.length, 3);
+      if (uploaded.length > 0) {
+        setForm(prev => {
+          const curr = Array.isArray(prev.images) ? prev.images : [];
+          const nextImages = [...curr, ...uploaded].slice(0, 3);
+          return {
+            ...prev,
+            images: nextImages,
+            screenshotUrl: nextImages[0] || ''
+          };
+        });
+      }
     } catch (err) {
       setError(err.message || 'Failed to process dropped image');
     } finally {
@@ -135,13 +186,34 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
   const handleApplyUrl = () => {
     if (!urlInput.trim()) return;
-    setForm(prev => ({ ...prev, screenshotUrl: urlInput.trim() }));
+    const currentImages = Array.isArray(form.images) ? form.images : [];
+    if (currentImages.length >= 3) {
+      setError('Maximum 3 images allowed per trade. Please remove an existing image first.');
+      return;
+    }
+    const cleanUrl = urlInput.trim();
+    setForm(prev => {
+      const curr = Array.isArray(prev.images) ? prev.images : [];
+      const nextImages = [...curr, cleanUrl].slice(0, 3);
+      return {
+        ...prev,
+        images: nextImages,
+        screenshotUrl: nextImages[0] || ''
+      };
+    });
     setUrlInput('');
   };
 
-  const handleRemoveImage = () => {
-    setForm(prev => ({ ...prev, screenshotUrl: '' }));
-    setUrlInput('');
+  const handleRemoveImage = (indexToRemove) => {
+    setForm(prev => {
+      const curr = Array.isArray(prev.images) ? prev.images : [];
+      const nextImages = curr.filter((_, idx) => idx !== indexToRemove);
+      return {
+        ...prev,
+        images: nextImages,
+        screenshotUrl: nextImages[0] || ''
+      };
+    });
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -205,10 +277,15 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
     const rrVal = form.rr === '' || form.rr === undefined || isNaN(Number(form.rr)) ? 0 : Number(form.rr);
     const pipsVal = form.pips === '' || form.pips === undefined || isNaN(Number(form.pips)) ? 0 : Number(form.pips);
-    const tpVal = form.takeProfit === '' || form.takeProfit === undefined || isNaN(Number(form.takeProfit)) ? 0 : Number(form.takeProfit);
+    const finalImages = Array.isArray(form.images)
+      ? form.images.filter(img => typeof img === 'string' && img.trim() !== '').slice(0, 3)
+      : [];
 
     const payload = {
       ...form,
+      images: finalImages,
+      screenshotUrl: finalImages[0] || form.screenshotUrl || '',
+      imageUrl: finalImages[0] || form.screenshotUrl || '',
       isPropTrade: Boolean(form.isPropTrade),
       rr: rrVal,
       pips: pipsVal,
@@ -716,201 +793,244 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
               </div>
             </div>
 
-            {/* Hidden file input */}
+            {/* Hidden multi-file input */}
             <input
               type="file"
               ref={fileInputRef}
               accept="image/*"
+              multiple
               style={{ display: 'none' }}
               onChange={handleFileSelect}
             />
 
-            {/* Image Preview or Drop Area */}
-            {form.screenshotUrl ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div
-                  className="modal-image-preview-box"
-                  style={{
-                    position: 'relative',
-                    borderRadius: '10px',
-                    overflow: 'hidden',
-                    border: '1px solid var(--border-bright)',
-                    maxHeight: '260px',
-                    background: '#04080e',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <img
-                    src={form.screenshotUrl}
-                    alt="Trade Setup Preview"
-                    style={{
-                      width: '100%',
-                      maxHeight: '260px',
-                      objectFit: 'contain',
-                      display: 'block'
-                    }}
-                  />
-
-                  {/* Overlay Controls */}
+            {/* Image Slots Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: (form.images && form.images.length > 0) ? 'repeat(auto-fit, minmax(170px, 1fr))' : '1fr',
+                gap: '12px',
+                marginBottom: (form.images && form.images.length > 0 && form.images.length < 3 && imageMode === 'url') ? '12px' : '0'
+              }}
+            >
+              {(form.images || []).map((imgUrl, index) => {
+                const label = index === 0 ? 'Chart 1 (Setup)' : index === 1 ? 'Chart 2 (Trigger)' : 'Chart 3 (Exit)';
+                return (
                   <div
-                    className="modal-image-controls"
+                    key={index}
                     style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
+                      position: 'relative',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-bright)',
+                      background: '#04080e',
+                      overflow: 'hidden',
                       display: 'flex',
-                      gap: '6px',
-                      background: 'rgba(3, 6, 11, 0.85)',
-                      padding: '4px 8px',
-                      borderRadius: '8px',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid var(--border-subtle)'
+                      flexDirection: 'column',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.35)'
                     }}
                   >
-                    <button
-                      type="button"
-                      title="View Full Size"
-                      onClick={() => setIsPreviewZoomOpen(true)}
+                    {/* Slot Header Badge */}
+                    <div
                       style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'grid',
-                        placeItems: 'center'
+                        padding: '6px 10px',
+                        background: 'rgba(3, 6, 11, 0.9)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.72rem',
+                        fontWeight: '700'
                       }}
                     >
-                      <Maximize2 size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      title="Change Image"
-                      onClick={() => {
-                        if (imageMode === 'upload' && fileInputRef.current) {
-                          fileInputRef.current.click();
-                        } else {
-                          setImageMode('url');
-                        }
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--accent-cyan)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'grid',
-                        placeItems: 'center'
-                      }}
-                    >
-                      <UploadCloud size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      title="Remove Image"
-                      onClick={handleRemoveImage}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--loss)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'grid',
-                        placeItems: 'center'
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
+                      <span style={{ color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          background: 'rgba(0, 210, 255, 0.15)',
+                          display: 'grid',
+                          placeItems: 'center',
+                          fontSize: '0.68rem',
+                          fontWeight: '800'
+                        }}>
+                          {index + 1}
+                        </span>
+                        {label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        title="Remove Image"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--loss)',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'grid',
+                          placeItems: 'center'
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
 
+                    {/* Image Viewport */}
+                    <div
+                      style={{
+                        height: '140px',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#020509',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setPreviewZoomIndex(index);
+                        setIsPreviewZoomOpen(true);
+                      }}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={`Trade Chart ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '6px',
+                          right: '6px',
+                          background: 'rgba(0,0,0,0.75)',
+                          padding: '3px 6px',
+                          borderRadius: '5px',
+                          fontSize: '0.66rem',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          backdropFilter: 'blur(4px)'
+                        }}
+                      >
+                        <Maximize2 size={11} /> Zoom
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add Image Slot (If under 3 images) */}
+              {(form.images || []).length < 3 && imageMode === 'upload' && (
                 <div
+                  className={`modal-dropzone ${isDragging ? 'dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
                   style={{
+                    borderRadius: '10px',
+                    padding: (form.images || []).length === 0 ? '28px 16px' : '20px 14px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'var(--transition-fast)',
                     display: 'flex',
-                    justifyContent: 'space-between',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    fontSize: '0.78rem',
-                    color: 'var(--text-muted)'
+                    justifyContent: 'center',
+                    minHeight: (form.images || []).length === 0 ? 'auto' : '174px',
+                    border: '1.5px dashed var(--border-medium)',
+                    background: 'rgba(0, 210, 255, 0.02)'
                   }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--profit)', fontWeight: '600' }}>
-                    <CheckCircle2 size={14} /> Chart image ready to save with trade
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
+                  <div
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ff6685',
-                      cursor: 'pointer',
-                      fontSize: '0.76rem',
-                      textDecoration: 'underline'
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'rgba(0, 210, 255, 0.1)',
+                      color: 'var(--accent-cyan)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      marginBottom: '8px'
                     }}
                   >
-                    Remove Image
-                  </button>
+                    <UploadCloud size={18} />
+                  </div>
+                  <strong style={{ fontSize: '0.84rem', color: 'var(--text-white)', marginBottom: '3px' }}>
+                    {isCompressing
+                      ? 'Optimizing Chart...'
+                      : (form.images || []).length === 0
+                      ? 'Add Up to 3 Chart Images'
+                      : `+ Add Chart ${(form.images || []).length + 1} of 3`}
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Drop or click • Or <kbd className="modal-kbd">Ctrl+V</kbd> to paste
+                  </p>
                 </div>
-              </div>
-            ) : imageMode === 'upload' ? (
-              /* Drag & Drop Upload Zone */
-              <div
-                className={`modal-dropzone ${isDragging ? 'dragging' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                style={{
-                  borderRadius: '10px',
-                  padding: '24px 16px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-fast)'
-                }}
-              >
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '50%',
-                    background: 'rgba(0, 210, 255, 0.1)',
-                    color: 'var(--accent-cyan)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    margin: '0 auto 10px'
-                  }}
-                >
-                  <UploadCloud size={20} />
-                </div>
-                <p style={{ fontSize: '0.86rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isCompressing ? 'Optimizing Chart Image...' : 'Click to upload or drag & drop trade screenshot'}
-                </p>
-                <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  PNG, JPG, WebP, GIF • Or paste directly anywhere with <kbd className="modal-kbd">Ctrl+V</kbd>
-                </p>
-              </div>
-            ) : (
-              /* URL Input Tab */
-              <div style={{ display: 'flex', gap: '8px' }}>
+              )}
+            </div>
+
+            {/* URL Input Bar when URL mode is active and under 3 images */}
+            {(form.images || []).length < 3 && imageMode === 'url' && (
+              <div style={{ display: 'flex', gap: '8px', marginTop: (form.images || []).length > 0 ? '8px' : '0' }}>
                 <input
                   type="url"
-                  placeholder="Paste chart image URL (e.g. TradingView, Imgur, Discord link)"
+                  placeholder={`Paste URL for Chart ${(form.images || []).length + 1} of 3 (e.g. TradingView, Discord, Imgur)`}
                   value={urlInput}
                   onChange={e => setUrlInput(e.target.value)}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, fontSize: '0.82rem' }}
                 />
                 <button
                   type="button"
                   className="btn-secondary"
+                  disabled={!urlInput.trim()}
                   onClick={handleApplyUrl}
-                  style={{ padding: '0 16px', whiteSpace: 'nowrap' }}
+                  style={{ padding: '0 16px', whiteSpace: 'nowrap', fontSize: '0.8rem' }}
                 >
-                  Attach
+                  Attach Image
                 </button>
               </div>
             )}
+
+            {/* Helper status text */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.76rem',
+                color: 'var(--text-muted)',
+                marginTop: '10px'
+              }}
+            >
+              {(form.images || []).length > 0 ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--profit)', fontWeight: '600' }}>
+                  <CheckCircle2 size={13} /> {(form.images || []).length} of 3 chart images attached
+                </span>
+              ) : (
+                <span>Attach multi-timeframe charts (e.g. 1H Setup, 5m Entry, Post-Exit).</span>
+              )}
+              {(form.images || []).length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, images: [], screenshotUrl: '' }))}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ff6685',
+                    cursor: 'pointer',
+                    fontSize: '0.74rem',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear All Images
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -924,8 +1044,8 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
           </div>
         </form>
 
-        {/* Full Image Lightbox Preview Modal */}
-        {isPreviewZoomOpen && form.screenshotUrl && (
+        {/* Full Image Lightbox Preview Modal with Multi-Image Navigation */}
+        {isPreviewZoomOpen && (form.images || []).length > 0 && (
           <div
             className="modal-overlay"
             style={{ zIndex: 110000 }}
@@ -938,39 +1058,133 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
                 maxHeight: '92vh',
                 position: 'relative',
                 background: '#04080e',
-                padding: '12px',
-                borderRadius: '12px',
+                padding: '16px',
+                borderRadius: '14px',
                 border: '1px solid var(--border-bright)',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.9)'
+                boxShadow: '0 20px 50px rgba(0,0,0,0.95)',
+                display: 'flex',
+                flexDirection: 'column'
               }}
               onClick={e => e.stopPropagation()}
             >
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setIsPreviewZoomOpen(false)}
+              {/* Lightbox Header Bar */}
+              <div
                 style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  zIndex: 2,
-                  background: 'rgba(0,0,0,0.7)',
-                  borderRadius: '50%'
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '10px'
                 }}
               >
-                <X size={20} />
-              </button>
-              <img
-                src={form.screenshotUrl}
-                alt="Trade Setup Enlarged"
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-white)' }}>
+                    Chart Preview ({previewZoomIndex + 1} of {(form.images || []).length})
+                  </span>
+                  {(form.images || []).length > 1 && (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {(form.images || []).map((_, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setPreviewZoomIndex(idx)}
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '6px',
+                            border: '1px solid',
+                            borderColor: previewZoomIndex === idx ? 'var(--accent-cyan)' : 'var(--border-subtle)',
+                            background: previewZoomIndex === idx ? 'var(--accent-cyan-soft)' : 'rgba(255,255,255,0.05)',
+                            color: previewZoomIndex === idx ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {idx + 1}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setIsPreviewZoomOpen(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Viewport with Optional Prev / Next Arrows */}
+              <div
                 style={{
-                  maxWidth: '90vw',
-                  maxHeight: '88vh',
-                  objectFit: 'contain',
-                  display: 'block',
-                  borderRadius: '8px'
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  maxHeight: '80vh',
+                  overflow: 'hidden'
                 }}
-              />
+              >
+                {(form.images || []).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoomIndex(prev => (prev - 1 + (form.images || []).length) % (form.images || []).length)}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      zIndex: 3,
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: 'rgba(3, 6, 11, 0.8)',
+                      border: '1px solid var(--border-bright)',
+                      color: 'var(--text-white)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                )}
+
+                <img
+                  src={(form.images || [])[previewZoomIndex] || (form.images || [])[0]}
+                  alt={`Trade Setup ${previewZoomIndex + 1}`}
+                  style={{
+                    maxWidth: '88vw',
+                    maxHeight: '78vh',
+                    objectFit: 'contain',
+                    display: 'block',
+                    borderRadius: '8px'
+                  }}
+                />
+
+                {(form.images || []).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoomIndex(prev => (prev + 1) % (form.images || []).length)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      zIndex: 3,
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: 'rgba(3, 6, 11, 0.8)',
+                      border: '1px solid var(--border-bright)',
+                      color: 'var(--text-white)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

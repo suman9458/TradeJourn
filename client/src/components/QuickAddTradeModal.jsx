@@ -272,11 +272,15 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.tradeName.trim()) return;
+    if (!form.tradeName.trim()) {
+      setError('Please provide a Trade Identifier / Rationale (e.g. EURUSD London Liquidity Sweep)');
+      return;
+    }
     setError('');
 
     const rrVal = form.rr === '' || form.rr === undefined || isNaN(Number(form.rr)) ? 0 : Number(form.rr);
     const pipsVal = form.pips === '' || form.pips === undefined || isNaN(Number(form.pips)) ? 0 : Number(form.pips);
+    const tpVal = form.takeProfit === '' || form.takeProfit === undefined || isNaN(Number(form.takeProfit)) ? 0 : Number(form.takeProfit);
     const finalImages = Array.isArray(form.images)
       ? form.images.filter(img => typeof img === 'string' && img.trim() !== '').slice(0, 3)
       : [];
@@ -313,7 +317,7 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
       setSaving(true);
       const res = await api.createTrade(payload);
       persistLocalOverride(res?.trade);
-      onTradeSaved();
+      if (onTradeSaved) onTradeSaved();
       onClose();
     } catch (err) {
       console.warn('Initial save attempt failed, retrying with fresh session:', err.message);
@@ -321,7 +325,7 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
         await api.demoLogin();
         const res = await api.createTrade(payload);
         persistLocalOverride(res?.trade);
-        onTradeSaved();
+        if (onTradeSaved) onTradeSaved();
         onClose();
       } catch (retryErr) {
         setError(retryErr.message || 'Failed to record trade. Please try again.');

@@ -29,7 +29,7 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
   if (!isOpen) return null;
 
   const AVAILABLE_COLUMNS = BASE_COLUMNS.map(c =>
-    c.id === 'pnl' ? { ...c, label: `P&L (${currency} ${symbol} Profit)` } : c
+    c.id === 'pnl' ? { ...c, label: `P&L (${currency === 'INR' ? 'INR / Rs.' : `${currency} ${symbol}`} Profit)` } : c
   );
 
   const toggleColumn = (id) => {

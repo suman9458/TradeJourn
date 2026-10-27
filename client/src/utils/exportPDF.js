@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCurrencySymbol, convertAmount, DEFAULT_EXCHANGE_RATES } from './currencyHelper';
+import { getPdfCurrencyDisplay, convertAmount, DEFAULT_EXCHANGE_RATES } from './currencyHelper';
 
 const getTradeProfitUSD = (p) => {
   if (!p) return 0;
@@ -86,7 +86,7 @@ export const exportTradeHistoryPDF = ({ trades = [], user = {}, stats = null, op
 
   // Active currency resolution and real-time conversion
   const activeCurrency = options?.currency || localStorage.getItem('tradejourn_currency') || user?.settings?.currency || 'USD';
-  const currencySymbol = getCurrencySymbol(activeCurrency);
+  const pdfCurrency = getPdfCurrencyDisplay(activeCurrency);
   let liveRates = DEFAULT_EXCHANGE_RATES;
   try {
     const cached = JSON.parse(localStorage.getItem('tradejourn_rates_cache') || '{}');
@@ -100,8 +100,12 @@ export const exportTradeHistoryPDF = ({ trades = [], user = {}, stats = null, op
     const num = Number(converted || 0);
     const sign = num > 0 ? '+' : num < 0 ? '-' : '';
     const abs = Math.abs(num);
-    const decimals = activeCurrency === 'JPY' ? 0 : 2;
-    return `${sign}${currencySymbol}${abs.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+    const decimals = (activeCurrency === 'JPY' || (activeCurrency === 'INR' && Number.isInteger(abs))) ? 0 : 2;
+    const formattedNum = abs.toLocaleString(activeCurrency === 'INR' ? 'en-IN' : 'en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    });
+    return `${sign}${pdfCurrency.symbol}${formattedNum}`;
   };
 
   // A4 Landscape format (width: 841.89pt, height: 595.28pt)
@@ -190,7 +194,7 @@ export const exportTradeHistoryPDF = ({ trades = [], user = {}, stats = null, op
       { label: 'WIN RATE', val: `${winRate}%` },
       { label: 'RECORD (W/L/BE)', val: `${winCount}W / ${lossCount}L / ${beCount}BE` },
       { label: 'TOTAL PIPS', val: `${totalPips >= 0 ? '+' : ''}${totalPips.toFixed(1)}` },
-      { label: `NET PROFIT (${currencySymbol})`, val: formatCurrency(totalProfitUSD) },
+      { label: pdfCurrency.summaryLabel, val: formatCurrency(totalProfitUSD) },
       { label: 'NET R-MULTIPLE', val: `${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R` }
     ];
 
@@ -227,7 +231,7 @@ export const exportTradeHistoryPDF = ({ trades = [], user = {}, stats = null, op
     { id: 'result', header: 'Outcome', dataKey: 'result', style: { halign: 'center', cellWidth: 44, fontStyle: 'bold' } },
     { id: 'rr', header: 'Net R', dataKey: 'rr', style: { halign: 'right', cellWidth: 42 } },
     { id: 'pips', header: 'Pips', dataKey: 'pips', style: { halign: 'right', cellWidth: 42 } },
-    { id: 'pnl', header: `P&L (${currencySymbol})`, dataKey: 'pnl', style: { halign: 'right', cellWidth: 62, fontStyle: 'bold' } },
+    { id: 'pnl', header: pdfCurrency.header, dataKey: 'pnl', style: { halign: 'right', cellWidth: 62, fontStyle: 'bold' } },
     { id: 'grade', header: 'Grade', dataKey: 'grade', style: { halign: 'center', cellWidth: 40 } },
     { id: 'emotion', header: 'Emotion', dataKey: 'emotion', style: { cellWidth: 50 } },
     { id: 'notes', header: 'Mistakes / Review Notes', dataKey: 'notes', style: { cellWidth: 'auto' } }

@@ -165,3 +165,69 @@ export const formatCurrencyAmount = (
 
   return `${sign}${symbol}${numStr}`;
 };
+
+/**
+ * Returns PDF-safe currency symbols and headers avoiding WinAnsi/Type 1 font encoding bugs (e.g. ₹ turning into ¹ in jsPDF)
+ */
+export const getPdfCurrencyDisplay = (currencyCode = 'USD') => {
+  switch (currencyCode) {
+    case 'INR':
+      return {
+        symbol: 'Rs. ',
+        header: 'P&L (INR)',
+        summaryLabel: 'NET PROFIT (INR)',
+        code: 'INR'
+      };
+    case 'EUR':
+      return {
+        symbol: 'EUR ',
+        header: 'P&L (EUR)',
+        summaryLabel: 'NET PROFIT (EUR)',
+        code: 'EUR'
+      };
+    case 'GBP':
+      return {
+        symbol: '£',
+        header: 'P&L (£)',
+        summaryLabel: 'NET PROFIT (£)',
+        code: 'GBP'
+      };
+    case 'JPY':
+      return {
+        symbol: '¥',
+        header: 'P&L (¥)',
+        summaryLabel: 'NET PROFIT (¥)',
+        code: 'JPY'
+      };
+    case 'AUD':
+      return {
+        symbol: 'A$',
+        header: 'P&L (A$)',
+        summaryLabel: 'NET PROFIT (A$)',
+        code: 'AUD'
+      };
+    case 'CAD':
+      return {
+        symbol: 'C$',
+        header: 'P&L (C$)',
+        summaryLabel: 'NET PROFIT (C$)',
+        code: 'CAD'
+      };
+    case 'CHF':
+      return {
+        symbol: 'CHF ',
+        header: 'P&L (CHF)',
+        summaryLabel: 'NET PROFIT (CHF)',
+        code: 'CHF'
+      };
+    case 'USD':
+    default:
+      return {
+        symbol: '$',
+        header: 'P&L ($)',
+        summaryLabel: 'NET PROFIT ($)',
+        code: 'USD'
+      };
+  }
+};
+

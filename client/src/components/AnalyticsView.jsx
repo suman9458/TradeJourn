@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart3, Clock, Compass, Brain, AlertOctagon, CalendarDays } from 'lucide-react';
+import { useCurrency } from '../context/CurrencyContext';
 
 const getTradeProfitUSD = (p) => {
-  if (!p) return 0;
 
   let rawTp = (p.takeProfit !== undefined && p.takeProfit !== null && p.takeProfit !== '')
     ? p.takeProfit
@@ -71,6 +71,11 @@ const sortByBestPerformance = (a, b) => {
 };
 
 export const AnalyticsView = ({ breakdowns, trades = [] }) => {
+  const { currency, symbol, convert, format } = useCurrency();
+
+  const formatUSD = (val) => {
+    return format(val, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 });
+  };
   const { setups: bkSetups = [], sessions: bkSessions = [], biases: bkBiases = [], emotions: bkEmotions = [], mistakes: bkMistakes = [] } = breakdowns || {};
 
   // 1. Setup Stats Breakdown (Ranked Best Performance on Top)
@@ -418,12 +423,12 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <span className="th-mobile">Pips</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Avg Profit ($)</span>
-                    <span className="th-mobile">Avg $</span>
+                    <span className="th-desktop">Avg Profit ({symbol})</span>
+                    <span className="th-mobile">Avg {symbol}</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Net Profit ($)</span>
-                    <span className="th-mobile">Net $</span>
+                    <span className="th-desktop">Net Profit ({symbol})</span>
+                    <span className="th-mobile">Net {symbol}</span>
                   </th>
                 </tr>
               </thead>
@@ -491,12 +496,12 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <span className="th-mobile">Pips</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Avg Profit ($)</span>
-                    <span className="th-mobile">Avg $</span>
+                    <span className="th-desktop">Avg Profit ({symbol})</span>
+                    <span className="th-mobile">Avg {symbol}</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Net Profit ($)</span>
-                    <span className="th-mobile">Net $</span>
+                    <span className="th-desktop">Net Profit ({symbol})</span>
+                    <span className="th-mobile">Net {symbol}</span>
                   </th>
                 </tr>
               </thead>
@@ -579,12 +584,12 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <span className="th-mobile">Pips</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Avg Profit ($)</span>
-                    <span className="th-mobile">Avg $</span>
+                    <span className="th-desktop">Avg Profit ({symbol})</span>
+                    <span className="th-mobile">Avg {symbol}</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Net Profit ($)</span>
-                    <span className="th-mobile">Net $</span>
+                    <span className="th-desktop">Net Profit ({symbol})</span>
+                    <span className="th-mobile">Net {symbol}</span>
                   </th>
                 </tr>
               </thead>
@@ -654,12 +659,12 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <span className="th-mobile">Pips</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Avg Profit ($)</span>
-                    <span className="th-mobile">Avg $</span>
+                    <span className="th-desktop">Avg Profit ({symbol})</span>
+                    <span className="th-mobile">Avg {symbol}</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Net Profit ($)</span>
-                    <span className="th-mobile">Net $</span>
+                    <span className="th-desktop">Net Profit ({symbol})</span>
+                    <span className="th-mobile">Net {symbol}</span>
                   </th>
                 </tr>
               </thead>
@@ -730,12 +735,12 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <span className="th-mobile">Pips</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Avg Profit ($)</span>
-                    <span className="th-mobile">Avg $</span>
+                    <span className="th-desktop">Avg Profit ({symbol})</span>
+                    <span className="th-mobile">Avg {symbol}</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Net Profit ($)</span>
-                    <span className="th-mobile">Net $</span>
+                    <span className="th-desktop">Net Profit ({symbol})</span>
+                    <span className="th-mobile">Net {symbol}</span>
                   </th>
                 </tr>
               </thead>
@@ -803,12 +808,12 @@ export const AnalyticsView = ({ breakdowns, trades = [] }) => {
                     <span className="th-mobile">Pips</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Avg Drain ($)</span>
-                    <span className="th-mobile">Avg $</span>
+                    <span className="th-desktop">Avg Drain ({symbol})</span>
+                    <span className="th-mobile">Avg {symbol}</span>
                   </th>
                   <th>
-                    <span className="th-desktop">Cumulative P&L Drain ($)</span>
-                    <span className="th-mobile">Total $</span>
+                    <span className="th-desktop">Cumulative P&L Drain ({symbol})</span>
+                    <span className="th-mobile">Total {symbol}</span>
                   </th>
                 </tr>
               </thead>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, CalendarDays, CalendarRange, CalendarCheck, ThumbsUp, ThumbsDown, Sparkles, AlertTriangle } from 'lucide-react';
+import { useCurrency } from '../context/CurrencyContext';
 
 const getTradeProfitUSD = (t) => {
   if (!t) return 0;
@@ -57,7 +58,8 @@ const formatPipsStr = (t) => {
 };
 
 // Intelligent Trade Analyzer for Point-Wise AI Edge Diagnosis & Risk Leakage Audit
-const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
+const computeAiEdgeConclusion = (tradesList = [], allTradesList = [], formatFn = null) => {
+  const fmt = (v) => (formatFn ? formatFn(v) : formatUSD(v));
   const total = tradesList.length;
 
   const wins = tradesList.filter(t => t.result === 'WIN');
@@ -278,14 +280,14 @@ const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
       icon: '📊',
       metrics: [
         { label: 'Realized Win Rate', val: `${winRate.toFixed(1)}%`, color: winRate >= 50 ? 'var(--profit)' : 'var(--loss)' },
-        { label: 'Net Realized Alpha', val: formatUSD(totalProfitUSD), color: totalProfitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' },
-        { label: 'Expectancy / Trade', val: `${formatUSD(avgProfitUSD)}` },
+        { label: 'Net Realized Alpha', val: fmt(totalProfitUSD), color: totalProfitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' },
+        { label: 'Expectancy / Trade', val: `${fmt(avgProfitUSD)}` },
         { label: 'Net R-Yield', val: `${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R` }
       ],
       desc: (
         <>
           Audited sequence of <strong>{total || 8} market executions</strong> confirms a mathematical expectancy of{' '}
-          <strong style={{ color: totalProfitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSD(avgProfitUSD)}/trade</strong> across a{' '}
+          <strong style={{ color: totalProfitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{fmt(avgProfitUSD)}/trade</strong> across a{' '}
           <strong style={{ color: winRate >= 50 ? 'var(--profit)' : 'var(--loss)' }}>{winRate.toFixed(1)}% win rate</strong>. Net portfolio payoff profile provides solid mathematical justification for systemic compounding.
         </>
       )
@@ -296,14 +298,14 @@ const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
       tag: `Dominant: ${bestSessionName} Session`,
       icon: '🚀',
       metrics: [
-        { label: 'Session Net Profit', val: formatUSD(bestSessionProfit), color: 'var(--profit)' },
+        { label: 'Session Net Profit', val: fmt(bestSessionProfit), color: 'var(--profit)' },
         { label: 'Optimal Window', val: `${bestSessionName} Session` },
         { label: 'Execution Match', val: 'Peak Liquidity' }
       ],
       desc: (
         <>
           <strong>{bestSessionName} session</strong> is your core institutional liquidity driver, yielding{' '}
-          <strong style={{ color: 'var(--profit)' }}>{formatUSD(bestSessionProfit)}</strong> in net period returns. Order book depth and momentum volatility in this specific trading window best optimize your execution edge.
+          <strong style={{ color: 'var(--profit)' }}>{fmt(bestSessionProfit)}</strong> in net period returns. Order book depth and momentum volatility in this specific trading window best optimize your execution edge.
         </>
       )
     },
@@ -373,7 +375,7 @@ const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
       metrics: [
         {
           label: worstSessionProfit < 0 ? 'Session Net Drag' : 'Session Net Alpha',
-          val: formatUSD(worstSessionProfit),
+          val: fmt(worstSessionProfit),
           color: worstSessionProfit >= 0 ? 'var(--profit)' : 'var(--loss)'
         },
         {
@@ -391,14 +393,14 @@ const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
       ) : worstSessionProfit < 0 || Number(worstSessionLossRate) >= 50 ? (
         <>
           <strong>{worstSessionName} session</strong> acts as your primary performance drag in all-time audit data, generating{' '}
-          <strong style={{ color: worstSessionProfit >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSD(worstSessionProfit)}</strong> with an unsustainable{' '}
+          <strong style={{ color: worstSessionProfit >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{fmt(worstSessionProfit)}</strong> with an unsustainable{' '}
           <strong style={{ color: 'var(--loss)' }}>{worstSessionLossRate}% loss rate</strong> across {worstSessionCount} audit{worstSessionCount > 1 ? 's' : ''}. Spread widening and adverse order flow during this window systematically erode gains achieved in prime sessions.
         </>
       ) : (
         <>
           All-time audit ranks <strong>{worstSessionName} session</strong> at{' '}
           <strong style={{ color: 'var(--profit)' }}>{worstSessionLossRate}% loss rate</strong> across {worstSessionCount} audit{worstSessionCount > 1 ? 's' : ''}, generating{' '}
-          <strong style={{ color: 'var(--profit)' }}>{formatUSD(worstSessionProfit)}</strong>. No negative loss drag has been detected in this session window.
+          <strong style={{ color: 'var(--profit)' }}>{fmt(worstSessionProfit)}</strong>. No negative loss drag has been detected in this session window.
         </>
       )
     },
@@ -410,13 +412,13 @@ const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
       risk: true,
       metrics: [
         { label: 'Sub-Optimal Loss Rate', val: `${worstSetupLossRate}%`, color: 'var(--loss)' },
-        { label: 'Sub-Optimal PnL', val: formatUSD(worstSetupProfit), color: 'var(--loss)' },
+        { label: 'Sub-Optimal PnL', val: fmt(worstSetupProfit), color: 'var(--loss)' },
         { label: 'A+ Benchmark Hit Rate', val: `${aPlusWinRate}%`, color: 'var(--profit)' }
       ],
       desc: (
         <>
           Severe expectancy divergence: while <strong>A+ setups</strong> produced a <strong>{aPlusWinRate}% win rate</strong>, lower-tier <strong>{worstSetupName} setups</strong> suffered a{' '}
-          <strong style={{ color: 'var(--loss)' }}>{worstSetupLossRate}% loss rate</strong> ({formatUSD(worstSetupProfit)} net drag). Taking setups outside your strict A+ criteria severely dilutes portfolio alpha.
+          <strong style={{ color: 'var(--loss)' }}>{worstSetupLossRate}% loss rate</strong> ({fmt(worstSetupProfit)} net drag). Taking setups outside your strict A+ criteria severely dilutes portfolio alpha.
         </>
       )
     },
@@ -568,7 +570,12 @@ const computeAiEdgeConclusion = (tradesList = [], allTradesList = []) => {
 };
 
 export const ReviewsView = ({ reviews, trades = [] }) => {
+  const { currency, symbol, convert, format } = useCurrency();
   const [subTab, setSubTab] = useState('daily');
+
+  const formatUSD = (val) => {
+    return format(val, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 });
+  };
 
   // Filter trades for the selected audit timeframe
   const activePeriodTrades = useMemo(() => {
@@ -599,8 +606,8 @@ export const ReviewsView = ({ reviews, trades = [] }) => {
 
   // Compute live point-wise analysis of latest trades for this audit period + all-time trades for macro avoidance rules
   const analysisData = useMemo(() => {
-    return computeAiEdgeConclusion(activePeriodTrades.length > 0 ? activePeriodTrades : trades, trades);
-  }, [activePeriodTrades, trades]);
+    return computeAiEdgeConclusion(activePeriodTrades.length > 0 ? activePeriodTrades : trades, trades, formatUSD);
+  }, [activePeriodTrades, trades, formatUSD]);
 
   const fallbackReviewData = useMemo(() => {
     if (!activePeriodTrades || !activePeriodTrades.length) {

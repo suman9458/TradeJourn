@@ -1,14 +1,9 @@
 import React from 'react';
 import { Activity, ShieldAlert, Award, Brain } from 'lucide-react';
-
-const formatUSD = (val) => {
-  const num = Number(val || 0);
-  const sign = num > 0 ? '+' : num < 0 ? '-' : '';
-  const abs = Math.abs(num);
-  return `${sign}$${abs.toLocaleString('en-US')}`;
-};
+import { useCurrency } from '../context/CurrencyContext';
 
 export const SummaryCards = ({ stats, trades = [] }) => {
+  const { currency, symbol, format } = useCurrency();
   if (!stats) return null;
 
   const totalProfit = Math.round(stats.totalProfit !== undefined ? stats.totalProfit : (stats.totalR || 0) * 100);
@@ -22,18 +17,18 @@ export const SummaryCards = ({ stats, trades = [] }) => {
     ['Total Trades Audited', stats.totalTrades],
     ['Realized Win Rate', `${(stats.winRate || 0).toFixed(1)}%`],
     ['Normalized Loss Rate', `${(stats.lossRate || 0).toFixed(1)}%`],
-    ['Total Net Profit ($)', formatUSD(totalProfit)],
-    ['Mean Expectancy ($)', formatUSD(avgProfit)],
-    ['Average Winner ($)', formatUSD(avgWinUSD)],
-    ['Average Loser ($)', formatUSD(avgLossUSD)],
+    [`Total Net Profit (${symbol})`, format(totalProfit, { showSign: true, decimals: 0 })],
+    [`Mean Expectancy (${symbol})`, format(avgProfit, { showSign: true, decimals: 0 })],
+    [`Average Winner (${symbol})`, format(avgWinUSD, { showSign: true, decimals: 0 })],
+    [`Average Loser (${symbol})`, format(avgLossUSD, { showSign: true, decimals: 0 })],
     ['Profit Factor', (stats.profitFactor || 0).toFixed(2)],
     ['Gross Pips Captured', Math.round(stats.totalPips || 0)],
     ['Average Pips / Trade', Math.round(stats.avgPips || 0)]
   ];
 
   const risk = [
-    ['Best Trade (Peak $)', formatUSD(bestTradeUSD)],
-    ['Worst Trade (Max Loss $)', formatUSD(worstTradeUSD)],
+    [`Best Trade (Peak ${symbol})`, format(bestTradeUSD, { showSign: true, decimals: 0 })],
+    [`Worst Trade (Max Loss ${symbol})`, format(worstTradeUSD, { showSign: true, decimals: 0 })],
     ['Active Win Streak', stats.currentWinStreak],
     ['Active Loss Streak', stats.currentLossStreak],
     ['Historical Max Win Streak', stats.maxWinStreak],

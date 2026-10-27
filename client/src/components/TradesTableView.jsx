@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles, Camera, Image as ImageIcon, UploadCloud, Maximize2, LayoutGrid, List, Plus, Download, Edit3, Check } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { exportTradeHistoryPDF } from '../utils/exportPDF';
 import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
 
@@ -86,6 +87,12 @@ export const TradesTableView = ({
   isFullScreen = false
 }) => {
   const { user } = useAuth();
+  const { currency, symbol, convert, format } = useCurrency();
+
+  const formatPnL = (trade) => {
+    const pnlVal = getTradeTakeProfitUSD(trade);
+    return format(pnlVal, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 });
+  };
   const [masterTrades, setMasterTrades] = useState(() => Array.isArray(initialTrades) && initialTrades.length > 0 ? initialTrades : []);
   const [trades, setTrades] = useState(() => Array.isArray(initialTrades) && initialTrades.length > 0 ? initialTrades : []);
   const [loading, setLoading] = useState(false);
@@ -542,7 +549,10 @@ export const TradesTableView = ({
 
       exportTradeHistoryPDF({
         trades: tradesToExport || [],
-        user
+        user,
+        options: {
+          currency
+        }
       });
     } catch (err) {
       alert('Failed to generate PDF: ' + err.message);
@@ -828,7 +838,7 @@ export const TradesTableView = ({
                   </span>
                 </th>
                 <th>Pips</th>
-                <th>P&L ($)</th>
+                <th>P&L ({symbol})</th>
                 <th>Discipline</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -1097,8 +1107,8 @@ export const TradesTableView = ({
               <p><strong>Session:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.session}</span></p>
               <p><strong>Technical Level:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.levelTraded || '-'}</span></p>
               <p><strong>Entry Trigger:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.entryType}</span></p>
-              <p><strong>Take Profit (USD):</strong> <span style={{ color: 'var(--profit)', fontFamily: 'var(--font-mono)', fontWeight: '700' }}>
-                ${(() => {
+              <p><strong>Take Profit ({currency}):</strong> <span style={{ color: 'var(--profit)', fontFamily: 'var(--font-mono)', fontWeight: '700' }}>
+                {(() => {
                   let tp = selectedTrade.takeProfit ?? selectedTrade.takeProfitUSD;
                   if (!tp) {
                     try {
@@ -1106,7 +1116,7 @@ export const TradesTableView = ({
                       tp = overrides[selectedTrade._id] || overrides[`${selectedTrade.tradeName}_${selectedTrade.date}_${selectedTrade.time || '00:00'}`] || overrides[`${selectedTrade.date}_${selectedTrade.time || '00:00'}`];
                     } catch (e) {}
                   }
-                  return tp || 0;
+                  return format(tp || 0, { showSign: false, decimals: currency === 'JPY' ? 0 : 2 });
                 })()}
               </span></p>
               <p><strong>Market Regime:</strong> <span style={{ color: 'var(--text-secondary)' }}>{selectedTrade.marketCondition}</span></p>

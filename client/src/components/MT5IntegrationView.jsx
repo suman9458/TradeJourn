@@ -44,10 +44,10 @@ import {
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
 import { ALL_CURRENCIES, getCurrencySymbol } from '../utils/currencyHelper';
-
-
+import { useCurrency } from '../context/CurrencyContext';
 
 export const MT5IntegrationView = ({ trades = [], stats = null }) => {
+  const { currency, symbol, format } = useCurrency();
   const [accounts, setAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [openPositions, setOpenPositions] = useState([]);
@@ -780,7 +780,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               {(activeAccount.freeMargin || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} Free
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Used: ${(activeAccount.margin || 0).toFixed(1)} • {Math.round(activeAccount.marginLevel || 0)}%
+              Used: {getCurrencySymbol(activeAccount.currency)}{(activeAccount.margin || 0).toFixed(1)} • {Math.round(activeAccount.marginLevel || 0)}%
             </p>
           </div>
         </div>
@@ -889,7 +889,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                       fontFamily: 'var(--font-mono)',
                       color: trade.takeProfitUSD >= 0 ? 'var(--profit)' : 'var(--loss)'
                     }}>
-                      {trade.takeProfitUSD >= 0 ? '+' : ''}${Number(trade.takeProfitUSD || 0).toFixed(2)}
+                      {format(trade.takeProfitUSD, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 })}
                     </span>
                   </div>
 
@@ -955,8 +955,8 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <th>Current</th>
                 <th>SL</th>
                 <th>TP</th>
-                <th>Swap</th>
-                <th>Floating P&amp;L</th>
+                <th>Swap ({symbol})</th>
+                <th>Floating P&amp;L ({symbol})</th>
                 <th>Open Time</th>
               </tr>
             </thead>
@@ -992,13 +992,15 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                     <td style={{ fontFamily: 'var(--font-mono)', color: pos.tp ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                       {pos.tp || 'None'}
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>${(pos.swap || 0).toFixed(2)}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      {format(pos.swap || 0, { showSign: false, decimals: 2 })}
+                    </td>
                     <td style={{
                       fontFamily: 'var(--font-mono)',
                       fontWeight: '800',
                       color: (pos.profit || 0) >= 0 ? 'var(--profit)' : 'var(--loss)'
                     }}>
-                      {(pos.profit || 0) >= 0 ? '+' : ''}${(pos.profit || 0).toFixed(2)}
+                      {format(pos.profit || 0, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 })}
                     </td>
                     <td style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                       {pos.openTimeUTC ? new Date(pos.openTimeUTC).toLocaleTimeString() : '-'}
@@ -1266,7 +1268,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <div>
                 <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Realized Net P&amp;L</span>
                 <p style={{ margin: 0, fontWeight: '800', color: journalModalTrade.takeProfitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
-                  {journalModalTrade.takeProfitUSD >= 0 ? '+' : ''}${journalModalTrade.takeProfitUSD}
+                  {format(journalModalTrade.takeProfitUSD, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 })}
                 </p>
               </div>
               <div>
@@ -1571,7 +1573,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                 <option value="">-- Choose matching trade --</option>
                 {manualTrades.map(t => (
                   <option key={t._id} value={t._id}>
-                    {t.date} • {t.instrument} ({t.direction}) • PnL: ${t.takeProfitUSD || t.takeProfit}
+                    {t.date} • {t.instrument} ({t.direction}) • PnL: {format(t.takeProfitUSD ?? t.takeProfit, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 })}
                   </option>
                 ))}
               </select>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import richRiskImg from '../assets/rich-risk.jpg';
 import { TradesTableView } from './TradesTableView';
 import { api } from '../services/api';
@@ -36,7 +37,7 @@ import {
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export const formatProfitShort = (num) => {
+export const formatProfitShort = (num, symbol = '$') => {
   if (num === null || num === undefined) return null;
   const n = Number(num);
   if (isNaN(n)) return null;
@@ -54,7 +55,7 @@ export const formatProfitShort = (num) => {
     formatted = Math.round(abs);
   }
 
-  return `${sign}$${formatted}`;
+  return `${sign}${symbol}${formatted}`;
 };
 
 export const getTradeTakeProfitUSD = (t) => {
@@ -118,6 +119,7 @@ export const ModernPipsDashboard = ({
   onTradeUpdated
 }) => {
   const { user } = useAuth();
+  const { currency, symbol, convert, format, formatCompact } = useCurrency();
   const displayName = user?.name || user?.userId || 'Trader';
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
   const [hoveredWinSlice, setHoveredWinSlice] = useState(null); // 'win' | 'loss' | 'be'
@@ -460,7 +462,7 @@ export const ModernPipsDashboard = ({
       profitTrend = `${prDiff >= 0 ? '+' : ''}${prDiff.toFixed(1)}%`;
       profitTrendUp = prDiff >= 0;
     } else if (curProfit !== 0) {
-      profitTrend = `${curProfit >= 0 ? '+' : ''}$${Math.abs(curProfit)}`;
+      profitTrend = `${curProfit >= 0 ? '+' : ''}${format(Math.abs(curProfit), { decimals: 0 })}`;
       profitTrendUp = curProfit >= 0;
     }
 
@@ -572,7 +574,7 @@ export const ModernPipsDashboard = ({
           date: dStr,
           pips: Math.round(item.pips),
           profitUSD: Math.round(item.profitUSD || 0),
-          profitText: formatProfitShort(item.profitUSD || 0),
+          profitText: formatCompact(item.profitUSD || 0),
           rTotal: Number(item.rTotal.toFixed(1)),
           tradesCount: item.tradesCount,
           wins: item.wins,
@@ -646,7 +648,7 @@ export const ModernPipsDashboard = ({
           fullTitle: `Week ${item.weekNum}${subStr} ${selectedYear}`,
           pips: Math.round(item.pips),
           profitUSD: Math.round(item.profitUSD || 0),
-          profitText: formatProfitShort(item.profitUSD || 0),
+          profitText: formatCompact(item.profitUSD || 0),
           rTotal: Number(item.rTotal.toFixed(1)),
           tradesCount: item.tradesCount,
           wins: item.wins,
@@ -684,7 +686,7 @@ export const ModernPipsDashboard = ({
         monthNum: idx + 1,
         pips: Math.round(pips),
         profitUSD: Math.round(profitUSD),
-        profitText: monthTrades.length > 0 ? formatProfitShort(profitUSD) : null,
+        profitText: monthTrades.length > 0 ? formatCompact(profitUSD) : null,
         rTotal: Number(rTotal.toFixed(1)),
         tradesCount: monthTrades.length,
         wins,
@@ -711,7 +713,7 @@ export const ModernPipsDashboard = ({
         year: y,
         pips: Math.round(pips),
         profitUSD: Math.round(profitUSD),
-        profitText: yearTrades.length > 0 ? formatProfitShort(profitUSD) : null,
+        profitText: yearTrades.length > 0 ? formatCompact(profitUSD) : null,
         rTotal: Number(rTotal.toFixed(1)),
         tradesCount: yearTrades.length,
         wins,
@@ -728,27 +730,30 @@ export const ModernPipsDashboard = ({
     return monthlyPipsData;
   }, [performancePeriod, dailyPipsData, weeklyPipsData, monthlyPipsData, yearlyPipsData]);
 
-  // Dynamic Chart Y-Scale calculations based on P&L ($)
+  // Dynamic Chart Y-Scale calculations based on converted P&L
   const activeScaleMax = useMemo(() => {
-    const maxVal = Math.max(...activePerformanceData.map(m => Math.abs(m.profitUSD || 0)), 0);
-    if (maxVal === 0) return 100;
+    const maxVal = Math.max(...activePerformanceData.map(m => Math.abs(convert(m.profitUSD || 0))), 0);
+    if (maxVal === 0) return Math.round(convert(100)) || 100;
     if (maxVal <= 50) return 50;
     if (maxVal <= 100) return 100;
     if (maxVal <= 250) return 250;
     if (maxVal <= 500) return 500;
     if (maxVal <= 1000) return 1000;
     return Math.ceil(maxVal / 500) * 500;
-  }, [activePerformanceData]);
+  }, [activePerformanceData, convert]);
 
-  const formatYAxisUSD = (val) => {
-    if (val === 0) return '$0';
+  const formatYAxis = (val) => {
+    if (val === 0) return `${symbol}0`;
     const abs = Math.abs(val);
     const sign = val > 0 ? '+' : '-';
+    if (abs >= 1000000) {
+      return `${sign}${symbol}${(abs / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+    }
     if (abs >= 1000) {
       const k = (abs / 1000).toFixed(abs % 1000 === 0 ? 0 : 1);
-      return `${sign}$${k}k`;
+      return `${sign}${symbol}${k}k`;
     }
-    return `${sign}$${abs}`;
+    return `${sign}${symbol}${Math.round(abs)}`;
   };
 
   const monthlyScaleMax = activeScaleMax;
@@ -889,11 +894,7 @@ export const ModernPipsDashboard = ({
       const pipsVal = Number(t.pips || 0);
 
       const pnlVal = getTradeTakeProfitUSD(t);
-      const pnlUSD = pnlVal > 0 
-        ? `+$${pnlVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-        : pnlVal < 0 
-          ? `-$${Math.abs(pnlVal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-          : '$0.00';
+      const pnlUSD = format(pnlVal, { showSign: true, decimals: 2 });
 
       return {
         ...t,
@@ -955,7 +956,7 @@ export const ModernPipsDashboard = ({
         if (dayProfit > 0 || (dayProfit === 0 && pips > 0)) status = 'win';
         else if (dayProfit < 0 || (dayProfit === 0 && pips < 0)) status = 'loss';
         else status = 'be';
-        profitText = formatProfitShort(dayProfit);
+        profitText = formatCompact(dayProfit);
       }
 
       days.push({
@@ -992,7 +993,7 @@ export const ModernPipsDashboard = ({
         else if (dayProfit < 0 || (dayProfit === 0 && pips < 0)) status = 'loss';
         else status = 'be';
 
-        profitText = formatProfitShort(dayProfit);
+        profitText = formatCompact(dayProfit);
       }
 
       const isToday = dateKey === todayStr;
@@ -1037,7 +1038,7 @@ export const ModernPipsDashboard = ({
         if (dayProfit > 0 || (dayProfit === 0 && pips > 0)) status = 'win';
         else if (dayProfit < 0 || (dayProfit === 0 && pips < 0)) status = 'loss';
         else status = 'be';
-        profitText = formatProfitShort(dayProfit);
+        profitText = formatCompact(dayProfit);
       }
 
       days.push({
@@ -1087,24 +1088,21 @@ export const ModernPipsDashboard = ({
     const largestWinUSDVal = winProfits.length > 0 ? Math.max(...winProfits) : 0;
     const largestLossUSDVal = lossProfits.length > 0 ? Math.min(...lossProfits) : 0;
 
-    const fmtUSD = (num) => {
-      const n = Number(num || 0);
-      if (n > 0) return `+$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-      if (n < 0) return `-$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-      return '$0.00';
+    const fmtCurrVal = (num) => {
+      return format(num, { showSign: true, decimals: currency === 'JPY' ? 0 : 2 });
     };
 
     return {
       avgWin: `+${avgWinPips} Pips`,
-      avgWinUSD: fmtUSD(avgWinUSDVal),
+      avgWinUSD: fmtCurrVal(avgWinUSDVal),
       avgLoss: `${avgLossPips} Pips`,
-      avgLossUSD: fmtUSD(avgLossUSDVal),
+      avgLossUSD: fmtCurrVal(avgLossUSDVal),
       largestWin: `+${largestWinPips} Pips`,
-      largestWinUSD: fmtUSD(largestWinUSDVal),
+      largestWinUSD: fmtCurrVal(largestWinUSDVal),
       largestLoss: `${largestLossPips} Pips`,
-      largestLossUSD: fmtUSD(largestLossUSDVal)
+      largestLossUSD: fmtCurrVal(largestLossUSDVal)
     };
-  }, [winningTrades, losingTrades]);
+  }, [winningTrades, losingTrades, format, currency]);
 
   // Donut SVG generator helper
   const createDonutArcs = (items, total, radius = 52, strokeWidth = 18) => {
@@ -1246,7 +1244,7 @@ export const ModernPipsDashboard = ({
           <div className="kpi-content">
             <span className="kpi-label">Net Profit</span>
             <div className={`kpi-val ${totalProfitVal >= 0 ? 'text-profit' : 'text-loss'}`}>
-              {totalProfitVal >= 0 ? `+$${totalProfitVal.toLocaleString()}` : `-$${Math.abs(totalProfitVal).toLocaleString()}`}
+              {format(totalProfitVal, { showSign: true, decimals: 0 })}
             </div>
             <div className={`kpi-trend ${trends.profitTrendUp ? 'positive' : 'negative'}`}>
               {trends.profitTrendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
@@ -1363,13 +1361,13 @@ export const ModernPipsDashboard = ({
               {/* Zero baseline */}
               <line x1="45" y1="110" x2="510" y2="110" className="chart-zero-line" strokeWidth="1.2" />
 
-              {/* Dynamic Y-Axis Grid & Labels (in P&L $) */}
+              {/* Dynamic Y-Axis Grid & Labels (in active currency) */}
               {[
-                { val: formatYAxisUSD(activeScaleMax), y: 25 },
-                { val: formatYAxisUSD(Math.round(activeScaleMax / 2)), y: 68 },
-                { val: '$0', y: 110 },
-                { val: formatYAxisUSD(-Math.round(activeScaleMax / 2)), y: 152 },
-                { val: formatYAxisUSD(-activeScaleMax), y: 195 }
+                { val: formatYAxis(activeScaleMax), y: 25 },
+                { val: formatYAxis(Math.round(activeScaleMax / 2)), y: 68 },
+                { val: `${symbol}0`, y: 110 },
+                { val: formatYAxis(-Math.round(activeScaleMax / 2)), y: 152 },
+                { val: formatYAxis(-activeScaleMax), y: 195 }
               ].map((g, idx) => (
                 <g key={idx}>
                   <line x1="45" y1={g.y} x2="510" y2={g.y} className="chart-grid-line" strokeDasharray="3 3" />
@@ -1391,10 +1389,11 @@ export const ModernPipsDashboard = ({
                 return activePerformanceData.map((d, i) => {
                   const x = plotLeft + i * colWidth + (colWidth - barWidth) / 2;
                   const centerX = plotLeft + i * colWidth + colWidth / 2;
-                  const isPositive = d.profitUSD >= 0;
+                  const convertedProfit = convert(d.profitUSD || 0);
+                  const isPositive = convertedProfit >= 0;
                   const heightAvailable = 85;
-                  const barHeight = Math.abs(d.profitUSD) > 0
-                    ? Math.max(3, (Math.abs(d.profitUSD) / activeScaleMax) * heightAvailable)
+                  const barHeight = Math.abs(convertedProfit) > 0
+                    ? Math.max(3, (Math.abs(convertedProfit) / activeScaleMax) * heightAvailable)
                     : (d.tradesCount > 0 ? 2 : 0);
                   const y = isPositive ? (110 - barHeight) : 110;
 
@@ -1494,7 +1493,7 @@ export const ModernPipsDashboard = ({
                       border: `1px solid ${hoveredPerfItem.profitUSD >= 0 ? 'rgba(0, 245, 155, 0.3)' : 'rgba(255, 51, 102, 0.3)'}`
                     }}
                   >
-                    {hoveredPerfItem.profitUSD >= 0 ? `+$${hoveredPerfItem.profitUSD.toLocaleString()}` : `-$${Math.abs(hoveredPerfItem.profitUSD).toLocaleString()}`}
+                    {format(hoveredPerfItem.profitUSD, { showSign: true, decimals: 0 })}
                   </span>
                   <span style={{ color: hoveredPerfItem.pips >= 0 ? 'var(--profit)' : 'var(--loss)', fontWeight: '700', fontSize: '0.78rem' }}>
                     {hoveredPerfItem.pips >= 0 ? '+' : ''}{hoveredPerfItem.pips} Pips
@@ -1753,7 +1752,7 @@ export const ModernPipsDashboard = ({
                     <th>Entry</th>
                     <th>Exit</th>
                     <th>Pips</th>
-                    <th>P&L ($)</th>
+                    <th>P&L ({symbol})</th>
                     <th>R:R</th>
                   </tr>
                 </thead>

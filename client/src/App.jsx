@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
 import { TopTradingHero } from './components/TopTradingHero';
@@ -325,7 +326,9 @@ const DashboardContent = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <DashboardContent />
+      <CurrencyProvider>
+        <DashboardContent />
+      </CurrencyProvider>
     </AuthProvider>
   );
 }

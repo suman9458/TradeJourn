@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Target, Edit3, Check, Trophy, ShieldCheck, DollarSign, Calendar, ShieldAlert, CheckCircle2, AlertTriangle, RotateCcw, Clock } from 'lucide-react';
+import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
 
 const getTradeTakeProfitUSD = (t) => {
@@ -48,6 +49,7 @@ const getTradeTakeProfitUSD = (t) => {
 };
 
 export const GoalsView = ({ stats, trades = [] }) => {
+  const { currency, symbol, convert, format } = useCurrency();
   const [goals, setGoals] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -416,34 +418,34 @@ export const GoalsView = ({ stats, trades = [] }) => {
     },
     {
       id: 'profit_target',
-      label: '1. Target Profit ($)',
-      currentDisplay: `${totalNetProfitUSD >= 0 ? '+' : ''}$${totalNetProfitUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      targetDisplay: `$${profitTarget.toLocaleString()}`,
+      label: `1. Target Profit (${symbol})`,
+      currentDisplay: format(totalNetProfitUSD, { showSign: true, decimals: 2 }),
+      targetDisplay: format(profitTarget, { showSign: false, decimals: 0 }),
       pct: Math.min(100, Math.max(0, (totalNetProfitUSD / (profitTarget || 1)) * 100)),
       isPassed: targetMet,
       sub: 'Required net profit milestone to pass challenge stage',
-      badge: targetMet ? 'TARGET ACHIEVED' : `${Math.max(0, profitTarget - totalNetProfitUSD).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} REMAINING`,
+      badge: targetMet ? 'TARGET ACHIEVED' : `${format(Math.max(0, profitTarget - totalNetProfitUSD), { showSign: false, decimals: 2 })} REMAINING`,
       badgeColor: targetMet ? 'var(--profit)' : 'var(--accent-cyan)'
     },
     {
       id: 'max_loss',
-      label: '2. Maximum Overall Loss ($)',
-      currentDisplay: `-$${currentOverallLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      targetDisplay: `-$${maxLoss.toLocaleString()} Limit`,
+      label: `2. Maximum Overall Loss (${symbol})`,
+      currentDisplay: `-${format(currentOverallLoss, { showSign: false, decimals: 2 })}`,
+      targetDisplay: `-${format(maxLoss, { showSign: false, decimals: 0 })} Limit`,
       pct: Math.min(100, Math.max(0, (currentOverallLoss / (maxLoss || 1)) * 100)),
       isPassed: !maxLossBreached,
-      sub: 'Net account loss (recovers with profits, stops at $0.00)',
+      sub: `Net account loss (recovers with profits, stops at ${symbol}0.00)`,
       badge: maxLossBreached ? 'MAX LOSS BREACHED' : 'DRAWDOWN WITHIN LIMIT',
       badgeColor: maxLossBreached ? '#ff4d4d' : 'var(--profit)'
     },
     {
       id: 'max_daily_loss',
-      label: '3. Max Daily Loss ($)',
-      currentDisplay: `-$${worstDailyLossUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      targetDisplay: `-$${maxDailyLoss.toLocaleString()} Daily Limit`,
+      label: `3. Max Daily Loss (${symbol})`,
+      currentDisplay: `-${format(worstDailyLossUSD, { showSign: false, decimals: 2 })}`,
+      targetDisplay: `-${format(maxDailyLoss, { showSign: false, decimals: 0 })} Daily Limit`,
       pct: Math.min(100, Math.max(0, (worstDailyLossUSD / (maxDailyLoss || 1)) * 100)),
       isPassed: !dailyLossBreached,
-      sub: `Worst single-day net loss (Today's Net: ${todayNetPnL >= 0 ? '+' : ''}$${todayNetPnL.toFixed(2)})`,
+      sub: `Worst single-day net loss (Today's Net: ${format(todayNetPnL, { showSign: true, decimals: 2 })})`,
       badge: dailyLossBreached ? 'DAILY LOSS BREACHED' : 'DAILY LOSS WITHIN LIMIT',
       badgeColor: dailyLossBreached ? '#ff4d4d' : 'var(--profit)'
     },
@@ -455,7 +457,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
       pct: hasConsistencyRule ? Math.min(100, Math.max(0, (consistencyCurrentPct / (consistencyPct || 1)) * 100)) : 100,
       isPassed: !consistencyBreached,
       sub: hasConsistencyRule
-        ? `Formula: (Best single trade profit $${bestSingleTradeProfit.toFixed(0)} / Total gross profit) < ${consistencyPct}%`
+        ? `Formula: (Best single trade profit ${format(bestSingleTradeProfit, { decimals: 0 })} / Total gross profit) < ${consistencyPct}%`
         : 'Prop firm challenge has no consistency rule requirement',
       badge: !hasConsistencyRule ? 'RULE NOT REQUIRED' : (consistencyBreached ? 'CONSISTENCY BREACHED' : 'COMPLIANT CONSISTENCY'),
       badgeColor: !hasConsistencyRule ? 'var(--accent-cyan)' : (consistencyBreached ? '#ff9900' : 'var(--profit)')
@@ -589,7 +591,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-white)' }}>
-                  ${accountSize.toLocaleString()} Challenge Status:
+                  {format(accountSize, { decimals: 0 })} Challenge Status:
                 </span>
                 <span
                   style={{
@@ -630,7 +632,7 @@ export const GoalsView = ({ stats, trades = [] }) => {
                   ? 'One or more risk limits (Max Loss or Daily Loss) have been breached.'
                   : isPassed
                   ? 'Congratulations! All profit, risk, consistency, and trading day rules are satisfied.'
-                  : `Challenge Active • Evaluating only trades logged after turning ON • Net PnL: ${totalNetProfitUSD >= 0 ? '+' : ''}$${totalNetProfitUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${((totalNetProfitUSD / accountSize) * 100).toFixed(2)}%)`}
+                  : `Challenge Active • Evaluating only trades logged after turning ON • Net PnL: ${format(totalNetProfitUSD, { showSign: true, decimals: 2 })} (${((totalNetProfitUSD / accountSize) * 100).toFixed(2)}%)`}
               </p>
             </div>
           </div>
@@ -638,20 +640,20 @@ export const GoalsView = ({ stats, trades = [] }) => {
           <div className="prop-hud-pill-bar" style={{ display: 'flex', gap: '20px', padding: '12px 18px', borderRadius: 'var(--radius-md)', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Size</div>
-              <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-white)', marginTop: '2px' }}>${(accountSize / 1000).toFixed(0)}k</div>
+              <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-white)', marginTop: '2px' }}>{format(accountSize, { compact: true })}</div>
             </div>
             <div style={{ width: '1px', background: 'var(--border-medium)' }} />
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net PnL</div>
               <div style={{ fontSize: '1rem', fontWeight: '800', color: totalNetProfitUSD >= 0 ? 'var(--profit)' : '#ff4d4d', marginTop: '2px' }}>
-                {totalNetProfitUSD >= 0 ? '+' : ''}${Math.round(totalNetProfitUSD).toLocaleString()}
+                {format(totalNetProfitUSD, { showSign: true, decimals: 0 })}
               </div>
             </div>
             <div style={{ width: '1px', background: 'var(--border-medium)' }} />
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Max Loss Used</div>
               <div style={{ fontSize: '1rem', fontWeight: '800', color: maxLossBreached ? '#ff4d4d' : 'var(--text-primary)', marginTop: '2px' }}>
-                ${Math.round(currentOverallLoss).toLocaleString()} / ${Math.round(maxLoss).toLocaleString()}
+                {format(currentOverallLoss, { decimals: 0 })} / {format(maxLoss, { decimals: 0 })}
               </div>
             </div>
             <div style={{ width: '1px', background: 'var(--border-medium)' }} />

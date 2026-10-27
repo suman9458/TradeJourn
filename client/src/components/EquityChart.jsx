@@ -19,19 +19,20 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { createSmoothPathD, createSmoothAreaPathD } from '../utils/smoothPath';
+import { useCurrency } from '../context/CurrencyContext';
 
-const formatUSDMetric = (num, forceSign = true) => {
-  if (num === null || num === undefined || isNaN(num)) return '$0';
+const formatUSDMetric = (num, forceSign = true, symbol = '$') => {
+  if (num === null || num === undefined || isNaN(num)) return `${symbol}0`;
   const n = Number(num);
   const sign = forceSign ? (n > 0 ? '+' : n < 0 ? '-' : '') : (n < 0 ? '-' : '');
   const abs = Math.abs(n);
   if (abs >= 1000000) {
-    return `${sign}$${(abs / 1000000).toFixed(2).replace(/\.00$/, '')}M`;
+    return `${sign}${symbol}${(abs / 1000000).toFixed(2).replace(/\.00$/, '')}M`;
   }
   if (abs >= 10000) {
-    return `${sign}$${(abs / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return `${sign}${symbol}${(abs / 1000).toFixed(1).replace(/\.0$/, '')}k`;
   }
-  return `${sign}$${abs.toLocaleString('en-US')}`;
+  return `${sign}${symbol}${Math.round(abs).toLocaleString('en-US')}`;
 };
 
 const getPointTakeProfitUSD = (p) => {
@@ -83,6 +84,7 @@ const getPointTakeProfitUSD = (p) => {
 };
 
 export const EquityChart = ({ curve = [] }) => {
+  const { currency, symbol, convert } = useCurrency();
   const [hoveredPipsPoint, setHoveredPipsPoint] = useState(null);
   const [hoveredProfitPoint, setHoveredProfitPoint] = useState(null);
   const [pipsTimeframe, setPipsTimeframe] = useState('ALL');
@@ -193,7 +195,8 @@ export const EquityChart = ({ curve = [] }) => {
       else if (p.result === 'WIN' && rawPips < 0) rawPips = Math.abs(rawPips);
       else if (p.result === 'BE') rawPips = 0;
 
-      const rawProfit = getPointTakeProfitUSD(p);
+      const rawProfitUSD = getPointTakeProfitUSD(p);
+      const rawProfit = convert(rawProfitUSD);
 
       runningPips += rawPips;
       runningProfit += rawProfit;
@@ -215,7 +218,7 @@ export const EquityChart = ({ curve = [] }) => {
   };
 
   const processedPipsData = useMemo(() => processCurveForTimeframe(curve, pipsTimeframe), [curve, pipsTimeframe]);
-  const processedProfitData = useMemo(() => processCurveForTimeframe(curve, profitTimeframe), [curve, profitTimeframe]);
+  const processedProfitData = useMemo(() => processCurveForTimeframe(curve, profitTimeframe), [curve, profitTimeframe, convert]);
 
   // Baseline data points starting at 0 Pips / $0
   const pipsDataPoints = useMemo(() => [
@@ -1220,7 +1223,7 @@ export const EquityChart = ({ curve = [] }) => {
               Net Loss / Profit
             </span>
             <p className={`hud-stat-value ${isProfitUSDProfitable ? 'profit' : 'loss'}`}>
-              {formatUSDMetric(netProfitUSD, true)}
+              {formatUSDMetric(netProfitUSD, true, symbol)}
             </p>
           </div>
 
@@ -1233,7 +1236,7 @@ export const EquityChart = ({ curve = [] }) => {
               </span>
             </div>
             <p className="hud-stat-value profit">
-              +{formatUSDMetric(totalGrossProfitUSD, false)}
+              +{formatUSDMetric(totalGrossProfitUSD, false, symbol)}
             </p>
           </div>
 
@@ -1246,7 +1249,7 @@ export const EquityChart = ({ curve = [] }) => {
               </span>
             </div>
             <p className="hud-stat-value loss">
-              -{formatUSDMetric(totalGrossLossUSD, false)}
+              -{formatUSDMetric(totalGrossLossUSD, false, symbol)}
             </p>
           </div>
 
@@ -1256,7 +1259,7 @@ export const EquityChart = ({ curve = [] }) => {
               Max Profit
             </span>
             <p className="hud-stat-value cyan">
-              +{formatUSDMetric(peakProfitUSD, false)}
+              +{formatUSDMetric(peakProfitUSD, false, symbol)}
             </p>
           </div>
 
@@ -1266,7 +1269,7 @@ export const EquityChart = ({ curve = [] }) => {
               Max Loss
             </span>
             <p className="hud-stat-value loss">
-              -{formatUSDMetric(maxProfitDD, false)}
+              -{formatUSDMetric(maxProfitDD, false, symbol)}
             </p>
           </div>
         </div>
@@ -1276,15 +1279,15 @@ export const EquityChart = ({ curve = [] }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--profit)', boxShadow: '0 0 8px rgba(0,245,155,0.4)' }} />
-          <span><strong>Profit Gain ($)</strong> (Winning Trades)</span>
+          <span><strong>Profit Gain ({symbol})</strong> (Winning Trades)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--loss)', boxShadow: '0 0 8px rgba(255,51,102,0.4)' }} />
-          <span><strong>Loss Drag ($)</strong> (Losing Trades)</span>
+          <span><strong>Loss Drag ({symbol})</strong> (Losing Trades)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '18px', height: '2px', background: isProfitUSDProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
-          <span><strong>Cumulative Net Profit (USD)</strong> Trajectory</span>
+          <span><strong>Cumulative Net Profit ({currency})</strong> Trajectory</span>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
@@ -1366,7 +1369,7 @@ export const EquityChart = ({ curve = [] }) => {
                     textAnchor="end"
                     fontFamily="var(--font-mono)"
                   >
-                    {formatUSDMetric(val, false)}
+                    {formatUSDMetric(val, false, symbol)}
                   </text>
                 )}
               </g>
@@ -1390,7 +1393,7 @@ export const EquityChart = ({ curve = [] }) => {
             );
           })}
 
-          {/* Zero USD Reference Baseline */}
+          {/* Zero Reference Baseline */}
           <line
             className="chart-zero-line"
             x1={paddingX}
@@ -1409,7 +1412,7 @@ export const EquityChart = ({ curve = [] }) => {
             fontFamily="var(--font-mono)"
             fontWeight="800"
           >
-            $0
+            {symbol}0
           </text>
 
           {/* Top Maximum Reference Line */}
@@ -1433,7 +1436,7 @@ export const EquityChart = ({ curve = [] }) => {
                 fontFamily="var(--font-mono)"
                 fontWeight="800"
               >
-                +{formatUSDMetric(maxProfitVal, false)}
+                +{formatUSDMetric(maxProfitVal, false, symbol)}
               </text>
             </>
           )}
@@ -1459,7 +1462,7 @@ export const EquityChart = ({ curve = [] }) => {
                 fontFamily="var(--font-mono)"
                 fontWeight="800"
               >
-                -{formatUSDMetric(Math.abs(minProfitVal), false)}
+                -{formatUSDMetric(Math.abs(minProfitVal), false, symbol)}
               </text>
             </>
           )}
@@ -1589,10 +1592,10 @@ export const EquityChart = ({ curve = [] }) => {
               {hoveredProfitPoint.date} • {hoveredProfitPoint.instrument}
             </div>
             <div style={{ marginTop: '4px', fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-              Trade Profit: <span style={{ color: hoveredProfitPoint.profitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSDMetric(hoveredProfitPoint.profitUSD, true)}</span>
+              Trade Profit: <span style={{ color: hoveredProfitPoint.profitUSD >= 0 ? 'var(--profit)' : 'var(--loss)' }}>{formatUSDMetric(hoveredProfitPoint.profitUSD, true, symbol)}</span>
             </div>
             <div style={{ fontSize: '0.78rem', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-              Cumulative Profit: {formatUSDMetric(hoveredProfitPoint.cumulativeProfitUSD, true)}
+              Cumulative Profit: {formatUSDMetric(hoveredProfitPoint.cumulativeProfitUSD, true, symbol)}
             </div>
           </div>
         )}

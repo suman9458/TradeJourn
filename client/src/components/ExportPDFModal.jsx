@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { FileText, X, CheckSquare, Square, Download, Sparkles } from 'lucide-react';
+import { useCurrency } from '../context/CurrencyContext';
 
-const AVAILABLE_COLUMNS = [
+const BASE_COLUMNS = [
   { id: 'dateTime', label: 'Date & Time', category: 'General' },
   { id: 'instrument', label: 'Ticker / Instrument', category: 'General' },
   { id: 'tradeName', label: 'Trade Name / Setup', category: 'General' },
@@ -11,20 +12,25 @@ const AVAILABLE_COLUMNS = [
   { id: 'result', label: 'Outcome (WIN/LOSS/BE)', category: 'Performance' },
   { id: 'rr', label: 'Net R-Multiple', category: 'Performance' },
   { id: 'pips', label: 'Pips Gained / Lost', category: 'Performance' },
-  { id: 'pnl', label: 'P&L ($ USD Profit)', category: 'Performance' },
+  { id: 'pnl', label: 'P&L Profit', category: 'Performance' },
   { id: 'grade', label: 'Setup Grade', category: 'Review' },
   { id: 'emotion', label: 'Emotional State', category: 'Review' },
   { id: 'notes', label: 'Mistakes & Review Notes', category: 'Review' }
 ];
 
-const DEFAULT_SELECTED = AVAILABLE_COLUMNS.map(c => c.id);
+const DEFAULT_SELECTED = BASE_COLUMNS.map(c => c.id);
 
 export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, totalTradesCount = 0 }) => {
+  const { currency, symbol } = useCurrency();
   const [selectedColumns, setSelectedColumns] = useState(DEFAULT_SELECTED);
   const [includeSummary, setIncludeSummary] = useState(true);
   const [timeframe, setTimeframe] = useState('ALL');
 
   if (!isOpen) return null;
+
+  const AVAILABLE_COLUMNS = BASE_COLUMNS.map(c =>
+    c.id === 'pnl' ? { ...c, label: `P&L (${currency} ${symbol} Profit)` } : c
+  );
 
   const toggleColumn = (id) => {
     setSelectedColumns(prev =>
@@ -50,7 +56,8 @@ export const ExportPDFModal = ({ isOpen, onClose, onExport, loading = false, tot
     onExport({
       selectedColumns,
       includeSummary,
-      timeframe
+      timeframe,
+      currency
     });
   };
 

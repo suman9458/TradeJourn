@@ -17,15 +17,10 @@ import {
   Layers,
   AlertTriangle
 } from 'lucide-react';
-
-const formatUSD = (val) => {
-  const num = Number(val || 0);
-  const sign = num > 0 ? '+' : num < 0 ? '-' : '';
-  const abs = Math.abs(num);
-  return `${sign}$${abs.toLocaleString('en-US')}`;
-};
+import { useCurrency } from '../context/CurrencyContext';
 
 export const KPICards = ({ stats }) => {
+  const { currency, symbol, format } = useCurrency();
   if (!stats) return null;
 
   const totalProfit = Math.round(stats.totalProfit !== undefined ? stats.totalProfit : (stats.totalR || 0) * 100);
@@ -40,13 +35,13 @@ export const KPICards = ({ stats }) => {
     { label: 'Winning Trades', value: stats.winningTrades, tone: 'positive', icon: CheckCircle2, sub: `${(stats.winRate || 0).toFixed(0)}% Execution Rate` },
     { label: 'Losing Trades', value: stats.losingTrades, tone: 'negative', icon: XCircle, sub: `${(stats.lossRate || 0).toFixed(0)}% Loss Rate` },
     { label: 'Overall Win Rate', value: `${(stats.winRate || 0).toFixed(1)}%`, tone: 'positive', icon: Percent, sub: 'Statistical Probability' },
-    { label: 'Total Net PnL ($)', value: formatUSD(totalProfit), tone: totalProfit >= 0 ? 'positive' : 'negative', icon: DollarSign, sub: 'Realized Cumulative PnL' },
-    { label: 'Average Expectancy ($)', value: formatUSD(avgProfit), tone: avgProfit >= 0 ? 'positive' : 'negative', icon: Scale, sub: 'Expected Value / Trade' },
-    { label: 'Average Win ($)', value: formatUSD(avgWinUSD), tone: 'positive', icon: TrendingUp, sub: 'Mean Target Reward' },
-    { label: 'Average Loss ($)', value: formatUSD(avgLossUSD), tone: 'negative', icon: TrendingDown, sub: 'Controlled Risk Limit' },
+    { label: `Total Net PnL (${symbol})`, value: format(totalProfit, { showSign: true, decimals: 0 }), tone: totalProfit >= 0 ? 'positive' : 'negative', icon: DollarSign, sub: 'Realized Cumulative PnL' },
+    { label: `Average Expectancy (${symbol})`, value: format(avgProfit, { showSign: true, decimals: 0 }), tone: avgProfit >= 0 ? 'positive' : 'negative', icon: Scale, sub: 'Expected Value / Trade' },
+    { label: `Average Win (${symbol})`, value: format(avgWinUSD, { showSign: true, decimals: 0 }), tone: 'positive', icon: TrendingUp, sub: 'Mean Target Reward' },
+    { label: `Average Loss (${symbol})`, value: format(avgLossUSD, { showSign: true, decimals: 0 }), tone: 'negative', icon: TrendingDown, sub: 'Controlled Risk Limit' },
     { label: 'Profit Factor', value: (stats.profitFactor || 0).toFixed(2), tone: (stats.profitFactor || 0) >= 1.5 ? 'positive' : 'warning', icon: Activity, sub: (stats.profitFactor >= 2 ? 'Elite Edge' : 'Profitable') },
-    { label: 'Best Trade ($)', value: formatUSD(bestTradeUSD), tone: 'positive', icon: Award, sub: 'Maximum Runner' },
-    { label: 'Worst Trade ($)', value: formatUSD(worstTradeUSD), tone: 'negative', icon: XCircle, sub: 'Worst Drawdown' },
+    { label: `Best Trade (${symbol})`, value: format(bestTradeUSD, { showSign: true, decimals: 0 }), tone: 'positive', icon: Award, sub: 'Maximum Runner' },
+    { label: `Worst Trade (${symbol})`, value: format(worstTradeUSD, { showSign: true, decimals: 0 }), tone: 'negative', icon: XCircle, sub: 'Worst Drawdown' },
     { label: 'Current Win Streak', value: stats.currentWinStreak, tone: 'positive', icon: Flame, sub: 'Consecutive Wins' },
     { label: 'Current Loss Streak', value: stats.currentLossStreak, tone: 'negative', icon: TrendingDown, sub: 'Consecutive Losses' },
     { label: 'Peak Win Streak', value: stats.maxWinStreak, tone: 'positive', icon: Zap, sub: 'Historical Best' },

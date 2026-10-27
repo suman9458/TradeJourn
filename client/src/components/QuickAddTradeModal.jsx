@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage, processAndUploadMultipleImages } from '../utils/imageHelper';
+import { useCurrency } from '../context/CurrencyContext';
 
 const emotionalRiskList = ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Frustrated', 'Anxious', 'Overconfident'];
 
@@ -52,6 +53,7 @@ export const PRESET_INSTRUMENTS = [
 ];
 
 export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
+  const { currency, symbol, convertFrom } = useCurrency();
   const todayStr = new Date().toISOString().slice(0, 10);
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(Math.round(now.getMinutes() / 15) * 15 % 60).padStart(2, '0')}`;
@@ -329,7 +331,9 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
     const rrVal = form.rr === '' || form.rr === undefined || isNaN(Number(form.rr)) ? 0 : Number(form.rr);
     const pipsVal = form.pips === '' || form.pips === undefined || isNaN(Number(form.pips)) ? 0 : Number(form.pips);
-    const tpVal = form.takeProfit === '' || form.takeProfit === undefined || isNaN(Number(form.takeProfit)) ? 0 : Number(form.takeProfit);
+    const userTpVal = form.takeProfit === '' || form.takeProfit === undefined || isNaN(Number(form.takeProfit)) ? 0 : Number(form.takeProfit);
+    // Convert to USD base if entered in a foreign currency so internal metrics remain unified
+    const baseUsdVal = (currency && currency !== 'USD') ? convertFrom(userTpVal, currency) : userTpVal;
     const finalImages = Array.isArray(form.images)
       ? form.images.filter(img => typeof img === 'string' && img.trim() !== '').slice(0, 3)
       : [];
@@ -343,20 +347,20 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
       isPropTrade: Boolean(form.isPropTrade),
       rr: rrVal,
       pips: pipsVal,
-      takeProfit: tpVal,
-      takeProfitUSD: tpVal
+      takeProfit: baseUsdVal,
+      takeProfitUSD: baseUsdVal
     };
 
     const persistLocalOverride = (resTrade) => {
       try {
         const overrides = JSON.parse(localStorage.getItem('tradejourn_tp_overrides') || '{}');
         if (resTrade && resTrade._id) {
-          overrides[resTrade._id] = tpVal;
+          overrides[resTrade._id] = baseUsdVal;
         }
         const sig = `${payload.tradeName}_${payload.date}_${payload.time || '00:00'}`;
-        overrides[sig] = tpVal;
+        overrides[sig] = baseUsdVal;
         const dateKey = `${payload.date}_${payload.time || '00:00'}`;
-        overrides[dateKey] = tpVal;
+        overrides[dateKey] = baseUsdVal;
         localStorage.setItem('tradejourn_tp_overrides', JSON.stringify(overrides));
       } catch (err) {
         console.warn('Local storage override error:', err);
@@ -708,11 +712,11 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
             </label>
 
             <label>
-              <span>Take Profit (USD)</span>
+              <span>Take Profit ({currency}) ({symbol})</span>
               <input
                 type="number"
                 step="any"
-                placeholder="e.g. 150"
+                placeholder={currency === 'USD' ? 'e.g. 150' : `e.g. ${symbol}1500`}
                 value={form.takeProfit ?? ''}
                 onFocus={(e) => e.target.select()}
                 onChange={e => handleNumberChange('takeProfit', e.target.value)}

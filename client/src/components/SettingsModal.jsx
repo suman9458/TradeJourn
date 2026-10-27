@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
 import { MAJOR_CURRENCIES } from '../utils/currencyHelper';
 
 export const SettingsModal = ({ isOpen, onClose }) => {
   const { user, updateUserSettings } = useAuth();
+  const { currency: globalCurrency, setCurrency: setGlobalCurrency } = useCurrency();
   const isAdmin = user?.role === 'admin';
 
   // Profile Fields
@@ -42,7 +44,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setEmail(user.email || '');
       setTradingExperience(user.tradingExperience || 'Intermediate');
       setAvatar(user.avatar || '');
-      setCurrency(user.settings?.currency || 'USD');
+      setCurrency(globalCurrency || user.settings?.currency || 'USD');
       setRiskPerTrade(user.settings?.riskPerTrade ?? 1);
       setDefaultInstrument(user.settings?.defaultInstrument || 'EURUSD');
       setAiProvider(user.settings?.aiProvider || 'gemini');
@@ -170,6 +172,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         settings: updatedSettings
       });
 
+      setGlobalCurrency(currency);
       setSaved(true);
       setTimeout(() => {
         setSaved(false);

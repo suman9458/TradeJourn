@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
+import { ALL_CURRENCIES, getCurrencySymbol } from '../utils/currencyHelper';
 
 
 
@@ -732,7 +733,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               </div>
             </div>
             <div className="kpi-value">
-              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {getCurrencySymbol(activeAccount.currency)}
               {(activeAccount.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -746,7 +747,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <TrendingUp size={15} color="var(--profit)" />
             </div>
             <div className="kpi-value" style={{ color: (activeAccount.equity || 0) >= (activeAccount.balance || 0) ? 'var(--profit)' : 'var(--loss)' }}>
-              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {getCurrencySymbol(activeAccount.currency)}
               {(activeAccount.equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -761,7 +762,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
             </div>
             <div className="kpi-value">
               {(activeAccount.floatingProfit || 0) >= 0 ? '+' : ''}
-              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {getCurrencySymbol(activeAccount.currency)}
               {(activeAccount.floatingProfit || 0).toFixed(2)}
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -775,7 +776,7 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
               <ShieldCheck size={15} color="var(--accent-purple)" />
             </div>
             <div className="kpi-value" style={{ fontSize: '1.2rem' }}>
-              {activeAccount.currency === 'EUR' ? '€' : activeAccount.currency === 'GBP' ? '£' : activeAccount.currency === 'INR' ? '₹' : activeAccount.currency === 'JPY' ? '¥' : '$'}
+              {getCurrencySymbol(activeAccount.currency)}
               {(activeAccount.freeMargin || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} Free
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -2016,12 +2017,11 @@ export const MT5IntegrationView = ({ trades = [], stats = null }) => {
                         fontSize: '0.88rem'
                       }}
                     >
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (€)</option>
-                      <option value="GBP">GBP (£)</option>
-                      <option value="INR">INR (₹)</option>
-                      <option value="JPY">JPY (¥)</option>
-                      <option value="USDT">USDT</option>
+                      {ALL_CURRENCIES.map(c => (
+                        <option key={c.code} value={c.code}>
+                          {c.code} ({c.symbol}) — {c.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

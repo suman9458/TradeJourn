@@ -23,6 +23,34 @@ import { compressImageFile, processAndUploadChartImage, processAndUploadMultiple
 
 const emotionalRiskList = ['Fear', 'Greed', 'Impatient', 'Revenge', 'FOMO', 'Frustrated', 'Anxious', 'Overconfident'];
 
+export const PRESET_INSTRUMENTS = [
+  'NIFTY50',
+  'BANKNIFTY',
+  'SENSEX',
+  'MIDCAP',
+  'FINNIFTY',
+  'EURUSD',
+  'GBPUSD',
+  'USDJPY',
+  'AUDUSD',
+  'USDCAD',
+  'USDCHF',
+  'NZDUSD',
+  'GBPJPY',
+  'EURGBP',
+  'EURJPY',
+  'XAUUSD',
+  'XAGUSD',
+  'CRUDEOIL',
+  'NAS100',
+  'US30',
+  'SPX500',
+  'DAX40',
+  'BTCUSD',
+  'ETHUSD',
+  'SOLUSD'
+];
+
 export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
   const todayStr = new Date().toISOString().slice(0, 10);
   const now = new Date();
@@ -53,6 +81,8 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
     images: []
   });
 
+  const [isOtherInstrument, setIsOtherInstrument] = useState(false);
+  const [customInstrument, setCustomInstrument] = useState('');
   const [imageMode, setImageMode] = useState('upload'); // 'upload' | 'url'
   const [urlInput, setUrlInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -63,6 +93,16 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Sync custom instrument state if form.instrument is not in preset
+  useEffect(() => {
+    if (isOpen) {
+      if (form.instrument && !PRESET_INSTRUMENTS.includes(form.instrument)) {
+        setIsOtherInstrument(true);
+        setCustomInstrument(form.instrument);
+      }
+    }
+  }, [isOpen]);
 
   // Paste image directly from clipboard (e.g. TradingView copy screenshot / Snipping tool)
   useEffect(() => {
@@ -276,7 +316,16 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
       setError('Please provide a Trade Identifier / Rationale (e.g. EURUSD London Liquidity Sweep)');
       return;
     }
+
+    if (isOtherInstrument && (!customInstrument.trim() || customInstrument.trim().toUpperCase() === 'OTHER')) {
+      setError('Please enter your custom market name (e.g. RELIANCE, NIFTY 25000 CE, MIDCAP)');
+      return;
+    }
     setError('');
+
+    const resolvedInstrument = isOtherInstrument
+      ? (customInstrument.trim().toUpperCase() || 'OTHER')
+      : (form.instrument || 'EURUSD');
 
     const rrVal = form.rr === '' || form.rr === undefined || isNaN(Number(form.rr)) ? 0 : Number(form.rr);
     const pipsVal = form.pips === '' || form.pips === undefined || isNaN(Number(form.pips)) ? 0 : Number(form.pips);
@@ -287,6 +336,7 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
 
     const payload = {
       ...form,
+      instrument: resolvedInstrument,
       images: finalImages,
       screenshotUrl: finalImages[0] || form.screenshotUrl || '',
       imageUrl: finalImages[0] || form.screenshotUrl || '',
@@ -444,21 +494,92 @@ export const QuickAddTradeModal = ({ isOpen, onClose, onTradeSaved }) => {
               />
             </label>
 
-            <label>
-              <span>Instrument *</span>
-              <select value={form.instrument} onChange={e => setForm({ ...form, instrument: e.target.value })}>
-                <option>EURUSD</option>
-                <option>GBPUSD</option>
-                <option>XAUUSD</option>
-                <option>USDJPY</option>
-                <option>NAS100</option>
-                <option>US30</option>
-                <option>XAGUSD</option>
-                <option>AUDUSD</option>
-                <option>BTCUSD</option>
-                <option>Other</option>
-              </select>
-            </label>
+            <div>
+              <label style={{ display: 'block', marginBottom: isOtherInstrument ? '6px' : '0' }}>
+                <span>Instrument / Market *</span>
+                <select
+                  value={isOtherInstrument ? 'Other' : form.instrument}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'Other') {
+                      setIsOtherInstrument(true);
+                      setForm(prev => ({ ...prev, instrument: customInstrument.trim() || '' }));
+                    } else {
+                      setIsOtherInstrument(false);
+                      setForm(prev => ({ ...prev, instrument: val }));
+                    }
+                  }}
+                >
+                  <optgroup label="🇮🇳 Indian Markets & Indices">
+                    <option value="NIFTY50">NIFTY50</option>
+                    <option value="BANKNIFTY">BANKNIFTY</option>
+                    <option value="SENSEX">SENSEX</option>
+                    <option value="MIDCAP">NIFTY MIDCAP</option>
+                    <option value="FINNIFTY">FINNIFTY</option>
+                  </optgroup>
+                  <optgroup label="Forex Majors & Crosses">
+                    <option value="EURUSD">EURUSD</option>
+                    <option value="GBPUSD">GBPUSD</option>
+                    <option value="USDJPY">USDJPY</option>
+                    <option value="AUDUSD">AUDUSD</option>
+                    <option value="USDCAD">USDCAD</option>
+                    <option value="USDCHF">USDCHF</option>
+                    <option value="NZDUSD">NZDUSD</option>
+                    <option value="GBPJPY">GBPJPY</option>
+                    <option value="EURGBP">EURGBP</option>
+                    <option value="EURJPY">EURJPY</option>
+                  </optgroup>
+                  <optgroup label="Commodities & Precious Metals">
+                    <option value="XAUUSD">XAUUSD (Gold)</option>
+                    <option value="XAGUSD">XAGUSD (Silver)</option>
+                    <option value="CRUDEOIL">CRUDEOIL</option>
+                  </optgroup>
+                  <optgroup label="Global Equity Indices">
+                    <option value="NAS100">NAS100 (Nasdaq)</option>
+                    <option value="US30">US30 (Dow Jones)</option>
+                    <option value="SPX500">SPX500 (S&P 500)</option>
+                    <option value="DAX40">DAX40 (Germany)</option>
+                  </optgroup>
+                  <optgroup label="Cryptocurrency">
+                    <option value="BTCUSD">BTCUSD (Bitcoin)</option>
+                    <option value="ETHUSD">ETHUSD (Ethereum)</option>
+                    <option value="SOLUSD">SOLUSD (Solana)</option>
+                  </optgroup>
+                  <optgroup label="Custom / Other">
+                    <option value="Other">Other (Enter Market Manually...)</option>
+                  </optgroup>
+                </select>
+              </label>
+
+              {/* Manual Custom Market Input if 'Other' is selected */}
+              {isOtherInstrument && (
+                <div style={{ marginTop: '6px' }}>
+                  <label>
+                    <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--accent-cyan)', display: 'block', marginBottom: '4px' }}>
+                      Manual Market / Ticker *
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. RELIANCE, NIFTY 25000 CE, TATAMOTORS, SOLUSDT..."
+                      value={customInstrument}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setCustomInstrument(val);
+                        setForm(prev => ({ ...prev, instrument: val }));
+                      }}
+                      style={{
+                        borderColor: 'var(--accent-cyan)',
+                        background: 'rgba(0, 210, 255, 0.06)',
+                        color: 'var(--text-white)',
+                        fontWeight: '600'
+                      }}
+                      autoFocus
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
 
             <label>
               <span>Session</span>

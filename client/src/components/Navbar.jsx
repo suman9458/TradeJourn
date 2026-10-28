@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, FileText, RefreshCw, Menu, Clock, Sun, Moon, Settings, User, DollarSign, ChevronDown } from 'lucide-react';
+import { Plus, FileText, RefreshCw, Menu, Clock, Sun, Moon, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useCurrency } from '../context/CurrencyContext';
 
 const LiveClock = () => {
   const [timeStr, setTimeStr] = useState(() => {
@@ -25,9 +24,18 @@ const LiveClock = () => {
   );
 };
 
-export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset, onToggleSidebar, onOpenSettings, onOpenAuth, theme = 'dark', onToggleTheme }) => {
+export const Navbar = ({
+  onOpenAddTrade,
+  onExportPDF,
+  onRefresh,
+  onResetDataset,
+  onToggleSidebar,
+  onOpenSettings,
+  onOpenAuth,
+  theme = 'dark',
+  onToggleTheme
+}) => {
   const { user } = useAuth();
-  const { currency, setCurrency, currencies } = useCurrency();
   return (
     <header className="topbar">
       <div className="topbar-main-row">
@@ -43,29 +51,13 @@ export const Navbar = ({ onOpenAddTrade, onExportPDF, onRefresh, onResetDataset,
               <Menu size={22} strokeWidth={2.5} />
             </button>
           )}
+
           <div className="topbar-title">
             <h2>TradeJourn</h2>
           </div>
         </div>
 
         <div className="topbar-utility-actions">
-          {/* Quick Real-Time Currency Switcher (Instant Conversion Across All Screens) */}
-          <div className="topbar-currency-badge" title="Instant Currency Switcher & Conversion">
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="topbar-currency-select"
-              aria-label="Active Account Currency"
-            >
-              {currencies.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.symbol} {c.code}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={12} className="topbar-currency-arrow" />
-          </div>
-
           {onToggleTheme && (
             <button
               type="button"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { Sidebar } from './components/Sidebar';
@@ -24,12 +24,28 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { exportTradeHistoryPDF } from './utils/exportPDF';
 
+const VALID_TABS = ['overview', 'charts', 'analytics', 'ai-coach', 'reviews', 'goals', 'database', 'mt5'];
+
+const TAB_TITLES = {
+  overview: 'TradeJourn - Command Overview',
+  charts: 'TradeJourn - Pips & Profit Trajectory',
+  analytics: 'TradeJourn - Deep Analytics',
+  'ai-coach': 'TradeJourn - AI Trading Coach',
+  reviews: 'TradeJourn - Performance Reviews',
+  goals: 'TradeJourn - Prop Goals & Milestones',
+  database: 'TradeJourn - Database Ledger',
+  mt5: 'TradeJourn - MT5 Integration'
+};
+
 const DashboardContent = () => {
   const { user, token, loading } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      return params.get('tab') || 'overview';
+      const tab = params.get('tab');
+      if (tab && VALID_TABS.includes(tab)) {
+        return tab;
+      }
     }
     return 'overview';
   });
@@ -97,8 +113,57 @@ const DashboardContent = () => {
     }
   };
 
+  // History-aware navigation handler (supports browser Back / Forward)
+  const handleTabChange = useCallback((nextTab, pushHistory = true) => {
+    const valid = VALID_TABS.includes(nextTab) ? nextTab : 'overview';
+    setActiveTab(prevTab => {
+      if (valid === prevTab) return prevTab;
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', valid);
+
+      if (pushHistory) {
+        window.history.pushState({ tab: valid }, '', url.toString());
+      } else {
+        window.history.replaceState({ tab: valid }, '', url.toString());
+      }
+
+      document.title = TAB_TITLES[valid] || 'TradeJourn';
+      return valid;
+    });
+  }, []);
+
+  // Synchronize browser history and listen for Back / Forward (popstate) events
   useEffect(() => {
-    document.title = 'TradeJourn';
+    // 1. Sync initial history entry on first load so Back button has an anchor state
+    const params = new URLSearchParams(window.location.search);
+    const initialTabFromUrl = params.get('tab');
+    const initialTab = (initialTabFromUrl && VALID_TABS.includes(initialTabFromUrl)) ? initialTabFromUrl : activeTab;
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', initialTab);
+    window.history.replaceState({ tab: initialTab }, '', url.toString());
+    document.title = TAB_TITLES[initialTab] || 'TradeJourn';
+
+    // 2. Handle popstate when user clicks browser Back / Forward or mouse Back button
+    const handlePopState = (event) => {
+      // Dismiss any open modal overlays
+      setIsAddTradeOpen(false);
+      setIsResetModalOpen(false);
+      setIsExportPDFOpen(false);
+      setIsSettingsOpen(false);
+      setIsAuthOpen(false);
+      setIsMobileNavOpen(false);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetTab = event.state?.tab || urlParams.get('tab') || 'overview';
+      const valid = VALID_TABS.includes(targetTab) ? targetTab : 'overview';
+
+      setActiveTab(valid);
+      document.title = TAB_TITLES[valid] || 'TradeJourn';
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
@@ -219,7 +284,7 @@ const DashboardContent = () => {
     <div className="app-container">
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         stats={stats}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -250,6 +315,7 @@ const DashboardContent = () => {
               curve={equityCurve}
               onOpenAddTrade={() => setIsAddTradeOpen(true)}
               onTradeUpdated={handleRefresh}
+              onNavigateTab={handleTabChange}
             />
           )}
 

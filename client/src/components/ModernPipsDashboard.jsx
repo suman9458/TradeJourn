@@ -116,7 +116,8 @@ export const ModernPipsDashboard = ({
   breakdowns = null,
   curve = [],
   onOpenAddTrade,
-  onTradeUpdated
+  onTradeUpdated,
+  onNavigateTab
 }) => {
   const { user } = useAuth();
   const { currency, symbol, convert, format, formatCompact } = useCurrency();
@@ -1724,8 +1725,14 @@ export const ModernPipsDashboard = ({
             <button
               type="button"
               className="panel-view-all"
-              onClick={() => setIsFullScreenOpen(true)}
-              title="Open all trades in full screen ledger (Esc to close)"
+              onClick={() => {
+                if (onNavigateTab) {
+                  onNavigateTab('database');
+                } else {
+                  setIsFullScreenOpen(true);
+                }
+              }}
+              title="Open all trades in database ledger"
             >
               View All →
             </button>

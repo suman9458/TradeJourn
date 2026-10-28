@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { Sidebar } from './components/Sidebar';
@@ -113,24 +113,29 @@ const DashboardContent = () => {
     }
   };
 
-  // History-aware navigation handler (supports browser Back / Forward)
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  // History-aware navigation handler (supports browser Back / Forward on a single click)
   const handleTabChange = useCallback((nextTab, pushHistory = true) => {
     const valid = VALID_TABS.includes(nextTab) ? nextTab : 'overview';
-    setActiveTab(prevTab => {
-      if (valid === prevTab) return prevTab;
+    if (valid === activeTabRef.current) return;
 
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', valid);
+    activeTabRef.current = valid;
+    setActiveTab(valid);
 
-      if (pushHistory) {
-        window.history.pushState({ tab: valid }, '', url.toString());
-      } else {
-        window.history.replaceState({ tab: valid }, '', url.toString());
-      }
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', valid);
 
-      document.title = TAB_TITLES[valid] || 'TradeJourn';
-      return valid;
-    });
+    // Prevent duplicate consecutive entries in history
+    const currentHistoryTab = window.history.state?.tab;
+    if (pushHistory && currentHistoryTab !== valid) {
+      window.history.pushState({ tab: valid }, '', url.toString());
+    } else {
+      window.history.replaceState({ tab: valid }, '', url.toString());
+    }
+
+    document.title = TAB_TITLES[valid] || 'TradeJourn';
   }, []);
 
   // Synchronize browser history and listen for Back / Forward (popstate) events
@@ -158,6 +163,7 @@ const DashboardContent = () => {
       const targetTab = event.state?.tab || urlParams.get('tab') || 'overview';
       const valid = VALID_TABS.includes(targetTab) ? targetTab : 'overview';
 
+      activeTabRef.current = valid;
       setActiveTab(valid);
       document.title = TAB_TITLES[valid] || 'TradeJourn';
     };

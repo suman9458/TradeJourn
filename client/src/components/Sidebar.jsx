@@ -157,7 +157,7 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
             style={{
               width: '38px',
               height: '38px',
-              borderRadius: '10px',
+              borderRadius: '50%',
               background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 210, 255, 0.2))',
               border: '1px solid var(--border-medium)',
               display: 'grid',

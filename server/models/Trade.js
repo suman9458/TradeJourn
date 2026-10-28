@@ -233,12 +233,14 @@ const tradeSchema = new mongoose.Schema(
   }
 );
 
-// High-performance compound indexes for large-scale filtering
+// Production Compound Indexes for High-Speed Filtering & Aggregation
 tradeSchema.index({ userId: 1, date: -1 });
+tradeSchema.index({ userId: 1, instrument: 1 });
+tradeSchema.index({ userId: 1, session: 1 });
 tradeSchema.index({ userId: 1, result: 1 });
 tradeSchema.index({ userId: 1, setupRating: 1 });
-tradeSchema.index({ userId: 1, session: 1 });
 tradeSchema.index({ userId: 1, emotion: 1 });
+tradeSchema.index({ userId: 1, createdAt: -1 });
 
 // Automatically compute discipline score and normalized flags
 tradeSchema.pre('save', function (next) {
@@ -311,12 +313,5 @@ tradeSchema.pre('save', function (next) {
 
   next();
 });
-
-// Production Compound Indexes for High-Speed Filtering & Aggregation
-tradeSchema.index({ userId: 1, date: -1 });
-tradeSchema.index({ userId: 1, instrument: 1 });
-tradeSchema.index({ userId: 1, session: 1 });
-tradeSchema.index({ userId: 1, result: 1 });
-tradeSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Trade', tradeSchema);

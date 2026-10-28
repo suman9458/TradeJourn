@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema(
       aiProvider: { type: String, default: 'gemini' },
       geminiApiKey: { type: String, default: '' },
       aiApiKey: { type: String, default: '' },
-      aiModel: { type: String, default: 'gemini-3.8-flash' }
+      aiModel: { type: String, default: 'gemini-2.0-flash' }
     }
   },
   {

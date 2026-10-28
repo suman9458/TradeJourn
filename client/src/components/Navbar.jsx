@@ -114,16 +114,38 @@ export const Navbar = ({
               onClick={onOpenSettings || onOpenAuth}
               title={user?.name ? `${user.name} - Settings & Profile` : "Trader Settings & Profile"}
               aria-label="Trader Settings & Profile"
-              style={user?.avatar ? { padding: '3px', overflow: 'hidden' } : {}}
+              style={{
+                width: '36px',
+                height: '36px',
+                minWidth: '36px',
+                borderRadius: '50%',
+                padding: 0,
+                overflow: 'hidden',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
                   alt={user?.name || 'Trader'}
-                  style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover' }}
+                  className="topbar-user-avatar-img"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
                 />
+              ) : (user?.name || user?.username) ? (
+                <span className="topbar-user-avatar-text" style={{ fontSize: '0.92rem', fontWeight: '800' }}>
+                  {(user.name || user.username).charAt(0).toUpperCase()}
+                </span>
               ) : (
-                <Settings size={15} />
+                <Settings size={16} />
               )}
             </button>
           )}

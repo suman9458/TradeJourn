@@ -297,7 +297,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                   <div style={{
                     width: '68px',
                     height: '68px',
-                    borderRadius: '16px',
+                    borderRadius: '50%',
                     background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.25), rgba(0, 210, 255, 0.25))',
                     border: '2px solid var(--accent-cyan)',
                     display: 'grid',
@@ -348,11 +348,11 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                   </button>
                 </div>
 
-                {/* Photo Actions & Text */}
-                <div style={{ flex: 1, minWidth: '180px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-white)' }}>
-                      Trader Photo (Avatar)
+                {/* Trader Name & Upload Action */}
+                <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-white)' }}>
+                      {name || user?.name || user?.username || 'Trader'}
                     </h4>
                     {photoSuccess && (
                       <span style={{ fontSize: '0.72rem', color: 'var(--profit)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -360,9 +360,6 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                       </span>
                     )}
                   </div>
-                  <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                    Upload your profile picture (JPG, PNG, WebP). It displays across your sidebar and trade logs.
-                  </p>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <input
@@ -378,12 +375,13 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                       disabled={uploadingPhoto}
                       className="btn-secondary"
                       style={{
-                        padding: '6px 12px',
-                        fontSize: '0.76rem',
+                        padding: '7px 14px',
+                        fontSize: '0.78rem',
                         fontWeight: '700',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '6px',
+                        borderRadius: '8px'
                       }}
                     >
                       {uploadingPhoto ? (
@@ -406,8 +404,8 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                         disabled={uploadingPhoto}
                         className="btn-ghost"
                         style={{
-                          padding: '6px 10px',
-                          fontSize: '0.76rem',
+                          padding: '7px 10px',
+                          fontSize: '0.78rem',
                           color: 'var(--loss)',
                           display: 'flex',
                           alignItems: 'center',

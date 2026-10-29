@@ -1,28 +1,68 @@
 /**
  * TradeJourn Normalized Market Data Service
  * ==========================================
- * Retrieves live quotes & historical candles for Forex, Metals, and Crypto.
- * Distinguishes LIVE vs DELAYED vs UNAVAILABLE.
- * Never fabricates or hallucinates live market prices.
+ * Modular Market Data Architecture with Verified External Adapters:
+ * - BinanceProvider (Live 24/7 Crypto REST Feed)
+ * - TwelveDataProvider (Verified Institutional Multi-Asset Feed when key configured)
+ * - YahooProvider (Public Delayed Feed Fallback - transparently flagged as DELAYED)
+ * - TestStubProvider (Dedicated Isolated Test Interface for deterministic testing)
+ *
+ * Rules:
+ * 1. Clearly distinguish LIVE vs DELAYED vs CACHED vs UNAVAILABLE.
+ * 2. Validate candle integrity (high >= low, positive prices, ascending timestamps, gap detection).
+ * 3. Never fabricate or hallucinate live market prices.
+ * 4. Never promise or guarantee profitable trading outcomes.
  */
 
 const { MARKET_SYMBOLS_MAP } = require('../ai/intentClassifier');
+const BinanceProvider = require('./providers/binanceProvider');
+const TwelveDataProvider = require('./providers/twelveDataProvider');
+const YahooProvider = require('./providers/yahooProvider');
+const TestStubProvider = require('./providers/testStubProvider');
+const { validateCandles, classifyFreshness, isMarketWeekend } = require('./candleValidator');
 
-const TIMEOUT_MS = 6000;
-const CACHE_TTL_MS = 30000; // 30s cache TTL to respect rate limits
+const CACHE_TTL_MS = 30000; // 30-second cache TTL to respect external rate limits
 const marketCache = new Map();
 
+// Active provider instances
+const binanceProvider = new BinanceProvider();
+const twelveDataProvider = new TwelveDataProvider();
+const yahooProvider = new YahooProvider();
+
+// Test harness provider override (strictly for testing; null in production)
+let activeTestProvider = null;
+
+function setTestProvider(provider) {
+  activeTestProvider = provider;
+}
+
+function resetTestProvider() {
+  activeTestProvider = null;
+}
+
+function clearMarketCache() {
+  marketCache.clear();
+}
+
 /**
- * In-memory TTL cache helpers
+ * Cache getters and setters with TTL validation
  */
 function getCached(key) {
   const entry = marketCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
+  const age = Date.now() - entry.cachedAt;
+  if (age > CACHE_TTL_MS) {
     marketCache.delete(key);
     return null;
   }
-  return entry.data;
+  // Return cached snapshot with status marked as CACHED
+  return {
+    ...entry.data,
+    status: 'CACHED',
+    isCached: true,
+    cachedAt: new Date(entry.cachedAt).toISOString(),
+    cacheAgeSeconds: Math.floor(age / 1000)
+  };
 }
 
 function setCached(key, data) {
@@ -30,14 +70,13 @@ function setCached(key, data) {
 }
 
 /**
- * Determine current active trading session based on UTC hour
+ * Determine active global trading session based on UTC time
  */
 function getCurrentMarketSession() {
   const now = new Date();
   const utcHour = now.getUTCHours();
-  const day = now.getUTCDay();
+  const isWeekend = isMarketWeekend(now);
 
-  const isWeekend = (day === 6) || (day === 0 && utcHour < 21);
   if (isWeekend) {
     return 'Weekend (Forex/Metals Markets Closed; Crypto Active 24/7)';
   }
@@ -58,6 +97,23 @@ function getCurrentMarketSession() {
 }
 
 /**
+ * Identify asset class
+ */
+function detectAssetClass(symbol) {
+  const upper = (symbol || '').toUpperCase();
+  if (['BTCUSD', 'ETHUSD', 'SOLUSD', 'XRPUSD', 'ADAUSD'].includes(upper)) {
+    return 'crypto';
+  }
+  if (['XAUUSD', 'XAGUSD'].includes(upper)) {
+    return 'metals';
+  }
+  if (['US30', 'NAS100', 'SPX500', 'NIFTY50'].includes(upper)) {
+    return 'indices';
+  }
+  return 'forex';
+}
+
+/**
  * Standardize instrument string
  */
 function normalizeSymbol(input) {
@@ -67,225 +123,94 @@ function normalizeSymbol(input) {
 }
 
 /**
- * Fetch live Crypto quote & candles from Binance Public REST API
- */
-async function fetchBinanceCryptoData(symbol, timeframe = '1h', limit = 30) {
-  const pairMap = {
-    BTCUSD: 'BTCUSDT',
-    ETHUSD: 'ETHUSDT'
-  };
-  const pair = pairMap[symbol] || `${symbol}T`;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const [tickerRes, klinesRes] = await Promise.all([
-      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`, { signal: controller.signal }),
-      fetch(`https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${timeframe}&limit=${limit}`, { signal: controller.signal })
-    ]);
-
-    clearTimeout(timeoutId);
-
-    if (!tickerRes.ok || !klinesRes.ok) {
-      return null;
-    }
-
-    const ticker = await tickerRes.json();
-    const klines = await klinesRes.json();
-
-    const price = parseFloat(ticker.lastPrice);
-    const bid = parseFloat(ticker.bidPrice);
-    const ask = parseFloat(ticker.askPrice);
-    const change24h = parseFloat(ticker.priceChangePercent);
-    const high24h = parseFloat(ticker.highPrice);
-    const low24h = parseFloat(ticker.lowPrice);
-
-    const candles = klines.map(k => ({
-      time: new Date(k[0]).toISOString(),
-      open: parseFloat(k[1]),
-      high: parseFloat(k[2]),
-      low: parseFloat(k[3]),
-      close: parseFloat(k[4]),
-      volume: parseFloat(k[5])
-    }));
-
-    return {
-      status: 'LIVE',
-      source: 'Binance Spot API',
-      symbol,
-      price,
-      bid,
-      ask,
-      change24h,
-      high24h,
-      low24h,
-      timeframe,
-      timestamp: new Date().toISOString(),
-      candles
-    };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    return null;
-  }
-}
-
-/**
- * Fetch Forex / Gold market quote via free live exchange rates & Yahoo Finance
- */
-async function fetchForexAndMetalsData(symbol, timeframe = '1h', limit = 30) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    // Standardized Yahoo Finance Symbol
-    const yahooSymbolMap = {
-      XAUUSD: 'GC=F',     // Gold Futures / Spot proxy
-      XAGUSD: 'SI=F',     // Silver Futures
-      EURUSD: 'EURUSD=X',
-      GBPUSD: 'GBPUSD=X',
-      USDJPY: 'JPY=X',
-      USDCAD: 'CAD=X',
-      AUDUSD: 'AUDUSD=X',
-      US30: '^DJI',
-      NAS100: '^IXIC'
-    };
-
-    const ySymbol = yahooSymbolMap[symbol] || `${symbol}=X`;
-
-    // Map timeframe to Yahoo parameters
-    let yInterval = '60m';
-    let yRange = '1mo';
-    if (timeframe === '15m') {
-      yInterval = '15m';
-      yRange = '5d';
-    } else if (timeframe === '1d') {
-      yInterval = '1d';
-      yRange = '3mo';
-    } else if (timeframe === '4h') {
-      yInterval = '60m';
-      yRange = '1mo';
-    }
-
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?interval=${yInterval}&range=${yRange}`;
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 TradeJourn/2.0'
-      }
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return null;
-
-    const meta = result.meta;
-    const price = meta.regularMarketPrice || meta.previousClose;
-    const timestamps = result.timestamp || [];
-    const quote = result.indicators?.quote?.[0] || {};
-
-    const opens = quote.open || [];
-    const highs = quote.high || [];
-    const lows = quote.low || [];
-    const closes = quote.close || [];
-    const volumes = quote.volume || [];
-
-    const candles = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (opens[i] !== null && closes[i] !== null) {
-        candles.push({
-          time: new Date(timestamps[i] * 1000).toISOString(),
-          open: Number(opens[i].toFixed(symbol.includes('JPY') ? 3 : 5)),
-          high: Number(highs[i].toFixed(symbol.includes('JPY') ? 3 : 5)),
-          low: Number(lows[i].toFixed(symbol.includes('JPY') ? 3 : 5)),
-          close: Number(closes[i].toFixed(symbol.includes('JPY') ? 3 : 5)),
-          volume: Number(volumes[i] || 0)
-        });
-      }
-    }
-
-    // If 4h requested, aggregate 4 1-hour candles into 1 4-hour candle
-    let finalCandles = candles;
-    if (timeframe === '4h' && candles.length >= 4) {
-      const agg = [];
-      for (let i = 0; i < candles.length; i += 4) {
-        const chunk = candles.slice(i, i + 4);
-        if (chunk.length > 0) {
-          agg.push({
-            time: chunk[0].time,
-            open: chunk[0].open,
-            high: Math.max(...chunk.map(c => c.high)),
-            low: Math.min(...chunk.map(c => c.low)),
-            close: chunk[chunk.length - 1].close,
-            volume: chunk.reduce((sum, c) => sum + c.volume, 0)
-          });
-        }
-      }
-      finalCandles = agg;
-    }
-
-    const trimmedCandles = finalCandles.slice(-limit);
-
-    return {
-      status: 'LIVE',
-      source: 'Global Market Feed',
-      symbol,
-      price: Number(price.toFixed(symbol.includes('JPY') ? 3 : (symbol === 'XAUUSD' || symbol.includes('30') || symbol.includes('100') ? 2 : 5))),
-      bid: Number(price.toFixed(symbol.includes('JPY') ? 3 : 5)),
-      ask: Number(price.toFixed(symbol.includes('JPY') ? 3 : 5)),
-      change24h: meta.chartPreviousClose ? Number((((price - meta.chartPreviousClose) / meta.chartPreviousClose) * 100).toFixed(2)) : 0,
-      high24h: meta.regularMarketDayHigh || price,
-      low24h: meta.regularMarketDayLow || price,
-      timeframe,
-      session: getCurrentMarketSession(),
-      timestamp: new Date().toISOString(),
-      candles: trimmedCandles
-    };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    return null;
-  }
-}
-
-/**
  * Master Market Data Gateway
+ * Retrieves fresh quote and OHLC candles from authorized providers
  */
 async function getMarketData(rawSymbol, timeframe = '1h', limit = 30) {
   const symbol = normalizeSymbol(rawSymbol);
+  const assetClass = detectAssetClass(symbol);
   const cacheKey = `${symbol}_${timeframe}_${limit}`;
+
+  // 1. Check in-memory TTL cache
   const cached = getCached(cacheKey);
-  if (cached) return cached;
+  if (cached && !activeTestProvider) {
+    return cached;
+  }
 
   let result = null;
 
-  // 1. If Crypto, try Binance first
-  if (['BTCUSD', 'ETHUSD'].includes(symbol)) {
-    result = await fetchBinanceCryptoData(symbol, timeframe, limit);
+  // 2. If test stub provider is injected by test harness, use it
+  if (activeTestProvider) {
+    result = await activeTestProvider.fetchQuoteAndCandles(symbol, timeframe, limit);
+  }
+  // 3. For Crypto: Binance public REST API is the primary live exchange feed
+  else if (assetClass === 'crypto') {
+    result = await binanceProvider.fetchQuoteAndCandles(symbol, timeframe, limit);
+  }
+  // 4. For Forex, Metals, Indices:
+  //    Try Twelve Data if configured, otherwise fallback to Yahoo public delayed feed
+  else {
+    if (twelveDataProvider.isAvailable()) {
+      result = await twelveDataProvider.fetchQuoteAndCandles(symbol, timeframe, limit);
+    }
+
+    if (!result || !result.candles || result.candles.length === 0) {
+      result = await yahooProvider.fetchQuoteAndCandles(symbol, timeframe, limit);
+    }
   }
 
-  // 2. Try Global Market feed (Forex, Metals, Indices)
-  if (!result || !result.candles || result.candles.length === 0) {
-    result = await fetchForexAndMetalsData(symbol, timeframe, limit);
+  // 5. Candle Validation & Freshness Classification
+  if (result && Array.isArray(result.candles) && result.candles.length > 0) {
+    const candleValidation = validateCandles(result.candles, timeframe, assetClass);
+
+    if (candleValidation.cleanCandles.length > 0) {
+      const freshness = classifyFreshness({
+        timestamp: result.timestamp,
+        provider: result.provider,
+        isCached: false,
+        assetClass,
+        knownDelayed: result.status === 'DELAYED'
+      });
+
+      const validatedResult = {
+        ...result,
+        status: freshness.status,
+        session: getCurrentMarketSession(),
+        retrievedAt: new Date().toISOString(),
+        candles: candleValidation.cleanCandles,
+        candleIntegrity: {
+          valid: candleValidation.valid,
+          totalReceived: candleValidation.totalCount,
+          validCount: candleValidation.validCount,
+          hasGaps: candleValidation.hasGaps,
+          gaps: candleValidation.gaps,
+          errors: candleValidation.errors
+        },
+        freshness
+      };
+
+      setCached(cacheKey, validatedResult);
+      return validatedResult;
+    }
   }
 
-  if (result && result.candles && result.candles.length > 0) {
-    setCached(cacheKey, result);
-    return result;
+  // 6. Transparent Fallback: Data unavailable (Never fabricate live prices!)
+  const isWeekend = isMarketWeekend();
+  const session = getCurrentMarketSession();
+
+  let message = `Live external market data feed for ${symbol} is currently unreachable. Technical analysis can be structured using playbook templates or verified journal history.`;
+  if (isWeekend && assetClass !== 'crypto') {
+    message = `Forex & Commodity markets are closed for the weekend (Friday 21:00 UTC - Sunday 21:00 UTC). Live quote feed for ${symbol} will resume upon market open.`;
   }
 
-  // 3. Fallback: Data unavailable (Never fabricate live prices!)
   return {
     status: 'UNAVAILABLE',
     symbol,
     timeframe,
-    session: getCurrentMarketSession(),
+    session,
     timestamp: new Date().toISOString(),
-    message: `Live market data feed for ${symbol} is currently unreachable or market is closed for the weekend/session. Factual technical analysis structure can be reviewed using your historical journal or strategy templates.`,
+    isVerifiedExternal: false,
+    message,
     candles: []
   };
 }
@@ -309,7 +234,17 @@ async function getMultiTimeframeMarketData(rawSymbol, timeframes = ['15m', '1h',
 module.exports = {
   normalizeSymbol,
   getCurrentMarketSession,
+  detectAssetClass,
   getMarketData,
-  getMultiTimeframeMarketData
+  getMultiTimeframeMarketData,
+  setTestProvider,
+  resetTestProvider,
+  clearMarketCache,
+  BinanceProvider,
+  TwelveDataProvider,
+  YahooProvider,
+  TestStubProvider,
+  validateCandles,
+  classifyFreshness,
+  isMarketWeekend
 };
-

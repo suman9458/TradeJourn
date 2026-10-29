@@ -399,15 +399,35 @@ function detectOrderBlocksAndZones(candles) {
 
 /**
  * Generate Structured Professional Market Outlook
+ * Enforces verified data transparency, multi-scenario planning,
+ * exact invalidation levels, and non-promissory risk disclosures.
  */
 function generateStructuredOutlook(marketData) {
   if (!marketData || marketData.status === 'UNAVAILABLE' || !marketData.candles || marketData.candles.length === 0) {
     return `### Market Analysis: ${marketData?.symbol || 'Instrument'}
-- **Data Status:** Live quote feed is currently unavailable or market is closed.
-- **Guidance:** Ensure you trade only during liquid sessions (London / New York overlap). Wait for market open to observe genuine liquidity and candle confirmation.`;
+• **Data Status:** External market feed is currently unavailable or market is closed for the weekend/session.
+• **Limitation Disclosure:** TradeJourn never fabricates, hallucinates, or estimates live prices when an external feed is offline.
+• **Guidance:** Review your playbook rules, risk management protocols, or position sizing formulas. Fresh technical structure will populate once liquid market hours resume.`;
   }
 
-  const { symbol, price, change24h, high24h, low24h, candles, source, timestamp, timeframe, session } = marketData;
+  const {
+    symbol,
+    price,
+    change24h = 0,
+    high24h,
+    low24h,
+    candles,
+    provider,
+    source,
+    timestamp,
+    timeframe = '1h',
+    session,
+    status = 'LIVE',
+    isCached,
+    cacheAgeSeconds,
+    candleIntegrity,
+    isVerifiedExternal
+  } = marketData;
 
   const rsi = calculateRSI(candles, 14);
   const macd = calculateMACD(candles);
@@ -421,40 +441,72 @@ function generateStructuredOutlook(marketData) {
   const divergence = detectRSIDivergence(candles);
   const obData = detectOrderBlocksAndZones(candles);
 
-  const nearestResistance = swingHighs.length ? swingHighs[swingHighs.length - 1].price : (high24h || price * 1.008);
-  const nearestSupport = swingLows.length ? swingLows[swingLows.length - 1].price : (low24h || price * 0.992);
+  const nearestResistance = swingHighs.length ? swingHighs[swingHighs.length - 1].price : (high24h || Number((price * 1.008).toFixed(4)));
+  const nearestSupport = swingLows.length ? swingLows[swingLows.length - 1].price : (low24h || Number((price * 0.992).toFixed(4)));
 
-  const rsiCondition = rsi ? (rsi > 70 ? 'Overbought (>70)' : rsi < 30 ? 'Oversold (<30)' : `Neutral (${rsi})`) : 'N/A';
+  const rsiCondition = rsi ? (rsi > 70 ? `Overbought (${rsi})` : rsi < 30 ? `Oversold (${rsi})` : `Neutral Momentum (${rsi})`) : 'N/A';
   const momentum = macd ? `${macd.momentum} (Histogram: ${macd.histogram})` : 'Neutral';
 
-  return `📊 INSTITUTIONAL MARKET OUTLOOK: ${symbol}
-• Current Price: ${price} (${change24h >= 0 ? '+' : ''}${change24h}%)
-• Source: ${source} | Timeframe: ${timeframe} | Data Timestamp: ${new Date(timestamp).toLocaleTimeString()}
+  // Format Data Feed Status Badge
+  let statusBadge = `[STATUS: ${status}]`;
+  if (status === 'DELAYED') {
+    statusBadge = `[STATUS: DELAYED (~15m)]`;
+  } else if (status === 'CACHED') {
+    statusBadge = `[STATUS: CACHED (${cacheAgeSeconds || '<30'}s old)]`;
+  } else if (status === 'LIVE') {
+    statusBadge = `[STATUS: VERIFIED LIVE]`;
+  } else if (status === 'MARKET_CLOSED') {
+    statusBadge = `[STATUS: MARKET CLOSED (Weekend)]`;
+  }
+
+  const providerName = provider || source || 'External Market Feed';
+  const dataTimeStr = timestamp ? new Date(timestamp).toUTCString() : 'N/A';
+
+  // Calculate target levels based on ATR and swing levels
+  const atrValue = atr || Number((price * 0.005).toFixed(4));
+  const bullishTarget = Number((nearestResistance + (atrValue * 1.5)).toFixed(4));
+  const bearishTarget = Number((nearestSupport - (atrValue * 1.5)).toFixed(4));
+
+  return `📊 INSTITUTIONAL MARKET OUTLOOK: ${symbol} (${timeframe})
+• Current Price: ${price} (${change24h >= 0 ? '+' : ''}${change24h}%) ${statusBadge}
+• Data Feed: ${providerName} | Timestamp: ${dataTimeStr}
+• Feed Verification: ${isVerifiedExternal ? 'Verified External Provider' : 'Offline Verified Sandbox'}
 • Active Session: ${session || 'Global Trading Session'}
-• Market Structure: ${structure.trend} (${structure.structure})
-${obData.dealingRange ? `• Dealing Range Pricing: ${obData.dealingRange.pricingZone} (50% Equilibrium: ${obData.dealingRange.equilibrium})` : ''}
-• Technical Indicators: RSI(14) = ${rsiCondition} | MACD = ${momentum} | ATR = ${atr || 'N/A'}
+${candleIntegrity?.hasGaps ? `• ⚠️ Data Feed Notice: Detected ${candleIntegrity.gaps.length} missing candle interval(s) in external feed.` : ''}
+${status === 'DELAYED' ? `• ℹ️ Latency Notice: Quotes are delayed by ~15 minutes (Public delayed feed). Institutional direct execution requires TWELVE_DATA_API_KEY.` : ''}
+
+🏛️ MARKET STRUCTURE & TREND:
+• Primary Trend: ${structure.trend} (${structure.structure})
+${obData.dealingRange ? `• Dealing Range: ${obData.dealingRange.pricingZone} (50% Equilibrium: ${obData.dealingRange.equilibrium})` : ''}
+• Break of Structure (BOS): ${bosData.currentStatus}
 ${divergence ? `• Divergence: ⚠️ ${divergence.description}` : ''}
 ${liquiditySweep.detected ? `• Liquidity Sweep: ⚡ ${liquiditySweep.implication} (Level: ${liquiditySweep.level})` : ''}
 
-🔑 KEY LEVELS & STRUCTURE:
+🔬 QUANTITATIVE INDICATOR READINGS:
+• RSI (14): ${rsiCondition}
+• MACD (12, 26, 9): ${momentum}
+• ATR (14): ${atr || 'N/A'} (Average True Range volatility)
+${bb ? `• Bollinger Bands (20, 2): Upper ${bb.upper} | Middle ${bb.middle} | Lower ${bb.lower}` : ''}
+${fvgs.length > 0 ? `• Fair Value Gaps (FVG): ${fvgs.map(f => `${f.type} [${f.bottom} - ${f.top}]`).join(', ')}` : ''}
+${obData.orderBlocks.length > 0 ? `• Institutional Order Blocks: ${obData.orderBlocks.map(ob => `${ob.type} [${ob.bottom} - ${ob.top}]`).join(', ')}` : ''}
+
+🔑 KEY STRUCTURAL LEVELS:
 • Nearest Technical Resistance: ${nearestResistance}
 • Nearest Technical Support: ${nearestSupport}
-${bb ? `• Bollinger Bands (20, 2): Upper ${bb.upper} | Middle ${bb.middle} | Lower ${bb.lower}` : ''}
-${fvgs.length > 0 ? `• Recent Imbalances (FVG): ${fvgs.map(f => `${f.type} [${f.bottom} - ${f.top}]`).join(', ')}` : ''}
-${obData.orderBlocks.length > 0 ? `• Active Order Blocks: ${obData.orderBlocks.map(ob => `${ob.type} [${ob.bottom} - ${ob.top}]`).join(', ')}` : ''}
-• Structure Status: ${bosData.currentStatus}
 
-📈 SCENARIO 1: BULLISH EXPANSION
-• Trigger / Confirmation: Sustained candle close above ${nearestResistance} with expanding volume.
-• Invalidation Level: Failure to hold support at ${nearestSupport} (Thesis invalid if candle closes below ${nearestSupport}).
+📈 SCENARIO A (BULLISH EXPANSION):
+• Trigger / Confirmation: Sustained candle close above resistance at ${nearestResistance} with bullish momentum/volume confirmation.
+• Objective Upside Target: ${bullishTarget}
+• Invalidation Condition: Thesis is strictly INVALIDATED if price closes below support at ${nearestSupport}.
 
-📉 SCENARIO 2: BEARISH REVERSAL / RETRACEMENT
-• Trigger / Confirmation: Rejection at ${nearestResistance} or a clean break of structure below ${nearestSupport}.
-• Invalidation Level: Continuation breaking cleanly above ${nearestResistance}.
+📉 SCENARIO B (BEARISH REVERSAL / BREAKDOWN):
+• Trigger / Confirmation: Rejection at ${nearestResistance} or a confirmed candle close below support at ${nearestSupport}.
+• Objective Downside Target: ${bearishTarget}
+• Invalidation Condition: Thesis is strictly INVALIDATED if price expands and closes above resistance at ${nearestResistance}.
 
-⚠️ RISK & VOLATILITY NOTICE:
-Average True Range is ${atr || 'moderate'}. Avoid chasing prices mid-range. Wait for confirmation at defined key levels and maintain your maximum 1% risk rule.`;
+⚠️ RISK DISCLOSURE & EXECUTION RULES:
+• Non-Promissory Disclosure: This technical analysis models structural probabilities and key inflection levels. It does NOT promise or guarantee a profitable outcome or financial return.
+• Capital Protection: Always risk a maximum of 1% to 2% of account equity per trade. Ensure stop-loss orders are placed before entering the market.`;
 }
 
 module.exports = {

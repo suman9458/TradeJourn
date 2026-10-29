@@ -59,7 +59,8 @@ CORE PRINCIPLES & COMMUNICATION RULES:
 • [Follow-up question 1]
 • [Follow-up question 2]
 9. Verified Ground Truth: Base all journal advice strictly on actual trade records. Never invent statistics, win rates, or profits.
-10. PERSONAL TRADING ANALYTICS RIGOR: All personal trading metrics (sample size N, date range, win rate, gross vs net P&L, fees/commissions, swaps, expectancy, profit factor, drawdown, holding duration, and session/strategy performance) must be grounded in verified backend calculations. Always report sample size (N) and date range. Differentiate Gross P&L from Net Realized P&L after fees. State win rate alongside breakeven rate and win rate excluding breakeven trades. Explain the evidence behind performance findings. Explicitly distinguish correlation from causation (e.g. remind traders that higher win rate in a session or setup tag correlates with adherence to confirmation and discipline, rather than the tag or session alone causing edge). Never fabricate unrecorded records or metrics.`;
+10. PERSONAL TRADING ANALYTICS RIGOR: All personal trading metrics (sample size N, date range, win rate, gross vs net P&L, fees/commissions, swaps, expectancy, profit factor, drawdown, holding duration, and session/strategy performance) must be grounded in verified backend calculations. Always report sample size (N) and date range. Differentiate Gross P&L from Net Realized P&L after fees. State win rate alongside breakeven rate and win rate excluding breakeven trades. Explain the evidence behind performance findings. Explicitly distinguish correlation from causation (e.g. remind traders that higher win rate in a session or setup tag correlates with adherence to confirmation and discipline, rather than the tag or session alone causing edge). Never fabricate unrecorded records or metrics.
+11. VERIFIED EXTERNAL MARKET DATA & NON-PROMISSORY DISCLOSURE: When answering market-analysis requests, use fresh data for the requested symbol and timeframe. State the provider source and data timestamp clearly. Distinguish LIVE, DELAYED (~15m), CACHED, and UNAVAILABLE feeds honestly. Explain technical trend, market structure, key inflection levels, and formulate both bullish and bearish scenarios with exact invalidation levels. Never fabricate current prices or claim a live lookup occurred when data is unavailable. Never promise or guarantee a profitable outcome.`;
 
 /**
  * Clean output text from excessive formatting quirks while preserving markdown bold and lists
@@ -417,7 +418,7 @@ async function processAiCoachChat({
   }
 
   const cleanQuestion = question.trim();
-  const userId = user._id;
+  const userId = user?._id || user?.id || 'anonymous';
 
   // 1. Fast Intent Classification
   const intentResult = classifyIntent(cleanQuestion);
@@ -683,11 +684,16 @@ async function processAiCoachChat({
         symbol: marketContext.symbol,
         price: marketContext.price,
         status: marketContext.status,
+        provider: marketContext.provider || marketContext.source,
         source: marketContext.source,
+        timestamp: marketContext.timestamp,
         change24h: marketContext.change24h,
         high24h: marketContext.high24h,
         low24h: marketContext.low24h,
-        timeframe: marketContext.timeframe
+        timeframe: marketContext.timeframe,
+        isVerifiedExternal: marketContext.isVerifiedExternal,
+        candleCount: marketContext.candles?.length || 0,
+        hasGaps: marketContext.candleIntegrity?.hasGaps || false
       }, null, 2)}`
     });
   }

@@ -24,10 +24,100 @@ import { useAuth } from '../context/AuthContext';
 const cleanAiMessage = (text) => {
   if (!text) return '';
   return text
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
     .replace(/\(\s*([+-]?\d+(?:\.\d+)?R)\s*\/\s*\$0\s*\)/gi, '')
     .trim();
+};
+
+const parseInlineFormatting = (text) => {
+  if (!text) return '';
+  // Split on **bold** tokens and `code`
+  const parts = text.split(/(\*\*[^*]+?\*\*|`[^`]+?`)/g);
+  return parts.map((part, pIdx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={pIdx} className="ai-msg-bold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={pIdx} className="ai-msg-code">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+};
+
+const renderFormattedMessage = (rawText, onSelectFollowup) => {
+  if (!rawText) return null;
+  const text = cleanAiMessage(rawText);
+  const lines = text.split('\n');
+  const elements = [];
+  const followups = [];
+  let inFollowupSection = false;
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+
+    if (
+      trimmed.includes('Suggested Follow-ups') ||
+      trimmed.includes('Suggested Next Steps') ||
+      trimmed.includes('Next Steps / Suggested Follow-ups') ||
+      trimmed.includes('Quick Actions') ||
+      trimmed.includes('Quick Prompts') ||
+      trimmed.includes('Next Steps')
+    ) {
+      inFollowupSection = true;
+      elements.push(
+        <div key={`header-${idx}`} className="ai-followup-header">
+          <span>💡</span>
+          <span>{trimmed.replace(/^[💡\s*#]+/, '').replace(/\*\*/g, '')}</span>
+        </div>
+      );
+      return;
+    }
+
+    if (inFollowupSection && (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*'))) {
+      const match = trimmed.match(/[•\-*]\s*[*"]*(.+?)[*"]*$/);
+      if (match && match[1]) {
+        const cleanPrompt = match[1].replace(/^["'*]+|["'*]+$/g, '').trim();
+        if (cleanPrompt.length > 3) {
+          followups.push(cleanPrompt);
+        }
+      }
+    }
+
+    elements.push(
+      <div key={`line-${idx}`} className={`ai-msg-line ${!trimmed ? 'ai-msg-empty' : ''}`}>
+        {parseInlineFormatting(line)}
+      </div>
+    );
+  });
+
+  return (
+    <>
+      <div className="ai-formatted-content">{elements}</div>
+      {followups.length > 0 && onSelectFollowup && (
+        <div className="ai-followup-container">
+          {followups.map((prompt, fIdx) => (
+            <button
+              key={`fu-${fIdx}`}
+              type="button"
+              className="ai-followup-chip"
+              onClick={() => onSelectFollowup(prompt)}
+              title="Click to ask this question"
+            >
+              <span>💬</span>
+              <span>{prompt}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
 };
 
 const formatCurrentTime = () => {
@@ -207,7 +297,7 @@ export const AICoachView = ({ trades = [] }) => {
         ...prev,
         {
           sender: 'ai',
-          text: cleanAiMessage(res.answer) || 'Analysis complete.',
+          text: res.answer || 'Analysis complete.',
           model: res.model,
           provider: res.provider,
           timestamp: formatCurrentTime()
@@ -498,10 +588,11 @@ export const AICoachView = ({ trades = [] }) => {
               </div>
               <div className="ai-bubble-bot">
                 <div>
-                  {user ? (
-                    `Hi ${firstName}! 👋\nWelcome to TradeJourn AI Coach!\n\nI can help you analyse your trades, build strategies, explain concepts, improve your performance and answer any trading questions. Ask me anything to get started!`
-                  ) : (
-                    `Hi Guest! 👋\nWelcome to TradeJourn AI Coach!\n\nYou are currently in Guest mode with 0 closed trades logged. You can ask trading questions, analyze chart setups, or log in to sync your personal trade journal and performance statistics!`
+                  {renderFormattedMessage(
+                    user
+                      ? `Hi ${firstName}! 👋\nWelcome to TradeJourn AI Coach!\n\nI can help you audit your trades, calculate position sizes, explain price action concepts, and improve your execution discipline.\n\n💡 **Suggested Next Steps:**\n• *"What is my win rate and expectancy?"*\n• *"Was my last trade according to my rules?"*\n• *"Analyse Gold on 1h chart"*`
+                      : `Hi Guest! 👋\nWelcome to TradeJourn AI Coach!\n\nYou are currently in Guest mode. You can explore trading education, calculate position sizes, or analyze market setups. Log in anytime to sync your personal trade journal!\n\n💡 **Suggested Next Steps:**\n• *"What is win rate and how is expectancy calculated?"*\n• *"Explain liquidity sweeps and order blocks"*\n• *"Analyse Gold on 1h chart"*`,
+                    (fu) => setQuestion(fu)
                   )}
                 </div>
                 <div className="ai-bubble-bot-time">
@@ -533,7 +624,11 @@ export const AICoachView = ({ trades = [] }) => {
                   </div>
                 )}
 
-                <div>{cleanAiMessage(msg.text)}</div>
+                <div>
+                  {msg.sender === 'ai'
+                    ? renderFormattedMessage(msg.text, (fu) => setQuestion(fu))
+                    : cleanAiMessage(msg.text)}
+                </div>
 
                 <div className={msg.sender === 'user' ? 'ai-bubble-user-time' : 'ai-bubble-bot-time'}>
                   <span>{msg.timestamp || 'Just now'}</span>

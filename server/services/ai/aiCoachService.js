@@ -35,15 +35,28 @@ const { generateGeminiContent, normalizeModelName } = require('./geminiClient');
 
 const SYSTEM_INSTRUCTION = `You are the TradeJourn AI Trading Copilot—an institutional trading mentor, quantitative analyst, and performance coach built into TradeJourn.
 
-CORE PRINCIPLES:
-1. Natural & Conversational: Speak naturally, warmly, and directly. Avoid robotic canned responses. Support English, Hindi, and Hinglish fluidly depending on how the trader addresses you.
-2. Verified Ground Truth: Always base journal advice on actual trade records. Never invent statistics, win rates, or profits.
-3. Live Market Discipline: Base market outlooks on real observed price action, market structure, and key support/resistance levels. Never claim a delayed or estimated price is a guaranteed live tick.
-4. Risk & Psychology First: Prioritize capital preservation (1-2% risk rule), technical invalidation levels, and disciplined execution over emotional impulse.
-5. Formatting: Use clean markdown with clear bullet points. Avoid walls of repetitive disclaimers. Give the direct answer first, followed by reasoning and action steps.`;
+CORE PRINCIPLES & COMMUNICATION RULES:
+1. BOTTOM LINE UP FRONT (BLUF): State the direct answer, verdict, or numerical figure in the very first sentence before providing reasoning, breakdown, or steps.
+2. ZERO REPEATED GENERIC RESPONSES: Never output boilerplate lines such as "Analysis completed based on your verified journal ledger." or "I am actively monitoring your trading journal." Every reply must directly address the question with substance, data, or actionable guidance.
+3. CONVERSATIONAL & NATURAL: Speak naturally, warmly, and authoritatively. Avoid robotic jargon.
+4. LANGUAGE MIRRORING:
+   - If the user addresses you in Hindi or Hinglish (Roman Hindi like "kya haal hai", "mera win rate kya hai", "batao bhai"), respond fluently and naturally in conversational Hinglish.
+   - If the user addresses you in English, respond in crisp, professional English.
+5. ANSWER LENGTH PROPORTIONAL TO COMPLEXITY:
+   - Greetings & acknowledgments: 1-3 short, friendly lines. Zero journal stats.
+   - Clarifications: 2-4 lines clearly stating the missing variables with an example.
+   - Definitions & concepts: Direct 1-sentence definition -> Formula/Mechanics -> Real Example -> 1 Pro Tip (under 10 lines).
+   - Audits, reviews & analytics: Structured, detailed breakdown with concrete verdicts.
+6. NO IRRELEVANT JOURNAL STATS: Never mention or summarize the user's trading journal, win rate, or 0-trade ledger when the user is simply greeting you, chatting, or asking educational or general market questions.
+7. MISSING INFORMATION & CLARIFICATION: If a calculation (e.g. position sizing) lacks critical variables like account balance, risk %, or stop-loss distance, politely request the missing parameters with a formula and an example.
+8. CONTEXT-AWARE FOLLOW-UPS: At the end of every response, provide 1-2 sharp, context-aware follow-up question suggestions under:
+💡 **Next Steps / Suggested Follow-ups:**
+• [Follow-up question 1]
+• [Follow-up question 2]
+9. Verified Ground Truth: Base all journal advice strictly on actual trade records. Never invent statistics, win rates, or profits.`;
 
 /**
- * Clean output text from excessive asterisks or formatting quirks
+ * Clean output text from excessive formatting quirks while preserving markdown bold and lists
  */
 function cleanAiText(text) {
   if (!text) return '';
@@ -55,195 +68,257 @@ function cleanAiText(text) {
 /**
  * Format Grounded Deterministic Responses for all Intents
  */
-function formatGroundedAnswer(intent, journalContext, marketContext) {
+function formatGroundedAnswer(intent, journalContext, marketContext, language = 'english') {
+  const isHi = language === 'hinglish';
+
   if ((intent === 'MARKET_QUERY' || !journalContext) && marketContext) {
     return generateStructuredOutlook(marketContext);
   }
-  if (!journalContext) {
-    return "I am actively monitoring your trading journal. How can I help you improve your execution today?";
-  }
 
-  if (intent === 'TRADE_REVIEW' && journalContext.found) {
-    return `🔍 AUDITED TRADE REVIEW: ${journalContext.tradeName}
-• Instrument: ${journalContext.instrument} (${journalContext.direction}) | Date: ${journalContext.date} ${journalContext.time}
-• Session: ${journalContext.session} | Setup: ${journalContext.setupRating} (${journalContext.entryType})
-• Result: ${journalContext.result} (${journalContext.profitUSD} | Realized: ${journalContext.realizedR} vs Planned: ${journalContext.plannedRR})
-• Discipline Score: ${journalContext.disciplineScore} | Grade: ${journalContext.tradeGrade}
+  // Handle Trade Review
+  if (intent === 'TRADE_REVIEW') {
+    if (!journalContext || !journalContext.found) {
+      return isHi
+        ? `🔍 **Trade Review Verdict**: Aapke journal me audit karne ke liye koi trade nahi mila.\n\nKripya 'Quick Add Trade' button se apni trade log karein taaki main aapke playbook rules, execution confirmation aur risk discipline ko audit kar sakoon.\n\n💡 **Suggested Next Steps:**\n• *"Quick Add Trade se pehla trade log karein"*\n• *"Entry confirmation rules follow karne ka tareeqa kya hai?"*`
+        : `🔍 **Trade Review Verdict**: No matching trade was found in your journal to audit.\n\nPlease log your trade via the 'Quick Add Trade' button so I can verify your playbook rules, confirmation signals, and execution discipline.\n\n💡 **Suggested Next Steps:**\n• *"Log a new trade via Quick Add Trade"*\n• *"What entry confirmation rules should I follow?"*`;
+    }
 
-📋 PLAYBOOK RULE VERIFICATION:
+    return `🔍 **AUDITED TRADE REVIEW**: ${journalContext.tradeName}
+• **Verdict**: Result **${journalContext.result}** (${journalContext.profitUSD} | Realized: **${journalContext.realizedR}R** vs Planned: **${journalContext.plannedRR}R**)
+• **Discipline Score**: **${journalContext.disciplineScore}/100** | Grade: **${journalContext.tradeGrade}**
+• **Instrument**: ${journalContext.instrument} (${journalContext.direction}) | Date: ${journalContext.date} ${journalContext.time}
+• **Session**: ${journalContext.session} | Setup: ${journalContext.setupRating} (${journalContext.entryType})
+
+📋 **PLAYBOOK RULE VERIFICATION**:
 ${journalContext.ruleChecks.map(r => `• ${r.rule}: [${r.status}] ${r.note}`).join('\n')}
 
-📝 UNRECORDED EVIDENCE:
-${journalContext.missingFields.map(m => `• Missing: ${m}`).join('\n')}
+${journalContext.missingFields && journalContext.missingFields.length ? `📝 **UNRECORDED EVIDENCE**:\n${journalContext.missingFields.map(m => `• Missing: ${m}`).join('\n')}\n\n` : ''}💡 **COACH TAKEAWAY**:
+${journalContext.keyTakeaway}
 
-💡 COACH TAKEAWAY:
-${journalContext.keyTakeaway}`;
+💡 **Next Steps / Suggested Follow-ups:**
+• *"Was my stop-loss placement technically sound on this trade?"*
+• *"Audit my trading psychology and emotional discipline."*`;
   }
 
-  if (intent === 'TRADING_PSYCHOLOGY' && journalContext.tiltRiskLevel) {
-    return `🧠 TRADING PSYCHOLOGY & TILT AUDIT:
-• Analyzed: ${journalContext.totalTradesAnalyzed} closed trades
-• Baseline Win Rate: ${journalContext.baselineWinRate}
-• Win Rate Following a Loss: ${journalContext.winRateAfterLoss}
-• Win Rate Following a Win: ${journalContext.winRateAfterWin}
-• Tilt Risk Assessment: [${journalContext.tiltRiskLevel}]
-• Measured Behavioral Evidence: ${journalContext.tiltEvidence}
-• Premature Exits: ${journalContext.earlyExitRatio}
+  // Handle Trading Psychology
+  if (intent === 'TRADING_PSYCHOLOGY') {
+    if (!journalContext || !journalContext.tiltRiskLevel) {
+      return isHi
+        ? `🧠 **Trading Psychology Audit**: Aapke journal me psychology pattern measure karne ke liye trades available nahi hain. Trade add karein aur har trade me emotion (Calm, FOMO, Revenge) log karein.\n\n💡 **Suggested Next Steps:**\n• *"Quick Add Trade se trade log karein"*\n• *"Loss ke baad revenge trading kaise rokein?"*`
+        : `🧠 **Trading Psychology Audit**: Insufficient trade data to evaluate psychological tilt. Log trades along with your emotional states (Calm, Confident, Fear, FOMO) to unlock tilt analytics.\n\n💡 **Suggested Next Steps:**\n• *"Log trades with emotion tags"*\n• *"How to stop revenge trading after a loss?"*`;
+    }
 
-${journalContext.coachingRule}`;
+    return `🧠 **TRADING PSYCHOLOGY & TILT AUDIT**:
+• **Tilt Risk Level**: **[${journalContext.tiltRiskLevel}]** (Analyzed: ${journalContext.totalTradesAnalyzed} closed trades)
+• **Baseline Win Rate**: **${journalContext.baselineWinRate}**
+• **Win Rate After a Loss**: **${journalContext.winRateAfterLoss}**
+• **Win Rate After a Win**: **${journalContext.winRateAfterWin}**
+• **Premature Exits**: **${journalContext.earlyExitRatio}**
+• **Behavioral Evidence**: ${journalContext.tiltEvidence}
+
+🛡️ **COACHING RULE**:
+${journalContext.coachingRule}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What are my most common costly emotional mistakes?"*
+• *"How do I enforce a mandatory cooling-off period after a loss?"*`;
   }
 
-  if (intent === 'PROP_FIRM_QUERY' && journalContext.accountSize) {
-    return `🛡️ PROP FIRM CHALLENGE STATUS:
-• Status: [${journalContext.status}]
-• Account Size: ${journalContext.accountSize} | Target: ${journalContext.profitTarget}
-• Total Realized P&L: ${journalContext.totalRealizedPnl} (${journalContext.targetProgressPct} of target)
-• Today's P&L: ${journalContext.todayPnl}
-• Daily Loss Limit: ${journalContext.maxDailyLossLimit} | Remaining Buffer Today: ${journalContext.dailyLossRemainingBuffer}
-• Max Total Loss Limit: ${journalContext.maxTotalLossLimit} | Max Drawdown Observed: ${journalContext.maxDrawdownObserved} (Buffer: ${journalContext.totalLossRemainingBuffer})`;
+  // Handle Prop Firm
+  if (intent === 'PROP_FIRM_QUERY' && journalContext && journalContext.accountSize) {
+    return `🛡️ **PROP FIRM CHALLENGE STATUS**:
+• **Status**: **[${journalContext.status}]** | Account Size: **${journalContext.accountSize}**
+• **Profit Target**: **${journalContext.profitTarget}** (Progress: **${journalContext.targetProgressPct}**)
+• **Total Realized P&L**: **${journalContext.totalRealizedPnl}** | Today's P&L: **${journalContext.todayPnl}**
+• **Daily Loss Limit**: ${journalContext.maxDailyLossLimit} | Remaining Buffer Today: **${journalContext.dailyLossRemainingBuffer}**
+• **Max Total Loss Limit**: ${journalContext.maxTotalLossLimit} | Remaining Buffer: **${journalContext.totalLossRemainingBuffer}**
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"Calculate safe position size to protect my daily loss buffer."*
+• *"What are the trailing drawdown rules?"*`;
   }
 
-  if (intent === 'PLAYBOOK_QUERY' && journalContext.entryRules) {
-    return `📖 DOCUMENTED PLAYBOOK RULES:
-• Entry Rules:
-${journalContext.entryRules.map(r => `  - ${r}`).join('\n')}
-• Risk Rules:
-${journalContext.riskRules.map(r => `  - ${r}`).join('\n')}
-• Exit Rules:
-${journalContext.exitRules.map(r => `  - ${r}`).join('\n')}
-• Psychology Rules:
-${journalContext.psychologyRules.map(r => `  - ${r}`).join('\n')}`;
-  }
-
-  if (intent === 'JOURNAL_COMPARISON' && journalContext.period1) {
-    return `⚖️ TRADING SESSION COMPARISON:
-• ${journalContext.period1.label}: ${journalContext.period1.trades} trades | Win Rate: ${journalContext.period1.winRate} | Net P&L: ${journalContext.period1.netProfit} | Profit Factor: ${journalContext.period1.profitFactor} | Avg R: ${journalContext.period1.avgR}
-• ${journalContext.period2.label}: ${journalContext.period2.trades} trades | Win Rate: ${journalContext.period2.winRate} | Net P&L: ${journalContext.period2.netProfit} | Profit Factor: ${journalContext.period2.profitFactor} | Avg R: ${journalContext.period2.avgR}
-
-💡 Takeaway: ${journalContext.takeaway}`;
-  }
-
-  if (intent === 'BACKTEST_QUERY' && journalContext.performance) {
-    return `🧪 QUANTITATIVE STRATEGY BACKTEST: ${journalContext.strategy}
-• Initial Capital: ${journalContext.performance.initialCapital} | Final Equity: ${journalContext.performance.finalEquity}
-• Net Return: ${journalContext.performance.netReturnPct} (${journalContext.performance.netProfitUSD})
-• Total Trades: ${journalContext.performance.totalTrades} (${journalContext.performance.winningTrades}W / ${journalContext.performance.losingTrades}L)
-• Win Rate: ${journalContext.performance.winRate} | Profit Factor: ${journalContext.performance.profitFactor}
-• Expectancy: ${journalContext.performance.expectancyUSD} (${journalContext.performance.expectancyR})
-• Max Drawdown: ${journalContext.performance.maxDrawdownPct} (${journalContext.performance.maxDrawdownUSD})
-• Sharpe Ratio: ${journalContext.performance.sharpeRatio}
-
-⚠️ Material Limitations & Disclosures:
-${journalContext.disclosures.map(d => `• ${d}`).join('\n')}`;
-  }
-
-  if (intent === 'ECONOMIC_CALENDAR' && journalContext.events) {
-    return `📅 HIGH-IMPACT MACROECONOMIC SCHEDULE:
-${journalContext.events.map(e => `• [${e.impact}] ${e.event} (${e.currency})
-  - Schedule: ${e.frequency} at ${e.timeUTC}
-  - Volatility Impact: ${e.typicalVolatility}
-  - Risk Guidance: ${e.guidance}`).join('\n\n')}
-
-⚠️ General Policy: Spreads widen sharply 5-10 minutes prior to red-folder news. Protect existing profits with break-even stops or remain flat.`;
-  }
-
-  if (intent === 'POSITION_SIZING' && journalContext.calculatedPositionSize) {
-    return `📐 INSTITUTIONAL POSITION SIZING AUDIT:
-• Instrument: ${journalContext.instrument}
-• Account Balance: ${journalContext.accountBalance}
-• Risk Target: ${journalContext.riskPercent} (${journalContext.riskAmountUSD} maximum risk)
-• Stop-Loss Distance: ${journalContext.stopLossDistance}
-• Recommended Position Size: ${journalContext.calculatedPositionSize}
-
-Formula: ${journalContext.formulaNote}
-${journalContext.maxDailyLossWarning}`;
-  }
-
-  if (intent === 'STATISTICAL_ANALYSIS' && journalContext.meanOutcomeUSD) {
-    return `📊 STATISTICAL DISTRIBUTION & CONFIDENCE INTERVALS:
-• Sample Size: ${journalContext.sampleSize} trades
-• Mean Trade Outcome: ${journalContext.meanOutcomeUSD}
-• Median Trade Outcome: ${journalContext.medianOutcomeUSD}
-• Standard Deviation (σ): ${journalContext.standardDeviationUSD}
-• Win Rate: ${journalContext.winRate}
-• 95% Confidence Interval for Win Rate: ${journalContext.winRate95CI}
-• Distribution Skew: ${journalContext.distributionSkew}
-
-🔬 OUTLIER EDGE AUDIT:
-• Largest Winning Trade: ${journalContext.outlierAnalysis.largestWinnerUSD}
-• Total P&L (All Trades): ${journalContext.outlierAnalysis.pnlWithAllTrades}
-• Total P&L (Excluding Largest Winner): ${journalContext.outlierAnalysis.pnlExcludingLargestWinner}
-• Assessment: ${journalContext.outlierAnalysis.isEdgeDependentOnOutlier}
-
-💡 Sample Validity: ${journalContext.sampleSizeAssessment}`;
-  }
-
-  if (intent === 'KNOWLEDGE_RETRIEVAL' && journalContext.passages) {
-    return `📚 RETRIEVED INSTITUTIONAL KNOWLEDGE DOCTRINE:
-${journalContext.passages.map(p => `### ${p.title} [Category: ${p.category}]\n${p.content}`).join('\n\n')}
-
-Source: TradeJourn Verified Knowledge Base`;
-  }
-
-  if (intent === 'MACRO_ANALYSIS' && journalContext.primaryDrivers) {
-    return `🌐 MACROECONOMIC DRIVERS & INTER-MARKET ANALYSIS: ${journalContext.instrument || journalContext.symbol}
-• Primary Drivers:
-${journalContext.primaryDrivers.map(d => `  - ${d}`).join('\n')}
-
-🛡️ Macro Risk Rule:
-${journalContext.riskRule}`;
-  }
-
-  if (journalContext.totalTrades === 0 || journalContext.hasData === false) {
-    return "Your journal currently has 0 closed trades logged. To get tailored performance audits, log your first trade via the 'Quick Add Trade' button!";
-  }
-
-  if (journalContext.winRate) {
-    return `Based on your audited trade ledger (${journalContext.totalTrades} closed trades):
-• Win Rate: ${journalContext.winRate} (${journalContext.winningTrades}W / ${journalContext.losingTrades}L / ${journalContext.breakEvenTrades}BE)
-• Realized Net P&L: ${journalContext.netProfitUSD} (${journalContext.totalR})
-• Expectancy: ${journalContext.expectancyUSD}
-• Profit Factor: ${journalContext.profitFactor}
-• Max Drawdown: ${journalContext.maxDrawdownUSD || 'N/A'}
-• Average Discipline: ${journalContext.averageDiscipline}
-• Current Streak: ${journalContext.currentStreak}
-${journalContext.sampleSizeWarning ? `\n⚠️ ${journalContext.sampleSizeWarning}` : ''}
-
-Tip: Focus on taking only your highest quality setups and maintain your risk discipline.`;
-  }
-
-  if (journalContext.trades) {
-    return `Here is your recent trade history (${journalContext.trades.length} trades returned):\n\n` +
-      journalContext.trades.map(t => `• ${t.date}: ${t.instrument} (${t.direction}) — Result: ${t.result} (${t.profitUSD}, ${t.rResult}) | Setup: ${t.setup}`).join('\n');
-  }
-
-  if (journalContext.mistakes) {
-    return Array.isArray(journalContext.mistakes)
-      ? `Top Costly Mistakes in your Journal:\n\n` + journalContext.mistakes.map(m => `• ${m.mistake}: ${m.occurrences} times (${m.totalLossUSD})`).join('\n')
-      : String(journalContext.mistakes);
-  }
-
+  // Handle Playbook
   if (intent === 'PLAYBOOK_QUERY') {
-    if (journalContext.totalTrades === 0 || !journalContext.hasClosedTrades) {
-      return "You currently have 0 closed trades logged in your journal. Please log your trade via 'Quick Add Trade' so I can audit your execution against your trading rules!";
+    if (!journalContext || journalContext.totalTrades === 0 || !journalContext.hasClosedTrades) {
+      return isHi
+        ? `📖 **Playbook Execution Audit**: Aapke journal me filhaal 0 closed trades hain. 'Quick Add Trade' se trade log karein taaki main aapke entry aur risk rules ko audit kar sakoon!\n\n💡 **Suggested Follow-ups:**\n• *"Quick Add Trade se pehla trade add karein"*\n• *"Playbook entry rules kaise banayein?"*`
+        : `📖 **Playbook Execution Audit**: You currently have 0 closed trades logged in your journal. Please log your trade via 'Quick Add Trade' so I can audit your execution against your trading rules!\n\n💡 **Suggested Follow-ups:**\n• *"Log a trade via Quick Add Trade"*\n• *"How should I define my entry rules?"*`;
     }
     if (journalContext.lastTrade) {
       const lt = journalContext.lastTrade;
-      return `Audited your last trade (${lt.instrument || 'Trade'} on ${lt.date}):
-• Result: ${lt.result} (${lt.pips || 0} pips, ${lt.rResult || 0}R)
-• Setup Rating: ${lt.setupRating || 'N/A'}
-• Plan Compliance: ${lt.confirmation === 'Yes' ? '✅ Rules followed' : '⚠️ No confirmation noted'}
-• Discipline Score: ${lt.disciplineScore ? `${lt.disciplineScore}/100` : 'Not scored'}
+      return `📖 **PLAYBOOK EXECUTION AUDIT** (${lt.instrument || 'Trade'} on ${lt.date}):
+• **Rule Compliance**: ${lt.confirmation === 'Yes' ? '✅ **Rules Followed**' : '⚠️ **Lacked Confirmation**'}
+• **Discipline Score**: **${lt.disciplineScore ? `${lt.disciplineScore}/100` : 'Not scored'}**
+• **Result**: **${lt.result}** (${lt.pips || 0} pips, ${lt.rResult || 0}R) | Setup: **${lt.setupRating || 'N/A'}**
 
-Always wait for full setup confirmation before entering to protect your capital.`;
+💡 **Rule Takeaway**: Always wait for full setup confirmation before entering to protect your capital.
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"Show my documented risk and entry rules."*
+• *"Review my last trade in detail."*`;
     }
   }
 
-  if (journalContext.totalTrades === 0) {
-    return "Your journal currently has 0 closed trades logged. To get tailored performance audits, log your first trade via the 'Quick Add Trade' button!";
+  // Handle Session Comparison
+  if (intent === 'JOURNAL_COMPARISON' && journalContext && journalContext.period1) {
+    return `⚖️ **TRADING SESSION COMPARISON**:
+• **${journalContext.period1.label}**: ${journalContext.period1.trades} trades | Win Rate: **${journalContext.period1.winRate}** | Net P&L: **${journalContext.period1.netProfit}** | Profit Factor: ${journalContext.period1.profitFactor} | Avg R: ${journalContext.period1.avgR}
+• **${journalContext.period2.label}**: ${journalContext.period2.trades} trades | Win Rate: **${journalContext.period2.winRate}** | Net P&L: **${journalContext.period2.netProfit}** | Profit Factor: ${journalContext.period2.profitFactor} | Avg R: ${journalContext.period2.avgR}
+
+💡 **Takeaway**: ${journalContext.takeaway}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"Why is my performance different between London and New York?"*
+• *"Show my top setups traded in ${journalContext.period1.label}."*`;
   }
 
-  return "I am actively monitoring your trading journal. How can I help you improve your execution today?";
+  // Handle Position Sizing
+  if (intent === 'POSITION_SIZING' && journalContext && journalContext.calculatedPositionSize) {
+    return `📐 **INSTITUTIONAL POSITION SIZING AUDIT**:
+• **Recommended Position Size**: **${journalContext.calculatedPositionSize}**
+• **Instrument**: ${journalContext.instrument}
+• **Account Balance**: ${journalContext.accountBalance}
+• **Risk Target**: ${journalContext.riskPercent} (**${journalContext.riskAmountUSD}** maximum risk)
+• **Stop-Loss Distance**: ${journalContext.stopLossDistance}
+
+• **Formula**: ${journalContext.formulaNote}
+${journalContext.maxDailyLossWarning ? `\n⚠️ ${journalContext.maxDailyLossWarning}` : ''}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How to calculate stop loss beyond the recent liquidity sweep?"*
+• *"What is the 1% risk rule?"*`;
+  }
+
+  // Handle Economic Calendar
+  if (intent === 'ECONOMIC_CALENDAR' && journalContext && journalContext.events) {
+    return `📅 **HIGH-IMPACT MACROECONOMIC SCHEDULE**:
+${journalContext.events.map(e => `• **[${e.impact}] ${e.event} (${e.currency})**
+  - Schedule: ${e.frequency} at ${e.timeUTC}
+  - Volatility Impact: ${e.typicalVolatility}
+  - Guidance: ${e.guidance}`).join('\n\n')}
+
+⚠️ **Risk Policy**: Spreads widen sharply 5-10 minutes prior to red-folder news. Protect existing profits with break-even stops or remain flat.
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What macro drivers are affecting Gold right now?"*
+• *"How does NFP impact EURUSD?"*`;
+  }
+
+  // Handle Backtest
+  if (intent === 'BACKTEST_QUERY' && journalContext && journalContext.performance) {
+    return `🧪 **QUANTITATIVE STRATEGY BACKTEST**: ${journalContext.strategy}
+• **Net Return**: **${journalContext.performance.netReturnPct}** (${journalContext.performance.netProfitUSD})
+• **Win Rate**: **${journalContext.performance.winRate}** | Profit Factor: **${journalContext.performance.profitFactor}**
+• **Total Trades**: ${journalContext.performance.totalTrades} (${journalContext.performance.winningTrades}W / ${journalContext.performance.losingTrades}L)
+• **Expectancy**: **${journalContext.performance.expectancyUSD}** (${journalContext.performance.expectancyR})
+• **Max Drawdown**: **${journalContext.performance.maxDrawdownPct}** (${journalContext.performance.maxDrawdownUSD})
+• **Sharpe Ratio**: ${journalContext.performance.sharpeRatio}
+
+⚠️ **Material Limitations**:
+${journalContext.disclosures.map(d => `• ${d}`).join('\n')}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How does this backtest perform on a higher timeframe?"*
+• *"What are the entry rules for this strategy?"*`;
+  }
+
+  // Handle Statistical Analysis
+  if (intent === 'STATISTICAL_ANALYSIS' && journalContext && journalContext.meanOutcomeUSD) {
+    return `📊 **STATISTICAL DISTRIBUTION & CONFIDENCE INTERVALS**:
+• **Sample Size**: ${journalContext.sampleSize} trades
+• **Mean Outcome**: **${journalContext.meanOutcomeUSD}** | Median: **${journalContext.medianOutcomeUSD}**
+• **Standard Deviation (σ)**: ${journalContext.standardDeviationUSD}
+• **Win Rate**: **${journalContext.winRate}** (95% CI: ${journalContext.winRate95CI})
+• **Distribution Skew**: ${journalContext.distributionSkew}
+
+🔬 **OUTLIER EDGE AUDIT**:
+• Largest Winner: **${journalContext.outlierAnalysis.largestWinnerUSD}**
+• Assessment: ${journalContext.outlierAnalysis.isEdgeDependentOnOutlier}
+
+💡 **Sample Validity**: ${journalContext.sampleSizeAssessment}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What does distribution skew mean for my trading edge?"*
+• *"Audit my overall expectancy."*`;
+  }
+
+  // Handle Knowledge Retrieval
+  if (intent === 'KNOWLEDGE_RETRIEVAL' && journalContext && journalContext.passages) {
+    return `📚 **RETRIEVED INSTITUTIONAL KNOWLEDGE DOCTRINE**:
+${journalContext.passages.map(p => `### ${p.title} [Category: ${p.category}]\n${p.content}`).join('\n\n')}
+
+Source: TradeJourn Verified Knowledge Base
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How do I apply this rule to my daily routine?"*
+• *"Audit my trades against this doctrine."*`;
+  }
+
+  // Handle Macro Analysis
+  if (intent === 'MACRO_ANALYSIS' && journalContext && journalContext.primaryDrivers) {
+    return `🌐 **MACROECONOMIC DRIVERS & INTER-MARKET ANALYSIS**: ${journalContext.instrument || journalContext.symbol}
+• **Primary Drivers**:
+${journalContext.primaryDrivers.map(d => `  - ${d}`).join('\n')}
+
+🛡️ **Macro Risk Rule**:
+${journalContext.riskRule}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What is the DXY dollar index correlation with Gold?"*
+• *"Analyse Gold on 1h chart"*`;
+  }
+
+  // Handle General Conversation
+  if (intent === 'GENERAL_CONVERSATION') {
+    return isHi
+      ? `Theek hai bhai! Jab bhi ready ho bataiye—chahe trade audit karna ho, market levels analyse karne hon ya risk management discuss karna ho.\n\n💡 **Suggestions:**\n• *"Was my last trade according to my rules?"*\n• *"Analyse Gold on 1h chart"*`
+      : `Understood! Whenever you're ready, let me know what you'd like to work on next—trade audits, strategy rules, or live market structure.\n\n💡 **Suggestions:**\n• *"Was my last trade according to my rules?"*\n• *"Analyse EURUSD on 1h chart"*`;
+  }
+
+  // Handle Empty Trade Journal (strictly for journal queries)
+  if (intent === 'JOURNAL_QUERY' && (!journalContext || journalContext.totalTrades === 0 || journalContext.hasData === false)) {
+    return isHi
+      ? `📊 **Audited Trade Ledger**: Aapke journal me filhaal 0 closed trades logged hain.\n\n'Quick Add Trade' button se apni trades log karein taaki main aapka real-time win rate, profit factor, session edge, aur costly mistakes audit kar sakoon!\n\n💡 **Suggested Next Steps:**\n• *"Quick Add Trade se pehla trade log karein"*\n• *"Win rate aur expectancy kaise calculate hoti hai?"*`
+      : `📊 **Audited Trade Ledger**: Your journal currently has 0 closed trades logged.\n\nTo get tailored performance audits, log your first trade via the 'Quick Add Trade' button! Once logged, I will calculate your real-time win rate, profit factor, session edge, and costly mistakes.\n\n💡 **Suggested Next Steps:**\n• *"Click Quick Add Trade to log your first trade"*\n• *"What is win rate and how is expectancy calculated?"*`;
+  }
+
+  // Handle Journal Win Rate & Stats
+  if (journalContext.winRate) {
+    return `📊 **AUDITED WIN RATE & PERFORMANCE**:
+• **Win Rate**: **${journalContext.winRate}** (${journalContext.winningTrades}W / ${journalContext.losingTrades}L / ${journalContext.breakEvenTrades}BE across ${journalContext.totalTrades} closed trades)
+• **Realized Net P&L**: **${journalContext.netProfitUSD}** (${journalContext.totalR})
+• **Expectancy**: **${journalContext.expectancyUSD}** per trade
+• **Profit Factor**: **${journalContext.profitFactor}**
+• **Average Discipline**: **${journalContext.averageDiscipline}**
+• **Current Streak**: **${journalContext.currentStreak}**
+• **Max Drawdown**: ${journalContext.maxDrawdownUSD || 'N/A'}
+${journalContext.sampleSizeWarning ? `\n⚠️ ${journalContext.sampleSizeWarning}` : ''}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What are my top costly mistakes?"*
+• *"Compare my London and New York session win rates."*`;
+  }
+
+  // Handle Recent Trades
+  if (journalContext.trades) {
+    return `📜 **RECENT AUDITED TRADE HISTORY** (${journalContext.trades.length} trades):\n\n` +
+      journalContext.trades.map(t => `• **${t.date}**: ${t.instrument} (${t.direction}) — Result: **${t.result}** (${t.profitUSD}, ${t.rResult}) | Setup: ${t.setup}`).join('\n') +
+      `\n\n💡 **Next Steps / Suggested Follow-ups:**\n• *"Was my last trade according to my rules?"*\n• *"What is my overall win rate?"*`;
+  }
+
+  // Handle Mistakes
+  if (journalContext.mistakes) {
+    return Array.isArray(journalContext.mistakes)
+      ? `⚠️ **AUDITED COSTLY MISTAKES**:\n\n` +
+        journalContext.mistakes.map(m => `• **${m.mistake}**: ${m.occurrences} times (Net Impact: ${m.totalLossUSD})`).join('\n') +
+        `\n\n💡 **Next Steps / Suggested Follow-ups:**\n• *"How can I prevent these mistakes?"*\n• *"Audit my trading psychology and tilt."*`
+      : String(journalContext.mistakes);
+  }
+
+  return isHi
+    ? "Main aapka TradeJourn AI Trading Copilot hoon. Aap mujhse journal analytics, trading concepts, risk management ya live market structure ke baare me poochh sakte hain!\n\n💡 **Quick Prompts:**\n• *\"Mera win rate aur expectancy kya hai?\"*\n• *\"Was my last trade according to my rules?\"*\n• *\"Analyse Gold using technicals\"*"
+    : "I am your TradeJourn AI Trading Copilot. Ask me anything about your trade journal, trading education, technical analysis, or risk management!\n\n💡 **Quick Prompts:**\n• *\"What is my win rate and expectancy?\"*\n• *\"Was my last trade according to my rules?\"*\n• *\"Analyse Gold on 1h chart\"*";
 }
 
 /**
@@ -267,16 +342,25 @@ async function processAiCoachChat({
   // 1. Fast Intent Classification
   const intentResult = classifyIntent(cleanQuestion);
 
-  // If simple greeting, identity query, or standalone trading concept with no image, return fast verified answer
-  if (!image && intentResult.fastAnswer && (intentResult.intent === 'GREETING' || intentResult.intent === 'IDENTITY' || intentResult.intent === 'GRATITUDE' || intentResult.intent === 'TRADING_EDUCATION')) {
+  // If fast answer exists and no image attached, return verified fast answer immediately
+  const fastAnswerIntents = [
+    'GREETING',
+    'IDENTITY',
+    'GRATITUDE',
+    'GENERAL_CONVERSATION',
+    'TRADING_EDUCATION',
+    'CLARIFICATION_NEEDED'
+  ];
+
+  if (!image && intentResult.fastAnswer && fastAnswerIntents.includes(intentResult.intent)) {
     let fastAnswer = intentResult.fastAnswer;
     if (intentResult.intent === 'GREETING' && user) {
       const firstName = user?.name ? user.name.split(' ')[0] : (user?.username ? user.username.split(' ')[0] : '');
       if (firstName) {
         if (intentResult.language === 'hinglish') {
-          fastAnswer = `Namaste ${firstName}! 👋\nTradeJourn mein aapka swagat hai!\n\nAaj aap kis par kaam karna chahte hain? Aap mujhse trades, strategies, risk management, trading concepts ya general market questions poochh sakte hain.`;
+          fastAnswer = `Namaste ${firstName}! 👋\nTradeJourn AI Coach mein aapka swagat hai!\n\nAaj aap kis cheez par focus karna chahte hain? Aap mujhse journal audit, trading concepts, risk management, ya market levels ke baare mein poochh sakte hain.\n\n💡 **Quick Actions:**\n• *"TradeJourn mere trades kaise track karta hai?"*\n• *"Liquidity sweeps aur order blocks explain karo"*\n• *"Analyse Gold using technicals"*`;
         } else {
-          fastAnswer = `Hi ${firstName}! 👋\nWelcome back to TradeJourn!\n\nWhat would you like to work on today? You can ask me anything about your trades, strategies, risk management, trading concepts or general questions.`;
+          fastAnswer = `Hi ${firstName}! 👋\nWelcome back to TradeJourn AI Coach!\n\nWhat would you like to work on today? You can ask me to audit your journal execution, explain price action concepts, calculate risk, or analyze live market structure.\n\n💡 **Quick Actions:**\n• *"How does TradeJourn track my execution?"*\n• *"Explain liquidity sweeps and order blocks"*\n• *"Analyse Gold on 1h chart"*`;
         }
       }
     }
@@ -311,7 +395,7 @@ async function processAiCoachChat({
     activeSymbol = 'XAUUSD';
   }
 
-  // 3. Pre-fetch Context if relevant
+  // 3. Pre-fetch Context if relevant (ONLY when needed!)
   let journalContext = null;
   let marketContext = null;
 
@@ -444,7 +528,7 @@ async function processAiCoachChat({
 
   // 5. If No API Key Available -> Deterministic Grounded Engine
   if (!apiKey) {
-    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext);
+    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
     return {
       success: true,
       answer: groundedAnswer,
@@ -454,7 +538,7 @@ async function processAiCoachChat({
     };
   }
 
-  // 5. Build Multi-turn Contents for Gemini
+  // 6. Build Multi-turn Contents for Gemini
   const contents = [];
 
   // Append recent chat history (up to last 6 turns for context budget)
@@ -473,8 +557,8 @@ async function processAiCoachChat({
   // Prepare current turn parts
   const currentTurnParts = [];
 
-  // Inject grounded context as verified factual evidence for Gemini
-  if (journalContext) {
+  // Inject verified grounded context ONLY if intent needs journal (prevents 0-trade warnings on greetings/education!)
+  if (journalContext && intentResult.needsJournal) {
     currentTurnParts.push({
       text: `[VERIFIED REAL JOURNAL DATA FOR THIS USER]:\n${JSON.stringify(journalContext, null, 2)}`
     });
@@ -530,7 +614,7 @@ async function processAiCoachChat({
     parts: currentTurnParts
   });
 
-  // 6. Execute Gemini Call with Tool Calling
+  // 7. Execute Gemini Call with Tool Calling
   const targetModel = normalizeModelName(userModel);
 
   try {
@@ -580,9 +664,15 @@ async function processAiCoachChat({
         contents
       });
 
+      const candidateAnswer = cleanAiText(secondResult.text);
+      // Guard against Gemini repeating canned one-liners
+      const finalAnswer = (candidateAnswer && candidateAnswer.length > 20 && !candidateAnswer.includes('Analysis completed based on your verified journal ledger'))
+        ? candidateAnswer
+        : formatGroundedAnswer(intentResult.intent, toolResult, marketContext, intentResult.language);
+
       return {
         success: true,
-        answer: cleanAiText(secondResult.text) || 'Analysis complete.',
+        answer: finalAnswer,
         intent: intentResult.intent,
         provider: 'gemini',
         model: targetModel,
@@ -591,9 +681,14 @@ async function processAiCoachChat({
     }
 
     if (geminiResult.text && geminiResult.text.trim()) {
+      const candidateAnswer = cleanAiText(geminiResult.text);
+      const finalAnswer = (!candidateAnswer.includes('Analysis completed based on your verified journal ledger'))
+        ? candidateAnswer
+        : formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
+
       return {
         success: true,
-        answer: cleanAiText(geminiResult.text),
+        answer: finalAnswer,
         intent: intentResult.intent,
         provider: 'gemini',
         model: targetModel
@@ -602,9 +697,9 @@ async function processAiCoachChat({
 
     throw new Error('Gemini returned an empty candidate text.');
   } catch (err) {
-    console.warn(`Gemini API execution error (${err.message}). Falling back to deterministic engine.`);
+    console.warn(`Gemini API execution note (${err.message}). Using verified grounded engine.`);
 
-    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext);
+    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
     return {
       success: true,
       answer: groundedAnswer,
@@ -618,5 +713,6 @@ async function processAiCoachChat({
 module.exports = {
   processAiCoachChat,
   SYSTEM_INSTRUCTION,
-  cleanAiText
+  cleanAiText,
+  formatGroundedAnswer
 };

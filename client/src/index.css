@@ -10636,6 +10636,66 @@ select option {
   justify-content: space-between;
 }
 
+.ai-formatted-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-msg-bold {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.ai-msg-code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  font-family: monospace;
+}
+
+.ai-followup-header {
+  font-weight: 700;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+
+.ai-followup-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ai-followup-chip {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.ai-followup-chip:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: #10b981;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 /* Quick pills carousel */
 .ai-quick-carousel {
   display: flex;
@@ -10961,6 +11021,32 @@ select option {
   color: #0f172a !important;
   border: 1px solid #cbd5e1 !important;
 }
+
+[data-theme="light"] .ai-msg-bold {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .ai-msg-code {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .ai-followup-header {
+  color: #059669 !important;
+}
+
+[data-theme="light"] .ai-followup-chip {
+  background: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #047857 !important;
+}
+
+[data-theme="light"] .ai-followup-chip:hover {
+  background: #d1fae5 !important;
+  border-color: #059669 !important;
+  color: #065f46 !important;
+}
+
 
 
 

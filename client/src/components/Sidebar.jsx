@@ -147,93 +147,95 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
 
       {/* Trader Profile Footer (Always Pinned & Accessible) */}
       <div className="sidebar-profile-footer">
-        <div
-          onClick={onOpenSettings}
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden', cursor: 'pointer', flex: 1, minWidth: 0 }}
-          title="Click to view profile & change photo"
-        >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
           <div
-            className="sidebar-avatar-container"
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 210, 255, 0.2))',
-              border: '1px solid var(--border-medium)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--profit)',
-              fontWeight: '800',
-              fontSize: '0.88rem',
-              flexShrink: 0,
-              position: 'relative',
-              overflow: 'hidden'
-            }}
+            onClick={onOpenSettings}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden', cursor: 'pointer', flex: 1, minWidth: 0 }}
+            title="Click to view profile & change photo"
           >
-            {user?.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user?.name || 'Trader'}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : user?.name ? (
-              user.name.charAt(0).toUpperCase()
-            ) : (
-              <User size={16} />
-            )}
-            <div className="sidebar-avatar-hover-badge" title="Change profile photo">
-              <Camera size={10} color="#ffffff" strokeWidth={2.5} />
+            <div
+              className="sidebar-avatar-container"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 210, 255, 0.2))',
+                border: '1px solid var(--border-medium)',
+                display: 'grid',
+                placeItems: 'center',
+                color: 'var(--profit)',
+                fontWeight: '800',
+                fontSize: '0.88rem',
+                flexShrink: 0,
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name || 'Trader'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : user?.name ? (
+                user.name.charAt(0).toUpperCase()
+              ) : (
+                <User size={16} />
+              )}
+              <div className="sidebar-avatar-hover-badge" title="Change profile photo">
+                <Camera size={10} color="#ffffff" strokeWidth={2.5} />
+              </div>
             </div>
-          </div>
-          <div style={{ overflow: 'hidden', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <p style={{ fontSize: '0.84rem', fontWeight: '700', color: 'var(--text-white)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                {user?.name || 'Guest Trader'}
+            <div style={{ overflow: 'hidden', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <p style={{ fontSize: '0.84rem', fontWeight: '700', color: 'var(--text-white)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {user?.name || 'Guest Trader'}
+                </p>
+                {user?.role === 'admin' ? (
+                  <span style={{
+                    fontSize: '0.58rem',
+                    fontWeight: '900',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.06em',
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    color: '#f59e0b',
+                    border: '1px solid rgba(245, 158, 11, 0.4)'
+                  }}>
+                    ADMIN
+                  </span>
+                ) : user?.tradingExperience ? (
+                  <span style={{
+                    fontSize: '0.58rem',
+                    fontWeight: '800',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.04em',
+                    background: user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.15)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.15)' : 'rgba(168, 85, 247, 0.15)',
+                    color: user.tradingExperience === 'Expert' ? 'var(--profit)' : user.tradingExperience === 'Beginner' ? 'var(--accent-cyan)' : 'var(--accent-purple)',
+                    border: `1px solid ${user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.3)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
+                  }}>
+                    {user.tradingExperience.toUpperCase()}
+                  </span>
+                ) : null}
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                {user?.userId || (user?.email ? `@${user.email.split('@')[0]}` : '@trader')}
               </p>
-              {user?.role === 'admin' ? (
-                <span style={{
-                  fontSize: '0.58rem',
-                  fontWeight: '900',
-                  padding: '1px 6px',
-                  borderRadius: '4px',
-                  letterSpacing: '0.06em',
-                  background: 'rgba(245, 158, 11, 0.2)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(245, 158, 11, 0.4)'
-                }}>
-                  ADMIN
-                </span>
-              ) : user?.tradingExperience ? (
-                <span style={{
-                  fontSize: '0.58rem',
-                  fontWeight: '800',
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                  letterSpacing: '0.04em',
-                  background: user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.15)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                  color: user.tradingExperience === 'Expert' ? 'var(--profit)' : user.tradingExperience === 'Beginner' ? 'var(--accent-cyan)' : 'var(--accent-purple)',
-                  border: `1px solid ${user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.3)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
-                }}>
-                  {user.tradingExperience.toUpperCase()}
-                </span>
-              ) : null}
             </div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: '600', whiteSpace: 'nowrap' }}>
-              {user?.userId || (user?.email ? `@${user.email.split('@')[0]}` : '@trader')}
-            </p>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
-          <button className="btn-ghost" style={{ padding: '7px' }} title="Trader Settings" onClick={onOpenSettings} aria-label="Trader Settings">
-            <Settings size={16} />
-          </button>
-          <button className="btn-ghost" style={{ padding: '7px', color: 'var(--accent-cyan)' }} title="Sign In or Switch Account" onClick={onOpenAuth} aria-label="Account">
-            <User size={16} />
-          </button>
-          <button className="btn-ghost" style={{ padding: '7px', color: 'var(--loss)' }} title="Sign Out" onClick={logout} aria-label="Sign Out">
-            <LogOut size={16} />
-          </button>
+          <div className="sidebar-footer-actions">
+            <button className="sidebar-footer-btn" title="Trader Settings" onClick={onOpenSettings} aria-label="Trader Settings">
+              <Settings size={15} />
+            </button>
+            <button className="sidebar-footer-btn accent" title="Sign In or Switch Account" onClick={onOpenAuth} aria-label="Account">
+              <User size={15} />
+            </button>
+            <button className="sidebar-footer-btn danger" title="Sign Out" onClick={logout} aria-label="Sign Out">
+              <LogOut size={15} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>

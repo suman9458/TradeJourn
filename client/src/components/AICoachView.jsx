@@ -312,8 +312,9 @@ export const AICoachView = ({ trades = [] }) => {
               className="ai-coach-action-btn danger"
               onClick={handleClearChat}
               title="Clear chat history"
+              aria-label="Clear chat history"
             >
-              <Trash2 size={16} />
+              <Trash2 size={18} />
             </button>
 
             <button
@@ -321,8 +322,9 @@ export const AICoachView = ({ trades = [] }) => {
               className="ai-coach-action-btn"
               onClick={() => setShowMenu(prev => !prev)}
               title="More options & settings"
+              aria-label="More options & settings"
             >
-              <MoreHorizontal size={18} />
+              <MoreHorizontal size={20} />
             </button>
 
             {/* Popover Settings Dropdown Menu */}
@@ -543,22 +545,12 @@ export const AICoachView = ({ trades = [] }) => {
             />
             <button
               type="button"
+              className="ai-attach-btn"
               onClick={() => fileInputRef.current?.click()}
               title="Attach Chart Screenshot"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '4px'
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
-              onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+              aria-label="Attach Chart Screenshot"
             >
-              <ImageIcon size={18} />
+              <ImageIcon size={20} />
             </button>
 
             <input
@@ -574,8 +566,9 @@ export const AICoachView = ({ trades = [] }) => {
               className="ai-send-btn"
               disabled={isAsking || (!question.trim() && !attachedImage)}
               title="Send message"
+              aria-label="Send message"
             >
-              <Send size={16} />
+              <Send size={18} />
             </button>
           </form>
         </div>

@@ -223,7 +223,27 @@ Tip: Focus on taking only your highest quality setups and maintain your risk dis
       : String(journalContext.mistakes);
   }
 
-  return "Analysis completed based on your verified journal ledger.";
+  if (intent === 'PLAYBOOK_QUERY') {
+    if (journalContext.totalTrades === 0 || !journalContext.hasClosedTrades) {
+      return "You currently have 0 closed trades logged in your journal. Please log your trade via 'Quick Add Trade' so I can audit your execution against your trading rules!";
+    }
+    if (journalContext.lastTrade) {
+      const lt = journalContext.lastTrade;
+      return `Audited your last trade (${lt.instrument || 'Trade'} on ${lt.date}):
+• Result: ${lt.result} (${lt.pips || 0} pips, ${lt.rResult || 0}R)
+• Setup Rating: ${lt.setupRating || 'N/A'}
+• Plan Compliance: ${lt.confirmation === 'Yes' ? '✅ Rules followed' : '⚠️ No confirmation noted'}
+• Discipline Score: ${lt.disciplineScore ? `${lt.disciplineScore}/100` : 'Not scored'}
+
+Always wait for full setup confirmation before entering to protect your capital.`;
+    }
+  }
+
+  if (journalContext.totalTrades === 0) {
+    return "Your journal currently has 0 closed trades logged. To get tailored performance audits, log your first trade via the 'Quick Add Trade' button!";
+  }
+
+  return "I am actively monitoring your trading journal. How can I help you improve your execution today?";
 }
 
 /**
@@ -309,7 +329,14 @@ async function processAiCoachChat({
     }
   } else if (intentResult.intent === 'PLAYBOOK_QUERY') {
     try {
-      journalContext = await getPlaybookRules(userId);
+      const recentTrades = await Trade.find({ userId }).sort({ date: -1, time: -1 }).limit(1).lean().catch(() => []);
+      const playbook = await getPlaybookRules(userId);
+      journalContext = {
+        ...playbook,
+        totalTrades: recentTrades.length,
+        hasClosedTrades: recentTrades.length > 0,
+        lastTrade: recentTrades[0] || null
+      };
     } catch (e) {
       console.warn('Playbook prefetch notice:', e.message);
     }

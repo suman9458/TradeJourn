@@ -3,6 +3,7 @@ import {
   Bot,
   Send,
   Trash2,
+  Plus,
   MoreHorizontal,
   Copy,
   Check,
@@ -37,24 +38,46 @@ const formatCurrentTime = () => {
   }).format(new Date());
 };
 
-const STORAGE_KEY = 'tradejourn_ai_chat_v3';
-
 export const AICoachView = ({ trades = [] }) => {
   const { user, updateUserSettings } = useAuth();
   const isAdmin = user?.role === 'admin';
 
-  const firstName = user?.name ? user.name.split(' ')[0] : (user?.username ? user.username.split(' ')[0] : 'Suman');
-  const userInitial = (firstName || 'S').charAt(0).toUpperCase();
+  // Dynamic user-scoped identity without hardcoded personal name fallback
+  const isGuest = !user || user.isGuest || user.role === 'guest';
+  const displayName = user?.name || user?.username || (isGuest ? 'Guest Trader' : 'Trader');
+  const firstName = isGuest ? 'Guest' : displayName.split(' ')[0];
+  const userInitial = (isGuest ? 'G' : firstName).charAt(0).toUpperCase();
 
-  // Chat conversation state with localStorage persistence
+  // Dynamic storage key strictly isolated by user ID (prevents any cross-user or guest chat leakage)
+  const userStorageKey = user?._id || user?.userId || user?.email
+    ? `tradejourn_ai_chat_${user._id || user.userId || user.email}`
+    : 'tradejourn_ai_chat_guest';
+
+  // Chat conversation state isolated per user session
   const [chatHistory, setChatHistory] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tradejourn_ai_chat_v3');
+      }
+      const saved = localStorage.getItem(userStorageKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
+
+  // Re-sync chat history when active user switches (login, logout, account switch)
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tradejourn_ai_chat_v3');
+      }
+      const saved = localStorage.getItem(userStorageKey);
+      setChatHistory(saved ? JSON.parse(saved) : []);
+    } catch {
+      setChatHistory([]);
+    }
+  }, [userStorageKey]);
 
   const [question, setQuestion] = useState('');
   const [isAsking, setIsAsking] = useState(false);
@@ -84,11 +107,11 @@ export const AICoachView = ({ trades = [] }) => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+      localStorage.setItem(userStorageKey, JSON.stringify(chatHistory));
     } catch (e) {
       console.warn('Failed to persist chat history:', e);
     }
-  }, [chatHistory]);
+  }, [chatHistory, userStorageKey]);
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -126,12 +149,27 @@ export const AICoachView = ({ trades = [] }) => {
     }
   };
 
+  const handleNewChat = () => {
+    if (chatHistory.length === 0 && !question.trim() && !attachedImage) return;
+    if (chatHistory.length > 0) {
+      if (!window.confirm('Start a new chat conversation?')) return;
+    }
+    setChatHistory([]);
+    setQuestion('');
+    setAttachedImage(null);
+    try {
+      localStorage.removeItem(userStorageKey);
+    } catch {}
+  };
+
   const handleClearChat = () => {
     if (chatHistory.length === 0) return;
     if (window.confirm('Clear conversation history?')) {
       setChatHistory([]);
+      setQuestion('');
+      setAttachedImage(null);
       try {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(userStorageKey);
       } catch {}
     }
   };
@@ -309,12 +347,13 @@ export const AICoachView = ({ trades = [] }) => {
           <div className="ai-coach-nav-actions" ref={menuRef}>
             <button
               type="button"
-              className="ai-coach-action-btn danger"
-              onClick={handleClearChat}
-              title="Clear chat history"
-              aria-label="Clear chat history"
+              className="ai-coach-new-chat-btn"
+              onClick={handleNewChat}
+              title="Start a new chat conversation"
+              aria-label="New Chat"
             >
-              <Trash2 size={18} />
+              <Plus size={16} strokeWidth={2.5} />
+              <span>New Chat</span>
             </button>
 
             <button
@@ -388,6 +427,33 @@ export const AICoachView = ({ trades = [] }) => {
                   {showAuditPanel ? 'Hide Performance Audit' : 'View Performance Audit'}
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    handleClearChat();
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    padding: '6px 8px',
+                    fontSize: '0.82rem',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '6px'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#f87171'}
+                  title="Clear conversation history"
+                >
+                  <Trash2 size={14} />
+                  <span>Clear Conversation</span>
+                </button>
+
                 {isAdmin && (
                   <>
                     <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
@@ -432,7 +498,11 @@ export const AICoachView = ({ trades = [] }) => {
               </div>
               <div className="ai-bubble-bot">
                 <div>
-                  {`Hi ${firstName}! 👋\nWelcome to TradeJourn AI Coach!\n\nI can help you analyse your trades, build strategies, explain concepts, improve your performance and answer any trading questions. Ask me anything to get started!`}
+                  {user ? (
+                    `Hi ${firstName}! 👋\nWelcome to TradeJourn AI Coach!\n\nI can help you analyse your trades, build strategies, explain concepts, improve your performance and answer any trading questions. Ask me anything to get started!`
+                  ) : (
+                    `Hi Guest! 👋\nWelcome to TradeJourn AI Coach!\n\nYou are currently in Guest mode with 0 closed trades logged. You can ask trading questions, analyze chart setups, or log in to sync your personal trade journal and performance statistics!`
+                  )}
                 </div>
                 <div className="ai-bubble-bot-time">
                   <span>{formatCurrentTime()}</span>

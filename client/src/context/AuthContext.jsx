@@ -106,6 +106,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('tradejourn_token');
+    localStorage.removeItem('tradejourn_ai_chat_v3');
+    localStorage.removeItem('tradejourn_ai_chat_guest');
     setToken(null);
     setUser(null);
   };

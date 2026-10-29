@@ -17,6 +17,11 @@ const {
   executeJournalTool,
   getTradeStats,
   getTradeHistory,
+  getTradeDetails,
+  getPerformanceBySymbol,
+  getPerformanceBySession,
+  compareStrategies,
+  getDrawdownAnalysis,
   getMistakesAndEmotions,
   reviewTrade,
   getPsychologyAudit,
@@ -53,7 +58,8 @@ CORE PRINCIPLES & COMMUNICATION RULES:
 💡 **Next Steps / Suggested Follow-ups:**
 • [Follow-up question 1]
 • [Follow-up question 2]
-9. Verified Ground Truth: Base all journal advice strictly on actual trade records. Never invent statistics, win rates, or profits.`;
+9. Verified Ground Truth: Base all journal advice strictly on actual trade records. Never invent statistics, win rates, or profits.
+10. PERSONAL TRADING ANALYTICS RIGOR: All personal trading metrics (sample size N, date range, win rate, gross vs net P&L, fees/commissions, swaps, expectancy, profit factor, drawdown, holding duration, and session/strategy performance) must be grounded in verified backend calculations. Always report sample size (N) and date range. Differentiate Gross P&L from Net Realized P&L after fees. State win rate alongside breakeven rate and win rate excluding breakeven trades. Explain the evidence behind performance findings. Explicitly distinguish correlation from causation (e.g. remind traders that higher win rate in a session or setup tag correlates with adherence to confirmation and discipline, rather than the tag or session alone causing edge). Never fabricate unrecorded records or metrics.`;
 
 /**
  * Clean output text from excessive formatting quirks while preserving markdown bold and lists
@@ -294,37 +300,100 @@ ${journalContext.riskRule}
       : `📊 **Audited Trade Ledger**: Your journal currently has 0 closed trades logged.\n\nTo get tailored performance audits, log your first trade via the 'Quick Add Trade' button! Once logged, I will calculate your real-time win rate, profit factor, session edge, and costly mistakes.\n\n💡 **Suggested Next Steps:**\n• *"Click Quick Add Trade to log your first trade"*\n• *"What is win rate and how is expectancy calculated?"*`;
   }
 
-  // Handle Journal Win Rate & Stats
-  if (journalContext.winRate) {
-    return `📊 **AUDITED WIN RATE & PERFORMANCE**:
-• **Win Rate**: **${journalContext.winRate}** (${journalContext.winningTrades}W / ${journalContext.losingTrades}L / ${journalContext.breakEvenTrades}BE across ${journalContext.totalTrades} closed trades)
-• **Realized Net P&L**: **${journalContext.netProfitUSD}** (${journalContext.totalR})
-• **Expectancy**: **${journalContext.expectancyUSD}** per trade
-• **Profit Factor**: **${journalContext.profitFactor}**
-• **Average Discipline**: **${journalContext.averageDiscipline}**
-• **Current Streak**: **${journalContext.currentStreak}**
-• **Max Drawdown**: ${journalContext.maxDrawdownUSD || 'N/A'}
-${journalContext.sampleSizeWarning ? `\n⚠️ ${journalContext.sampleSizeWarning}` : ''}
+  // Handle Strategy Comparison
+  if (intent === 'STRATEGY_COMPARISON' && journalContext && journalContext.comparison) {
+    if (!journalContext.comparison.length) {
+      return isHi
+        ? `⚖️ **Strategy Audit**: Setup compare karne ke liye journal me trades nahi hain. 'Quick Add Trade' se trades log karein aur setup rating (A+, A, B) tag karein.\n\n💡 **Suggested Follow-ups:**\n• *"Quick Add Trade se pehla trade add karein"*\n• *"A+ setup kaise define karein?"*`
+        : `⚖️ **Strategy Audit**: Insufficient trade records to compare strategies. Log trades and tag their setup rating (A+, A, B) or entry type to unlock comparative audits.\n\n💡 **Suggested Follow-ups:**\n• *"Log trades with setup ratings"*\n• *"How should I define my A+ setup criteria?"*`;
+    }
+
+    return `⚖️ **STRATEGY & SETUP PERFORMANCE AUDIT** (${journalContext.dimension === 'entryType' ? 'Entry Types' : 'Setup Ratings'} | N=${journalContext.totalTradesAnalyzed} trades):
+${journalContext.comparison.map(c => `• **${c.strategyName}** (N=${c.sampleSize} trades | ${c.sampleSizeReliability}):
+  - Win Rate: **${c.winRate}** (Excl. BE: ${c.winRateExcludingBE}) | Profit Factor: **${c.profitFactor}**
+  - Net P&L: **${c.netProfitUSD}** (Gross: ${c.grossProfitUSD}) | Expectancy: **${c.expectancyUSD}**
+  - Avg R: ${c.avgR} | Discipline: ${c.avgDisciplineScore} | Avg Hold: ${c.avgHoldingDuration}`).join('\n\n')}
+
+🏆 **Best Performing Strategy**: **${journalContext.bestStrategy?.name || 'N/A'}** (${journalContext.bestStrategy?.netProfit || '$0'} net profit | ${journalContext.bestStrategy?.expectancy || '$0'} expectancy)
+${journalContext.worstStrategy && journalContext.worstStrategy.name !== journalContext.bestStrategy?.name ? `⚠️ **Underperforming Strategy**: **${journalContext.worstStrategy.name}** (${journalContext.worstStrategy.netProfit} net profit | ${journalContext.worstStrategy.expectancy} expectancy)\n` : ''}
+💡 **Correlation vs Causation Insight**:
+${journalContext.correlationVsCausationSynthesis}
 
 💡 **Next Steps / Suggested Follow-ups:**
-• *"What are my top costly mistakes?"*
-• *"Compare my London and New York session win rates."*`;
+• *"How do I eliminate low-expectancy B and C setups?"*
+• *"What are my most costly execution mistakes on ${journalContext.worstStrategy?.name || 'losing setups'}?"*`;
+  }
+
+  // Handle Drawdown Analysis
+  if (intent === 'DRAWDOWN_ANALYSIS' && journalContext && journalContext.hasData) {
+    return `📉 **EQUITY CURVE & DRAWDOWN AUDIT** (Analyzed N=${journalContext.sampleSize} trades):
+• **Current Status**: **[${journalContext.inDrawdown ? 'IN DRAWDOWN' : 'AT PEAK EQUITY'}]** (${journalContext.status})
+• **Peak Equity**: **${journalContext.peakEquityUSD}** | Total Realized Net P&L: **${journalContext.currentRealizedNetProfitUSD}**
+• **Maximum Drawdown**: **${journalContext.maxDrawdownUSD}**
+• **Current Drawdown**: **${journalContext.currentDrawdownUSD}** (${journalContext.currentDrawdownTrades} trades below peak)
+• **Max Drawdown Duration**: **${journalContext.maxDrawdownDurationTrades} trades** (${journalContext.maxDrawdownDurationDays} calendar days)
+• **Recovery Factor**: **${journalContext.recoveryFactor}**
+
+🛡️ **CAPITAL PRESERVATION GUIDANCE**:
+${journalContext.riskPreservationGuidance}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What position size should I trade while in drawdown?"*
+• *"Audit my psychological tilt after losing trades."*`;
+  }
+
+  // Handle Journal Win Rate & Stats
+  if (journalContext.winRate) {
+    const dateRangeStr = journalContext.dateRange?.formatted
+      ? `• **Audit Window**: ${journalContext.dateRange.formatted}\n`
+      : '';
+    const holdingStr = journalContext.holdingDuration?.formatted && journalContext.holdingDuration.formatted !== 'Not recorded'
+      ? `• **Average Holding Duration**: **${journalContext.holdingDuration.formatted}** (${journalContext.holdingDuration.tradesWithDuration} of ${journalContext.totalTrades} trades recorded)\n`
+      : '';
+
+    return `📊 **AUDITED WIN RATE & PERFORMANCE**:
+${dateRangeStr}• **Win Rate**: **${journalContext.winRate}** (${journalContext.winningTrades}W / ${journalContext.losingTrades}L / ${journalContext.breakEvenTrades}BE across ${journalContext.totalTrades} closed trades | Excl. BE: **${journalContext.winRateExcludingBE || journalContext.winRate}**)
+• **Realized Net P&L**: **${journalContext.netProfitUSD}** (Gross Profit: ${journalContext.grossProfitUSD || '$0'} | Gross Loss: ${journalContext.grossLossUSD || '$0'} | Commissions: -${journalContext.totalCommissionsUSD || '$0.00'} | Swaps: ${journalContext.totalSwapsUSD || '$0.00'})
+• **Mathematical Expectancy**: **${journalContext.expectancyUSD}** per trade (${journalContext.totalR} total, Avg: ${journalContext.avgR})
+• **Profit Factor**: **${journalContext.profitFactor}** | Win/Loss Ratio: **${journalContext.winLossRatio || 'N/A'}** (Avg Win: ${journalContext.avgWinUSD || '$0'} vs Avg Loss: ${journalContext.avgLossUSD || '$0'})
+• **Drawdown Status**: Max Drawdown: **${journalContext.maxDrawdownUSD || 'N/A'}** | Current: **${journalContext.currentDrawdownUSD || '$0.00'}** (${journalContext.inDrawdown ? 'In Drawdown' : 'At High Water Mark'})
+• **Execution Discipline**: **${journalContext.averageDiscipline}** | Current Streak: **${journalContext.currentStreak}** (Max Win: ${journalContext.maxWinStreak} | Max Loss: ${journalContext.maxLossStreak})
+${holdingStr}${journalContext.sampleSizeWarning ? `\n⚠️ ${journalContext.sampleSizeWarning}\n` : ''}
+💡 **Correlation vs Causation**:
+${journalContext.correlationVsCausationNote || 'Historical edge reflects discipline and risk-to-reward consistency rather than circumstance alone.'}
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"What are my top recurring costly mistakes?"*
+• *"Compare my setups to see which entry type has the highest expectancy."*`;
   }
 
   // Handle Recent Trades
   if (journalContext.trades) {
     return `📜 **RECENT AUDITED TRADE HISTORY** (${journalContext.trades.length} trades):\n\n` +
-      journalContext.trades.map(t => `• **${t.date}**: ${t.instrument} (${t.direction}) — Result: **${t.result}** (${t.profitUSD}, ${t.rResult}) | Setup: ${t.setup}`).join('\n') +
-      `\n\n💡 **Next Steps / Suggested Follow-ups:**\n• *"Was my last trade according to my rules?"*\n• *"What is my overall win rate?"*`;
+      journalContext.trades.map(t => `• **${t.date}**: ${t.instrument} (${t.direction}) — Result: **${t.result}** (Net: ${t.netProfitUSD || t.profitUSD}, ${t.rResult}) | Setup: ${t.setup}${t.holdingDuration && t.holdingDuration !== 'Not recorded' ? ` | Hold: ${t.holdingDuration}` : ''}`).join('\n') +
+      `\n\n💡 **Next Steps / Suggested Follow-ups:**
+• *"Was my last trade according to my rules?"*
+• *"What is my overall win rate and expectancy?"*`;
   }
 
   // Handle Mistakes
   if (journalContext.mistakes) {
-    return Array.isArray(journalContext.mistakes)
-      ? `⚠️ **AUDITED COSTLY MISTAKES**:\n\n` +
-        journalContext.mistakes.map(m => `• **${m.mistake}**: ${m.occurrences} times (Net Impact: ${m.totalLossUSD})`).join('\n') +
-        `\n\n💡 **Next Steps / Suggested Follow-ups:**\n• *"How can I prevent these mistakes?"*\n• *"Audit my trading psychology and tilt."*`
-      : String(journalContext.mistakes);
+    if (Array.isArray(journalContext.mistakes)) {
+      return `⚠️ **AUDITED RECURRING EXECUTION MISTAKES** (Analyzed N=${journalContext.totalTradesAnalyzed || journalContext.mistakes.length} trades):
+${journalContext.mistakes.map(m => `• **${m.mistake}** [${m.isRecurring ? 'RECURRING MISTAKE' : 'OCCURRENCE'}]:
+  - Frequency: ${m.occurrences} times (${m.frequency || `${m.occurrences} trades`})
+  - Total Loss Impact: **${m.totalLossUSD}** (Avg Loss: ${m.avgLossUSD || 'N/A'} vs Baseline Loss: ${m.baselineAvgLossUSD || 'N/A'})
+  - Causal Mechanism: ${m.causalMechanism || 'Violating trading rules directly increases negative skewness.'}
+  - Actionable Remedy: ${m.actionableRemedy || 'Follow strict execution plan.'}`).join('\n\n')}
+
+💡 **Correlation vs Causation**:
+Trades tagged with rule violations mechanically increase downside volatility and reduce your mathematical expectancy. Adhering to predefined invalidation stops prevents negative tail outcomes.
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How do I enforce a rule against moving stop-losses?"*
+• *"Audit my trading psychology and emotional tilt."*`;
+    }
+    return String(journalContext.mistakes);
   }
 
   return isHi
@@ -485,12 +554,32 @@ async function processAiCoachChat({
     } catch (e) {
       console.warn('Backtest prefetch notice:', e.message);
     }
+  } else if (intentResult.intent === 'STRATEGY_COMPARISON') {
+    try {
+      journalContext = await compareStrategies(userId);
+    } catch (e) {
+      console.warn('Strategy comparison prefetch notice:', e.message);
+    }
+  } else if (intentResult.intent === 'DRAWDOWN_ANALYSIS') {
+    try {
+      journalContext = await getDrawdownAnalysis(userId);
+    } catch (e) {
+      console.warn('Drawdown prefetch notice:', e.message);
+    }
   } else if (intentResult.needsJournal || intentResult.intent === 'JOURNAL_QUERY') {
     try {
       if (cleanQuestion.toLowerCase().includes('last') || cleanQuestion.toLowerCase().includes('recent') || cleanQuestion.toLowerCase().includes('history')) {
         journalContext = await getTradeHistory(userId, { limit: 10 });
       } else if (cleanQuestion.toLowerCase().includes('mistake') || cleanQuestion.toLowerCase().includes('emotion') || cleanQuestion.toLowerCase().includes('fomo') || cleanQuestion.toLowerCase().includes('revenge')) {
         journalContext = await getMistakesAndEmotions(userId);
+      } else if (cleanQuestion.toLowerCase().includes('drawdown')) {
+        journalContext = await getDrawdownAnalysis(userId);
+      } else if (cleanQuestion.toLowerCase().includes('compare') && (cleanQuestion.toLowerCase().includes('setup') || cleanQuestion.toLowerCase().includes('strateg'))) {
+        journalContext = await compareStrategies(userId);
+      } else if (cleanQuestion.toLowerCase().includes('symbol') || cleanQuestion.toLowerCase().includes('instrument')) {
+        journalContext = await getPerformanceBySymbol(userId);
+      } else if (cleanQuestion.toLowerCase().includes('session')) {
+        journalContext = await getPerformanceBySession(userId);
       } else {
         journalContext = await getTradeStats(userId);
       }
@@ -510,7 +599,9 @@ async function processAiCoachChat({
     'TRADING_PSYCHOLOGY',
     'PLAYBOOK_QUERY',
     'PROP_FIRM_QUERY',
-    'JOURNAL_COMPARISON'
+    'JOURNAL_COMPARISON',
+    'STRATEGY_COMPARISON',
+    'DRAWDOWN_ANALYSIS'
   ].includes(intentResult.intent);
 
   if (!isSpecialIntent && activeSymbol && (intentResult.needsMarket || intentResult.intent === 'MARKET_QUERY' || intentResult.extractedTimeframe || cleanQuestion.toLowerCase().includes('invalidation') || cleanQuestion.toLowerCase().includes('level') || cleanQuestion.toLowerCase().includes('timeframe'))) {
@@ -523,7 +614,18 @@ async function processAiCoachChat({
     }
   }
 
-  // 4. Resolve API Key
+  // 4. Resolve API Key & Execution Mode
+  if (userApiKey === 'offline') {
+    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
+    return {
+      success: true,
+      answer: groundedAnswer,
+      intent: intentResult.intent,
+      provider: intentResult.intent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
+      model: intentResult.intent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
+    };
+  }
+
   let apiKey = userApiKey?.trim() || user?.settings?.geminiApiKey || process.env.GEMINI_API_KEY;
 
   if (!apiKey && mongoose.connection.readyState === 1) {

@@ -266,3 +266,4 @@ describe('TradeJourn Knowledge & Retrieval Engine - Comprehensive Audit Suite', 
     assert.ok(chatRes.answer.includes('Troy Ounces') || chatRes.answer.includes('Real'));
   });
 });
+

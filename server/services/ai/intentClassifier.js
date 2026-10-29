@@ -207,7 +207,7 @@ const MARKET_SYMBOLS_MAP = {
 };
 
 // Journal query keywords (implies user is asking about THEIR personal trades)
-const JOURNAL_QUERY_REGEX = /\b(my|mine|mera|meri|mere|mujhe|my\s+trades|my\s+win\s*rate|my\s+performance|my\s+mistakes|last\s+\d+\s+trades|last\s+trade|recent\s+trades|logged\s+trades|journal|stats|expectancy|discipline\s+score)\b/i;
+const JOURNAL_QUERY_REGEX = /\b(my|mine|mera|meri|mere|mujhe|my\s+trades|my\s+win\s*rate|my\s+performance|my\s+mistakes|my\s+drawdown|my\s+pnl|my\s+profit|my\s+fees|last\s+\d+\s+trades|last\s+trade|recent\s+trades|logged\s+trades|journal|stats|discipline\s+score)\b/i;
 
 // Market analysis request keywords
 const MARKET_QUERY_REGEX = /\b(market|live\s+price|analyse|analyze|outlook|chart|current\s+price|technical\s+analysis|gold|xauusd|eurusd|gbpusd|btc|bitcoin|silver|us30|nasdaq|resistance|support)\b/i;
@@ -325,11 +325,13 @@ function classifyIntent(rawText) {
   // 9. Check Specific Trade Review Request
   const isTradeReview = /\b(review\s+(my\s+)?(last\s+)?trade|was\s+my\s+(last\s+)?trade\s+according\s+to\s+(my\s+)?rules|audit\s+(my\s+)?(last\s+)?trade|meri\s+last\s+trade\s+check\s+karo|did\s+i\s+follow\s+(my\s+)?(entry\s+|risk\s+|playbook\s+)?rules|meri\s+aakhri\s+trade|last\s+trade\s+an\s+early\s+exit|audit\s+my\s+trade\s+execution)\b/i.test(lower);
 
-  // 10. Check Comparison Request
-  const isComparisonQuery = /\b(compare|comparison|versus|\bvs\b)\b/i.test(lower) && (isPersonalQuery || /\b(london|new\s*york|session|month|week)\b/i.test(lower));
-
-  // 11. Check Prop Firm Challenge Request
+  // 10. Check Prop Firm Challenge Request
   const isPropFirmQuery = /\b(prop\s*firm|challenge|daily\s+loss(\s+limit)?|drawdown\s+buffer|profit\s+target)\b/i.test(lower);
+
+  // 11. Check Comparison & Personal Analytics Requests
+  const isStrategyComparison = isPersonalQuery && /\b(compare\s+(my\s+)?(setups?|strategies|strategy|entry\s+types?)|which\s+(setup|strategy|entry\s+type)\s+is\s+(more|most|best)|best\s+setup|worst\s+setup|setup\s+comparison|strategy\s+comparison)\b/i.test(lower);
+  const isDrawdownQuery = isPersonalQuery && /\b(max(imum)?\s+drawdown|my\s+drawdown|current\s+drawdown|drawdown\s+depth|drawdown\s+analysis|mera\s+drawdown|kitna\s+drawdown|drawdown)\b/i.test(lower) && !isPropFirmQuery;
+  const isComparisonQuery = (/\b(compare|comparison|versus|\bvs\b)\b/i.test(lower) && (isPersonalQuery || /\b(london|new\s*york|session|month|week)\b/i.test(lower))) || isStrategyComparison;
 
   // 12. Check Playbook Request
   const isPlaybookQuery = /\b(my\s+rules|my\s+playbook|trading\s+plan|entry\s+rules|risk\s+rules|exit\s+rules|mere\s+rules)\b/i.test(lower);
@@ -380,13 +382,15 @@ function classifyIntent(rawText) {
   else if (isMacroAnalysis) finalIntent = 'MACRO_ANALYSIS';
   else if (isPropFirmQuery) finalIntent = 'PROP_FIRM_QUERY';
   else if (isPlaybookQuery) finalIntent = 'PLAYBOOK_QUERY';
+  else if (isStrategyComparison) finalIntent = 'STRATEGY_COMPARISON';
+  else if (isDrawdownQuery) finalIntent = 'DRAWDOWN_ANALYSIS';
   else if (isComparisonQuery) finalIntent = 'JOURNAL_COMPARISON';
   else if (isBacktestQuery) finalIntent = 'BACKTEST_QUERY';
   else if (isPsychologyQuery) finalIntent = 'TRADING_PSYCHOLOGY';
   else if (isPersonalQuery) finalIntent = 'JOURNAL_QUERY';
   else if (isMarketQuery) finalIntent = 'MARKET_QUERY';
 
-  const needsJournal = isPersonalQuery || isTradeReview || isComparisonQuery || isPropFirmQuery || isPlaybookQuery || isStatisticalAnalysis || (isPsychologyQuery && !detectedSymbol);
+  const needsJournal = isPersonalQuery || isTradeReview || isComparisonQuery || isStrategyComparison || isDrawdownQuery || isPropFirmQuery || isPlaybookQuery || isStatisticalAnalysis || (isPsychologyQuery && !detectedSymbol);
 
   return {
     intent: finalIntent,

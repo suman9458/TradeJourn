@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
-import bannerCustomImg from '../assets/banner-custom.png';
+import dashImg from '../assets/dash.png';
+import dashDarkImg from '../assets/dash-dark.png';
 import { TradesTableView } from './TradesTableView';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
@@ -1152,19 +1153,21 @@ export const ModernPipsDashboard = ({
     <div className="modern-pips-dashboard">
       
       {/* =========================================================================
-          TOP BANNER: BRANDING & INSPIRATIONAL BANNER WITH USER NAME
+          TOP BANNER: BRANDING & INSPIRATIONAL DASHBOARD BANNER
           ========================================================================= */}
-      <div className="modern-hero-banner">
+      <div className="modern-hero-banner" role="banner" aria-label="TradeJourn Trading Dashboard Banner">
         <img
-          src={bannerCustomImg}
-          alt="TradeJourn Trading Banner"
-          className="banner-custom-bg"
+          src={dashImg}
+          alt="TradeJourn Dashboard Banner"
+          className="banner-dash-img banner-dash-light"
+          loading="eager"
         />
-        <div className="banner-user-overlay">
-          <h1 className="modern-brand-title" title={displayName}>
-            {displayName}
-          </h1>
-        </div>
+        <img
+          src={dashDarkImg}
+          alt="TradeJourn Dashboard Banner"
+          className="banner-dash-img banner-dash-dark"
+          loading="eager"
+        />
       </div>
 
       {/* Zero State Quick Starter Alert if no trades exist yet */}

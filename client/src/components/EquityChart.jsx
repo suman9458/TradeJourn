@@ -820,9 +820,6 @@ export const EquityChart = ({ curve = [] }) => {
           <span style={{ width: '18px', height: '2px', background: isPipsProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
           <span><strong>Cumulative Net Pips</strong> Trajectory</span>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
-        </div>
       </div>
 
       {/* Interactive SVG Pips Chart Canvas */}
@@ -1288,9 +1285,6 @@ export const EquityChart = ({ curve = [] }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '18px', height: '2px', background: isProfitUSDProfitable ? 'var(--profit)' : 'var(--loss)', borderRadius: '1px' }} />
           <span><strong>Cumulative Net Profit ({currency})</strong> Trajectory</span>
-        </div>
-        <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          💡 Tip: Scroll wheel to Zoom • Click & Drag graph left/right to Pan • Shift+Wheel to Scroll
         </div>
       </div>
 

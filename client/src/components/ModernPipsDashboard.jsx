@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import dashImg from '../assets/dash.png';
 import dashDarkImg from '../assets/dash-dark.png';
+import dashLightSvg from '../assets/dash.svg';
+import dashDarkSvg from '../assets/dash-dark.svg';
 import { TradesTableView } from './TradesTableView';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
@@ -1156,18 +1158,28 @@ export const ModernPipsDashboard = ({
           TOP BANNER: BRANDING & INSPIRATIONAL DASHBOARD BANNER
           ========================================================================= */}
       <div className="modern-hero-banner" role="banner" aria-label="TradeJourn Trading Dashboard Banner">
-        <img
-          src={dashImg}
-          alt="TradeJourn Dashboard Banner"
-          className="banner-dash-img banner-dash-light"
-          loading="eager"
-        />
-        <img
-          src={dashDarkImg}
-          alt="TradeJourn Dashboard Banner"
-          className="banner-dash-img banner-dash-dark"
-          loading="eager"
-        />
+        <picture className="banner-picture banner-dash-light">
+          <source srcSet={dashLightSvg} type="image/svg+xml" />
+          <img
+            src={dashImg}
+            alt="TradeJourn Dashboard Banner"
+            className="banner-dash-img"
+            loading="eager"
+            width="1200"
+            height="200"
+          />
+        </picture>
+        <picture className="banner-picture banner-dash-dark">
+          <source srcSet={dashDarkSvg} type="image/svg+xml" />
+          <img
+            src={dashDarkImg}
+            alt="TradeJourn Dashboard Banner"
+            className="banner-dash-img"
+            loading="eager"
+            width="1200"
+            height="200"
+          />
+        </picture>
       </div>
 
       {/* Zero State Quick Starter Alert if no trades exist yet */}

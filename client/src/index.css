@@ -4491,6 +4491,12 @@ input::-ms-clear {
   margin-bottom: 24px;
 }
 
+.banner-picture {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .banner-dash-img {
   width: 100%;
   height: 100%;

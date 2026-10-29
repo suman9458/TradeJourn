@@ -100,3 +100,4 @@ class TestStubProvider extends BaseMarketDataProvider {
 }
 
 module.exports = TestStubProvider;
+

@@ -114,3 +114,4 @@ class BinanceProvider extends BaseMarketDataProvider {
 }
 
 module.exports = BinanceProvider;
+

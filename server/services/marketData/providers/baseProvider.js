@@ -54,3 +54,4 @@ class BaseMarketDataProvider {
 }
 
 module.exports = BaseMarketDataProvider;
+

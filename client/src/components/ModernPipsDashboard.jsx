@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
-import richRiskImg from '../assets/rich-risk.jpg';
+import bannerCustomImg from '../assets/banner-custom.png';
 import { TradesTableView } from './TradesTableView';
 import { api } from '../services/api';
 import { compressImageFile, processAndUploadChartImage, getTradeImages, processAndUploadMultipleImages } from '../utils/imageHelper';
@@ -1152,21 +1152,18 @@ export const ModernPipsDashboard = ({
     <div className="modern-pips-dashboard">
       
       {/* =========================================================================
-          TOP BANNER: BRANDING & INSPIRATIONAL SUNSET ARTWORK
+          TOP BANNER: BRANDING & INSPIRATIONAL BANNER WITH USER NAME
           ========================================================================= */}
       <div className="modern-hero-banner">
-        <div className="banner-left-content">
-          <h1 className="modern-brand-title">{displayName}</h1>
-          <p className="modern-brand-tagline">DISCIPLINE • DATA • BETTER TRADES</p>
-        </div>
-
-        {/* Rich / Risk Mindset Photo */}
-        <div className="banner-art-wrap">
-          <img
-            src={richRiskImg}
-            alt="Rich / Risk Trading Mindset"
-            className="banner-rich-risk-img"
-          />
+        <img
+          src={bannerCustomImg}
+          alt="TradeJourn Trading Banner"
+          className="banner-custom-bg"
+        />
+        <div className="banner-user-overlay">
+          <h1 className="modern-brand-title" title={displayName}>
+            {displayName}
+          </h1>
         </div>
       </div>
 

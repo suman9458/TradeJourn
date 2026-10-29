@@ -150,3 +150,4 @@ class YahooProvider extends BaseMarketDataProvider {
 }
 
 module.exports = YahooProvider;
+

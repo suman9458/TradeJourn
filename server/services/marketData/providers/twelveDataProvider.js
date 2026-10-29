@@ -121,3 +121,4 @@ class TwelveDataProvider extends BaseMarketDataProvider {
 }
 
 module.exports = TwelveDataProvider;
+

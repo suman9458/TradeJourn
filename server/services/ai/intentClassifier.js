@@ -366,7 +366,7 @@ function classifyIntent(rawText) {
   const isStatisticalAnalysis = /\b(statistical\s+distribution|confidence\s+interval|mean\s+vs\s+median|outlier\s+analysis|skewness|trade\s+distribution)\b/i.test(lower);
 
   // 17. Check Knowledge Retrieval / Doctrine
-  const isKnowledgeRetrieval = /\b(prop\s+firm\s+rules|trailing\s+drawdown\s+rule|ict\s+order\s+block\s+rules|1%\s+risk\s+rule|drawdown\s+semantics|knowledge\s+doc)\b/i.test(lower);
+  const isKnowledgeRetrieval = /\b(prop\s+firm\s+rules|trailing\s+drawdown\s+rule|ict\s+order\s+block\s+rules|1%\s+risk\s+rule|drawdown\s+semantics|knowledge\s+doc|knowledge\s+base|contract\s+specifications?|contract\s+specs|touch\s+decay|disposition\s+effect|curve\s+fitting|overfitting\s+in\s+backtesting|lookahead\s+bias|asymmetric\s+recovery|kelly\s+criterion|wilder\s+rsi|carry\s+trade\s+mechanics)\b/i.test(lower);
 
   // 18. Check Macro Analysis
   const isMacroAnalysis = /\b(macro\s+drivers?|dxy\s+correlation|real\s+yields|fundamental\s+analysis|interest\s+rate\s+impact)\b/i.test(lower);

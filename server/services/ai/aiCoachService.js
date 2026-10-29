@@ -244,15 +244,26 @@ ${journalContext.disclosures.map(d => `• ${d}`).join('\n')}
   }
 
   // Handle Knowledge Retrieval
-  if (intent === 'KNOWLEDGE_RETRIEVAL' && journalContext && journalContext.passages) {
+  if (intent === 'KNOWLEDGE_RETRIEVAL' && journalContext && journalContext.passages && journalContext.passages.length > 0) {
+    const p = journalContext.passages[0];
+    const followups = (p.suggestedFollowups && p.suggestedFollowups.length > 0)
+      ? p.suggestedFollowups
+      : [
+          'How do I apply this concept to my trading journal?',
+          'Show me an example calculation for this setup.'
+        ];
+
     return `📚 **RETRIEVED INSTITUTIONAL KNOWLEDGE DOCTRINE**:
-${journalContext.passages.map(p => `### ${p.title} [Category: ${p.category}]\n${p.content}`).join('\n\n')}
+### ${p.title} [Category: ${p.category}]
+• **Classification**: ${p.type || 'Institutional Doctrine'} | **Difficulty**: ${p.difficulty || 'Intermediate'}
+• **Source Reference**: ${p.source} (Updated: ${p.lastUpdated})
+
+${p.content}
 
 Source: TradeJourn Verified Knowledge Base
 
 💡 **Next Steps / Suggested Follow-ups:**
-• *"How do I apply this rule to my daily routine?"*
-• *"Audit my trades against this doctrine."*`;
+${followups.map(f => `• *${f.startsWith('"') ? f : `"${f}"`}*`).join('\n')}`;
   }
 
   // Handle Macro Analysis

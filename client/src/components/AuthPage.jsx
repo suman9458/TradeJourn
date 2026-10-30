@@ -26,11 +26,13 @@ import {
   X,
   Key,
   Mail,
+  Phone,
   RefreshCw,
   ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { isFirebaseConfigured, sendFirebasePhoneOtp, confirmFirebaseOtp } from '../services/firebase';
 import authHeroImg1 from '../assets/auth-trading-hero.jpg';
 import authHeroImg2 from '../assets/auth-trading-hero-2.jpg';
 import authHeroImg3 from '../assets/auth-trading-hero-3.jpg';
@@ -82,9 +84,10 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [regUserId, setRegUserId] = useState('');
-  const [regDob, setRegDob] = useState('2000-01-01');
+  const [regDob, setRegDob] = useState('');
   const [regExperience, setRegExperience] = useState('Intermediate');
   const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -110,6 +113,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
   const [maskedDestination, setMaskedDestination] = useState('');
   const [devOtpHint, setDevOtpHint] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [confirmationResult, setConfirmationResult] = useState(null);
 
   // Resend OTP countdown timer
   useEffect(() => {
@@ -129,6 +133,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     setForgotError('');
     setForgotSuccess('');
     setDevOtpHint('');
+    setConfirmationResult(null);
     setShowForgotModal(true);
   };
 
@@ -136,23 +141,39 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     if (e) e.preventDefault();
     setForgotError('');
     setForgotSuccess('');
-    if (!forgotIdentifier.trim()) {
-      setForgotError('Please enter your registered User ID or Email');
+    const ident = forgotIdentifier.trim();
+    if (!ident) {
+      setForgotError('Please enter your registered User ID, Email, or Mobile Number');
       return;
     }
 
+    const isPhone = !ident.includes('@') && /[0-9]{7,}/.test(ident.replace(/[^0-9]/g, ''));
+
     setForgotLoading(true);
     try {
-      const data = await api.forgotPasswordSendOtp({ identifier: forgotIdentifier.trim() });
-      setMaskedDestination(data.destination || 'your registered contact');
-      if (data.devOtp) {
-        setDevOtpHint(data.devOtp);
+      if (isPhone && isFirebaseConfigured()) {
+        const { confirmationResult: confRes, formattedPhone } = await sendFirebasePhoneOtp(
+          ident,
+          'firebase-recaptcha-container'
+        );
+        setConfirmationResult(confRes);
+        setMaskedDestination(formattedPhone.slice(0, 3) + '****' + formattedPhone.slice(-4));
+        setForgotSuccess(`Google SMS verification code sent to ${formattedPhone}`);
+        setForgotStep(2);
+        setResendCooldown(600); // 10-minute cooldown
+      } else {
+        const data = await api.forgotPasswordSendOtp({ identifier: ident });
+        setConfirmationResult(null);
+        setMaskedDestination(data.destination || 'your registered contact');
+        if (data.devOtp) {
+          setDevOtpHint(data.devOtp);
+        }
+        setForgotSuccess(data.message || 'Verification code sent!');
+        setForgotStep(2);
+        setResendCooldown(600); // 10-minute cooldown
       }
-      setForgotSuccess(data.message || 'Verification code sent!');
-      setForgotStep(2);
-      setResendCooldown(60);
     } catch (err) {
-      setForgotError(err.message || 'Failed to send OTP code. Please verify your User ID or Email.');
+      setForgotError(err.message || 'Failed to send OTP code. Please verify your User ID, Email, or Mobile.');
     } finally {
       setForgotLoading(false);
     }
@@ -162,14 +183,27 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     if (resendCooldown > 0 || forgotLoading) return;
     setForgotError('');
     setForgotSuccess('');
+    const ident = forgotIdentifier.trim();
+    const isPhone = !ident.includes('@') && /[0-9]{7,}/.test(ident.replace(/[^0-9]/g, ''));
+
     setForgotLoading(true);
     try {
-      const data = await api.forgotPasswordSendOtp({ identifier: forgotIdentifier.trim() });
-      if (data.devOtp) {
-        setDevOtpHint(data.devOtp);
+      if (isPhone && isFirebaseConfigured()) {
+        const { confirmationResult: confRes, formattedPhone } = await sendFirebasePhoneOtp(
+          ident,
+          'firebase-recaptcha-container'
+        );
+        setConfirmationResult(confRes);
+        setForgotSuccess(`New Google SMS verification code sent to ${formattedPhone}`);
+        setResendCooldown(600); // 10-minute cooldown
+      } else {
+        const data = await api.forgotPasswordSendOtp({ identifier: ident });
+        if (data.devOtp) {
+          setDevOtpHint(data.devOtp);
+        }
+        setForgotSuccess('New verification code sent!');
+        setResendCooldown(600); // 10-minute cooldown
       }
-      setForgotSuccess('New verification code sent!');
-      setResendCooldown(60);
     } catch (err) {
       setForgotError(err.message || 'Failed to resend code');
     } finally {
@@ -188,8 +222,8 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
       return;
     }
 
-    if (forgotNewPassword.length < 6) {
-      setForgotError('New password must be at least 6 characters long');
+    if (forgotNewPassword.length < 8) {
+      setForgotError('New password must be at least 8 characters long');
       return;
     }
 
@@ -200,20 +234,35 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
     setForgotLoading(true);
     try {
-      // Step A: Verify OTP and obtain verified resetToken
-      const verifyData = await api.forgotPasswordVerifyOtp({
-        identifier: forgotIdentifier.trim(),
-        otp: cleanOtp
-      });
+      if (confirmationResult) {
+        // Step A: Verify OTP via Google Firebase client SDK
+        const { idToken } = await confirmFirebaseOtp(confirmationResult, cleanOtp);
 
-      // Step B: Reset password with the verified resetToken
-      const resetData = await api.forgotPasswordReset({
-        resetToken: verifyData.resetToken,
-        newPassword: forgotNewPassword
-      });
+        // Step B: Reset password via server-verified Firebase ID Token
+        const resetData = await api.forgotPasswordFirebaseReset({
+          idToken,
+          newPassword: forgotNewPassword,
+          identifier: forgotIdentifier.trim()
+        });
 
-      setForgotSuccess(resetData.message || 'Password reset successfully!');
-      setForgotStep(3);
+        setForgotSuccess(resetData.message || 'Password reset successfully via Firebase!');
+        setForgotStep(3);
+      } else {
+        // Step A: Verify OTP and obtain verified resetToken
+        const verifyData = await api.forgotPasswordVerifyOtp({
+          identifier: forgotIdentifier.trim(),
+          otp: cleanOtp
+        });
+
+        // Step B: Reset password with the verified resetToken
+        const resetData = await api.forgotPasswordReset({
+          resetToken: verifyData.resetToken,
+          newPassword: forgotNewPassword
+        });
+
+        setForgotSuccess(resetData.message || 'Password reset successfully!');
+        setForgotStep(3);
+      }
     } catch (err) {
       setForgotError(err.message || 'Verification failed. Please check the OTP code and try again.');
     } finally {
@@ -276,13 +325,13 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     }
 
     if (!regUserId.trim()) {
-      setError('Please provide a unique User ID handle (e.g. @suman9458)');
+      setError('Please provide a unique User ID handle (e.g. @abc123)');
       return;
     }
 
     const cleanHandle = regUserId.replace(/^@/, '');
     if (!/^[a-zA-Z0-9_]{3,24}$/.test(cleanHandle)) {
-      setError('User ID must contain 3-24 English letters and numbers (e.g. @suman9458)');
+      setError('User ID must contain 3-24 English letters and numbers (e.g. @abc123)');
       return;
     }
 
@@ -310,6 +359,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
         dob: regDob,
         tradingExperience: regExperience,
         email: regEmail.trim(),
+        phoneNumber: regPhone.trim(),
         password: regPassword
       });
     } catch (err) {
@@ -554,7 +604,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 <input
                   type="text"
                   required
-                  placeholder="Unique User ID (e.g. @suman9458)"
+                  placeholder="Unique User ID (e.g. @abc123)"
                   value={regUserId}
                   onChange={handleUserIdChange}
                   className="modern-input"
@@ -563,7 +613,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
               {/* Row 3: Email */}
               <div className="modern-input-group has-icon-left">
-                <AtSign size={17} className="input-leading-icon" />
+                <Mail size={17} className="input-leading-icon" />
                 <input
                   type="email"
                   placeholder="Email"
@@ -573,9 +623,39 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 />
               </div>
 
+              {/* Row 3b: Mobile Number */}
+              <div className="modern-input-group has-icon-left">
+                <Phone size={17} className="input-leading-icon" />
+                <input
+                  type="tel"
+                  placeholder="Mobile / Phone (e.g. +911234****** for OTP recovery)"
+                  value={regPhone}
+                  onChange={e => setRegPhone(e.target.value)}
+                  className="modern-input"
+                />
+              </div>
+
               {/* Row 4: Date of Birth & Experience Grid */}
-              <div className="form-row-2">
-                <div className="modern-input-group has-icon-left">
+              <div className="form-row-2" style={{ marginTop: '6px' }}>
+                <div className="modern-input-group has-icon-left" style={{ position: 'relative' }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-9px',
+                      left: '12px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      color: 'var(--accent-cyan, #00f59b)',
+                      backgroundColor: 'var(--bg-card, #0f172a)',
+                      padding: '0 6px',
+                      borderRadius: '4px',
+                      zIndex: 3,
+                      letterSpacing: '0.4px',
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    Date of Birth (DOB)
+                  </span>
                   <Calendar size={17} className="input-leading-icon" />
                   <input
                     type="date"
@@ -584,10 +664,28 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                     value={regDob}
                     onChange={e => setRegDob(e.target.value)}
                     className="modern-input date-picker-input"
-                    title="Date of Birth"
+                    title="Date of Birth (DOB)"
                   />
                 </div>
-                <div className="modern-input-group select-wrapper">
+                <div className="modern-input-group select-wrapper" style={{ position: 'relative' }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-9px',
+                      left: '12px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      color: 'var(--text-secondary, #94a3b8)',
+                      backgroundColor: 'var(--bg-card, #0f172a)',
+                      padding: '0 6px',
+                      borderRadius: '4px',
+                      zIndex: 3,
+                      letterSpacing: '0.4px',
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    Trading Experience
+                  </span>
                   <select
                     value={regExperience}
                     onChange={e => setRegExperience(e.target.value)}
@@ -705,7 +803,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 <input
                   type="text"
                   required
-                  placeholder="Trader User ID or Email (e.g. @suman9458)"
+                  placeholder="Trader User ID or Email (e.g. @abc123)"
                   value={loginId}
                   onChange={e => setLoginId(e.target.value)}
                   className="modern-input"
@@ -1132,6 +1230,9 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
             {/* Modal Body */}
             <div className="forgot-modal-body" style={{ padding: '20px 22px' }}>
+              {/* Invisible Google reCAPTCHA Container for Firebase Phone Auth */}
+              <div id="firebase-recaptcha-container"></div>
+
               {/* Error Banner */}
               {forgotError && (
                 <div className="auth-feedback-banner error" style={{ margin: '0 0 16px' }}>
@@ -1148,11 +1249,11 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 </div>
               )}
 
-              {/* STEP 1: Enter User ID or Email */}
+              {/* STEP 1: Enter User ID, Email or Phone Number */}
               {forgotStep === 1 && (
                 <form onSubmit={handleSendOtp}>
                   <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.5 }}>
-                    Enter user Id or Email address
+                    Enter your registered User ID, Email address, or Mobile Number
                   </p>
 
                   <div className="modern-input-group has-icon-left" style={{ marginBottom: '18px' }}>
@@ -1160,7 +1261,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                     <input
                       type="text"
                       required
-                      placeholder="User ID (@handle) or Email"
+                      placeholder="User ID (@handle), Email, or Mobile (+91...)"
                       value={forgotIdentifier}
                       onChange={e => setForgotIdentifier(e.target.value)}
                       className="modern-input"
@@ -1303,8 +1404,8 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                     </button>
 
                     {resendCooldown > 0 ? (
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        Resend code in {resendCooldown}s
+                      <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                        Resend code in {Math.floor(resendCooldown / 60)}:{(resendCooldown % 60).toString().padStart(2, '0')}
                       </span>
                     ) : (
                       <button

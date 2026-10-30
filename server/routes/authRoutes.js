@@ -8,11 +8,23 @@ const {
   updateSettings,
   demoLogin,
   socialLogin,
+  logoutUser,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
-  forgotPasswordReset
+  forgotPasswordReset,
+  forgotPasswordFirebaseReset
 } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const { protect, preventDemoModification } = require('../middleware/auth');
+const { validateBody } = require('../middleware/validate');
+const {
+  registerSchema,
+  loginSchema,
+  socialSchema,
+  forgotPasswordSendSchema,
+  forgotPasswordVerifySchema,
+  forgotPasswordResetSchema,
+  forgotPasswordFirebaseSchema
+} = require('../validators/authValidators');
 
 // Dedicated rate limiting for authentication endpoints to prevent brute-force
 const authLimiter = rateLimit({
@@ -26,14 +38,28 @@ const authLimiter = rateLimit({
   }
 });
 
-router.post('/register', authLimiter, registerUser);
-router.post('/login', authLimiter, loginUser);
-router.post('/demo', demoLogin);
-router.post('/social', authLimiter, socialLogin);
-router.post('/forgot-password/send-otp', authLimiter, forgotPasswordSendOtp);
-router.post('/forgot-password/verify-otp', authLimiter, forgotPasswordVerifyOtp);
-router.post('/forgot-password/reset-password', authLimiter, forgotPasswordReset);
+// Strict per-IP rate limiter for OTP dispatch to prevent toll fraud & spamming
+const sendOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many OTP requests from this IP address. Please try again after 15 minutes.'
+  }
+});
+
+router.post('/register', authLimiter, validateBody(registerSchema), registerUser);
+router.post('/login', authLimiter, validateBody(loginSchema), loginUser);
+router.post('/demo', authLimiter, demoLogin);
+router.post('/social', authLimiter, validateBody(socialSchema), socialLogin);
+router.post('/forgot-password/send-otp', sendOtpLimiter, validateBody(forgotPasswordSendSchema), forgotPasswordSendOtp);
+router.post('/forgot-password/verify-otp', authLimiter, validateBody(forgotPasswordVerifySchema), forgotPasswordVerifyOtp);
+router.post('/forgot-password/reset-password', authLimiter, validateBody(forgotPasswordResetSchema), forgotPasswordReset);
+router.post('/forgot-password/firebase-reset', authLimiter, validateBody(forgotPasswordFirebaseSchema), forgotPasswordFirebaseReset);
 router.get('/me', protect, getMe);
-router.put('/settings', protect, updateSettings);
+router.put('/settings', protect, preventDemoModification, updateSettings);
+router.post('/logout', protect, logoutUser);
 
 module.exports = router;

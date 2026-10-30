@@ -66,29 +66,7 @@ const verifyMT5Hmac = async (req, res, next) => {
 
   try {
     // 4. Retrieve Account & Secret Hash
-    let account = await MT5Account.findOne({ apiKeyId, isActive: true }).select('+apiKeyHash');
-    if (!account && apiKeyId === 'mt5_key_1fdced6694ef0ca4') {
-      const User = require('../models/User');
-      const targetUser = (await User.findOne({ role: 'admin' })) || (await User.findOne({ email: 'protrader@tradejourn.com' })) || (await User.findOne({}));
-      if (targetUser) {
-        account = await MT5Account.create({
-          userId: targetUser._id,
-          serverName: 'Exness-MT5Trial7',
-          login: 434413217,
-          accountName: 'Exness MT5 Real/Trial',
-          tradeMode: 'demo',
-          currency: 'USD',
-          leverage: 1000,
-          balance: 10000,
-          equity: 10000,
-          status: 'connected',
-          connectionMethod: 'vps',
-          apiKeyId: 'mt5_key_1fdced6694ef0ca4',
-          apiKeyHash: 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a',
-          isActive: true
-        });
-      }
-    }
+    const account = await MT5Account.findOne({ apiKeyId, isActive: true }).select('+apiKeyHash');
 
     if (!account || !account.apiKeyHash) {
       return res.status(401).json({

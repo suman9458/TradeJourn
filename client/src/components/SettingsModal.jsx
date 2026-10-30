@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Settings, Check, User, Calendar, Mail, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
+import { X, Settings, Check, User, Calendar, Mail, Phone, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
@@ -15,6 +15,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
   const [userId, setUserId] = useState('');
   const [dob, setDob] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [tradingExperience, setTradingExperience] = useState('Intermediate');
   const [avatar, setAvatar] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -42,6 +43,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setUserId(user.userId || '');
       setDob(user.dob || '');
       setEmail(user.email || '');
+      setPhoneNumber(user.phoneNumber || '');
       setTradingExperience(user.tradingExperience || 'Intermediate');
       setAvatar(user.avatar || '');
       setCurrency(globalCurrency || user.settings?.currency || 'USD');
@@ -167,6 +169,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         userId: userId.trim(),
         dob: dob.trim(),
         email: email.trim(),
+        phoneNumber: phoneNumber.trim(),
         tradingExperience,
         avatar,
         settings: updatedSettings
@@ -446,7 +449,35 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                     required
                     value={userId}
                     onChange={e => setUserId(e.target.value)}
-                    placeholder="@suman9458"
+                    placeholder="@abc123"
+                  />
+                </label>
+              </div>
+
+              <div className="form-grid-2">
+                <label>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Mail size={13} color="var(--accent-cyan)" />
+                    <span>Email Address</span>
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="trader@tradejourn.com"
+                  />
+                </label>
+
+                <label>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Phone size={13} color="var(--accent-cyan)" />
+                    <span>Mobile / Phone (OTP & Password Recovery)</span>
+                  </span>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={e => setPhoneNumber(e.target.value)}
+                    placeholder="+911234******"
                   />
                 </label>
               </div>
@@ -466,32 +497,19 @@ export const SettingsModal = ({ isOpen, onClose }) => {
 
                 <label>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Mail size={13} color="var(--accent-cyan)" />
-                    <span>Email Address</span>
+                    <ShieldCheck size={13} color="var(--profit)" />
+                    <span>Trading Experience Level</span>
                   </span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="trader@tradejourn.com"
-                  />
+                  <select
+                    value={tradingExperience}
+                    onChange={e => setTradingExperience(e.target.value)}
+                  >
+                    <option value="Beginner">Beginner (0 - 1 years, mastering risk & setups)</option>
+                    <option value="Intermediate">Intermediate (1 - 3 years, prop challenge scaling)</option>
+                    <option value="Expert">Expert (3+ years, funded institutional management)</option>
+                  </select>
                 </label>
               </div>
-
-              <label>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={13} color="var(--profit)" />
-                  <span>Trading Experience Level</span>
-                </span>
-                <select
-                  value={tradingExperience}
-                  onChange={e => setTradingExperience(e.target.value)}
-                >
-                  <option value="Beginner">Beginner (0 - 1 years, mastering risk & setups)</option>
-                  <option value="Intermediate">Intermediate (1 - 3 years, prop challenge scaling)</option>
-                  <option value="Expert">Expert (3+ years, funded institutional management)</option>
-                </select>
-              </label>
             </div>
           )}
 

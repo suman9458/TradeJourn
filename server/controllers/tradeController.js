@@ -1,5 +1,20 @@
 const Trade = require('../models/Trade');
 
+const escapeRegex = (string) => {
+  if (typeof string !== 'string') return '';
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+const sanitizeCsvCell = (val) => {
+  if (val === null || val === undefined) return '""';
+  let str = String(val);
+  // SEC-12: Neutralize spreadsheet formula injection characters (=, +, -, @, TAB, CR)
+  if (/^[=+@\-\t\r]/.test(str)) {
+    str = "'" + str;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+};
+
 // @desc    Get all trades for logged-in user with filtering, pagination & search
 // @route   GET /api/trades
 // @access  Private
@@ -23,9 +38,9 @@ const getTrades = async (req, res, next) => {
 
     const query = { userId: req.user._id };
 
-    // Search query
+    // SEC-10: Search query sanitized against ReDoS attacks
     if (search && search !== 'undefined' && search !== 'null' && search.trim()) {
-      const cleanSearch = search.trim();
+      const cleanSearch = escapeRegex(search.trim());
       query.$or = [
         { tradeName: { $regex: cleanSearch, $options: 'i' } },
         { instrument: { $regex: cleanSearch, $options: 'i' } },
@@ -203,7 +218,22 @@ const updateTrade = async (req, res, next) => {
       req.body.imageUrl = req.body.images[0] || '';
     }
 
-    Object.assign(trade, req.body);
+    // SEC-11: Whitelist allowed fields to prevent mass-assignment attacks on userId or internal properties
+    const allowedUpdateFields = [
+      'tradeName', 'date', 'time', 'instrument', 'session', 'setupRating',
+      'bias', 'result', 'entryType', 'rr', 'rResult', 'pips', 'takeProfit',
+      'takeProfitUSD', 'confirmation', 'emotion', 'reasonEarlyExit',
+      'marketCondition', 'mistakes', 'disciplineScore', 'tradeGrade',
+      'notes', 'levelTraded', 'entryPrice', 'exitPrice', 'stopLoss',
+      'images', 'screenshotUrl', 'imageUrl'
+    ];
+
+    allowedUpdateFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        trade[field] = req.body[field];
+      }
+    });
+
     await trade.save();
 
     res.json({ success: true, trade });
@@ -277,28 +307,28 @@ const exportTradesCSV = async (req, res, next) => {
     ];
 
     const rows = trades.map(t => [
-      `"${(t.tradeName || '').replace(/"/g, '""')}"`,
-      t.date,
-      t.time,
-      t.instrument,
-      t.session,
-      t.setupRating,
-      t.bias,
-      t.result,
-      t.rr,
-      t.rResult,
-      t.pips,
+      sanitizeCsvCell(t.tradeName || ''),
+      sanitizeCsvCell(t.date || ''),
+      sanitizeCsvCell(t.time || ''),
+      sanitizeCsvCell(t.instrument || ''),
+      sanitizeCsvCell(t.session || ''),
+      sanitizeCsvCell(t.setupRating || ''),
+      sanitizeCsvCell(t.bias || ''),
+      sanitizeCsvCell(t.result || ''),
+      t.rr !== undefined && t.rr !== null ? t.rr : 0,
+      t.rResult !== undefined && t.rResult !== null ? t.rResult : 0,
+      t.pips !== undefined && t.pips !== null ? t.pips : 0,
       t.takeProfit || t.takeProfitUSD || 0,
-      t.entryType,
-      t.confirmation,
-      t.emotion,
-      `"${(t.reasonEarlyExit || '').replace(/"/g, '""')}"`,
-      t.marketCondition,
-      `"${(t.mistakes || []).join('; ').replace(/"/g, '""')}"`,
-      t.disciplineScore,
-      t.tradeGrade,
-      `"${(t.notes || '').replace(/"/g, '""')}"`,
-      `"${(Array.isArray(t.images) && t.images.length > 0 ? t.images.join('; ') : t.screenshotUrl || t.imageUrl || '').replace(/"/g, '""')}"`
+      sanitizeCsvCell(t.entryType || ''),
+      sanitizeCsvCell(t.confirmation || ''),
+      sanitizeCsvCell(t.emotion || ''),
+      sanitizeCsvCell(t.reasonEarlyExit || ''),
+      sanitizeCsvCell(t.marketCondition || ''),
+      sanitizeCsvCell((t.mistakes || []).join('; ')),
+      t.disciplineScore !== undefined && t.disciplineScore !== null ? t.disciplineScore : '',
+      sanitizeCsvCell(t.tradeGrade || ''),
+      sanitizeCsvCell(t.notes || ''),
+      sanitizeCsvCell(Array.isArray(t.images) && t.images.length > 0 ? t.images.join('; ') : t.screenshotUrl || t.imageUrl || '')
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

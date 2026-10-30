@@ -20,9 +20,14 @@ const getGoals = async (req, res, next) => {
 // @access  Private
 const updateGoals = async (req, res, next) => {
   try {
+    // SEC-11: Whitelist and protect userId/id from mass-assignment tampering
+    const cleanUpdates = { ...req.body };
+    delete cleanUpdates._id;
+    delete cleanUpdates.userId;
+
     let goal = await Goal.findOneAndUpdate(
       { userId: req.user._id },
-      { $set: req.body },
+      { $set: cleanUpdates },
       { new: true, upsert: true, runValidators: true }
     );
     res.json({ success: true, goal });

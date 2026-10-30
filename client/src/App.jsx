@@ -20,6 +20,7 @@ import { ExportPDFModal } from './components/ExportPDFModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthPage } from './components/AuthPage';
 import { SettingsModal } from './components/SettingsModal';
+import { PhonePromptModal } from './components/PhonePromptModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { exportTradeHistoryPDF } from './utils/exportPDF';
@@ -107,7 +108,11 @@ const DashboardContent = () => {
       if (curveRes?.success) setEquityCurve(curveRes.curve);
       if (reviewRes?.success) setReviews(reviewRes.reviews);
       if (recentRes?.success) setRecentTrades(recentRes.trades);
-      if (allRes?.success) setAllTrades(allRes.trades);
+      if (allRes?.success && Array.isArray(allRes.trades) && allRes.trades.length > 0) {
+        setAllTrades(allRes.trades);
+      } else if (recentRes?.success && Array.isArray(recentRes.trades) && recentRes.trades.length > 0) {
+        setAllTrades(recentRes.trades);
+      }
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
     }
@@ -391,6 +396,8 @@ const DashboardContent = () => {
         loading={isGeneratingPDF}
         totalTradesCount={allTrades.length}
       />
+
+      <PhonePromptModal />
     </div>
   );
 };

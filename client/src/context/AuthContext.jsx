@@ -55,8 +55,14 @@ export const AuthProvider = ({ children }) => {
     initAuth();
 
     const handleUnauthorized = () => {
+      localStorage.removeItem('tradejourn_token');
+      localStorage.removeItem('tradejourn_ai_chat_v3');
+      localStorage.removeItem('tradejourn_ai_chat_guest');
       setToken(null);
       setUser(null);
+      if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
@@ -104,12 +110,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      const isDemo = user?.role === 'demo' || user?.isDemo || user?.email === 'protrader@tradejourn.com';
+      // Demo logout is strictly client-side to prevent invalidating sessions for other demo visitors
+      if (!isDemo && token) {
+        await api.logout().catch(() => {});
+      }
+    } catch {}
     localStorage.removeItem('tradejourn_token');
     localStorage.removeItem('tradejourn_ai_chat_v3');
     localStorage.removeItem('tradejourn_ai_chat_guest');
     setToken(null);
     setUser(null);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.location.href = '/';
+    }
   };
 
   const updateUserSettings = async (newSettings) => {

@@ -147,8 +147,10 @@ export const ModernPipsDashboard = ({
 
   // All trade records for dynamic auditing
   const allTrades = useMemo(() => {
-    return Array.isArray(trades) ? trades : [];
-  }, [trades]);
+    if (Array.isArray(trades) && trades.length > 0) return trades;
+    if (Array.isArray(recentTrades) && recentTrades.length > 0) return recentTrades;
+    return [];
+  }, [trades, recentTrades]);
 
   // Extract all available years from user trades (defaults to current year)
   const availableYears = useMemo(() => {

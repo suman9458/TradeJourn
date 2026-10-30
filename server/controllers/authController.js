@@ -6,14 +6,25 @@ const Playbook = require('../models/Playbook');
 const Goal = require('../models/Goal');
 const OtpToken = require('../models/OtpToken');
 const { generateOtp, sendOtp } = require('../services/otpService');
+const { verifyOAuthIdToken } = require('../services/oauthService');
+const { verifyFirebaseIdToken } = require('../services/firebaseAuthService');
 
-const generateToken = (id) => {
-  return jwt.sign(
-    { id },
-    process.env.JWT_SECRET || 'super_secret_trading_command_center_jwt_token_2026_secure',
-    {
-      expiresIn: process.env.JWT_EXPIRE || '30d'
+const generateToken = (id, tokenVersion = 0) => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL SECURITY CONFIGURATION: JWT_SECRET environment variable is not defined in production.');
     }
+    return jwt.sign(
+      { id, tokenVersion },
+      'super_secret_trading_command_center_jwt_token_2026_secure',
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+  }
+  return jwt.sign(
+    { id, tokenVersion },
+    secret,
+    { expiresIn: process.env.JWT_EXPIRE || '7d' }
   );
 };
 
@@ -22,7 +33,7 @@ const generateToken = (id) => {
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, userId, dob, tradingExperience, password, email } = req.body;
+    const { name, userId, dob, tradingExperience, password, email, phoneNumber } = req.body;
 
     if (!name || !userId || !password) {
       return res.status(400).json({ success: false, message: 'Please provide Name, User ID, and Password' });
@@ -78,6 +89,7 @@ const registerUser = async (req, res, next) => {
       dob,
       tradingExperience: validExperience,
       email: userEmail,
+      phoneNumber: (phoneNumber && typeof phoneNumber === 'string') ? phoneNumber.trim() : '',
       password
     });
 
@@ -85,7 +97,7 @@ const registerUser = async (req, res, next) => {
     await Playbook.create({ userId: user._id });
     await Goal.create({ userId: user._id });
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
 
     res.status(201).json({
       success: true,
@@ -97,6 +109,7 @@ const registerUser = async (req, res, next) => {
         dob: user.dob,
         tradingExperience: user.tradingExperience,
         email: user.email,
+        phoneNumber: user.phoneNumber || '',
         role: user.role,
         avatar: user.avatar || '',
         settings: user.settings
@@ -132,7 +145,7 @@ const loginUser = async (req, res, next) => {
     }).select('+password');
 
     if (!user) {
-      await bcrypt.compare(password, '$2a$10$e8O6nB55N3l3sA7Hj2z79e5Z0u4U9i0k4W7y3Q5e7u1I3o5q7y9W2').catch(() => {});
+      await bcrypt.compare(password, '$2a$12$e8O6nB55N3l3sA7Hj2z79e5Z0u4U9i0k4W7y3Q5e7u1I3o5q7y9W2').catch(() => {});
       return res.status(401).json({ success: false, message: 'Invalid User ID or password' });
     }
 
@@ -141,7 +154,9 @@ const loginUser = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid User ID or password' });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
+
+    const isDemo = user.role === 'demo' || user.isDemo || user.email === 'protrader@tradejourn.com' || user.userId === '@protrader' || (user.name && user.name.toLowerCase().includes('demo'));
 
     res.json({
       success: true,
@@ -153,7 +168,9 @@ const loginUser = async (req, res, next) => {
         dob: user.dob || '',
         tradingExperience: user.tradingExperience || 'Intermediate',
         email: user.email,
-        role: user.role,
+        phoneNumber: user.phoneNumber || '',
+        role: isDemo ? 'demo' : user.role,
+        isDemo: Boolean(isDemo),
         avatar: user.avatar || '',
         settings: user.settings
       }
@@ -169,9 +186,18 @@ const loginUser = async (req, res, next) => {
 const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const isDemo = user.role === 'demo' || user.isDemo || user.email === 'protrader@tradejourn.com' || user.userId === '@protrader' || (user.name && user.name.toLowerCase().includes('demo'));
+    const userObj = user.toObject();
+    if (isDemo) {
+      userObj.isDemo = true;
+      userObj.role = 'demo';
+    }
     res.json({
       success: true,
-      user
+      user: userObj
     });
   } catch (error) {
     next(error);
@@ -183,27 +209,30 @@ const getMe = async (req, res, next) => {
 // @access  Private
 const updateSettings = async (req, res, next) => {
   try {
-    const { settings, name, dob, email, userId, tradingExperience, avatar } = req.body;
-    const updateFields = {};
+    const { settings, name, dob, email, phoneNumber, userId, tradingExperience, avatar, password } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     if (settings) {
-      updateFields.settings = { ...req.user.settings, ...settings };
+      user.settings = { ...user.settings, ...settings };
     }
 
     if (avatar !== undefined) {
-      updateFields.avatar = typeof avatar === 'string' ? avatar.trim() : '';
+      user.avatar = typeof avatar === 'string' ? avatar.trim() : '';
     }
 
     if (name && name.trim()) {
-      updateFields.name = name.trim();
+      user.name = name.trim();
     }
 
     if (dob !== undefined) {
-      updateFields.dob = dob.trim();
+      user.dob = dob.trim();
     }
 
     if (tradingExperience) {
-      updateFields.tradingExperience = tradingExperience;
+      user.tradingExperience = tradingExperience;
     }
 
     if (email !== undefined && email.trim()) {
@@ -213,7 +242,11 @@ const updateSettings = async (req, res, next) => {
       if (existingEmail) {
         return res.status(400).json({ success: false, message: 'This email is already associated with another account' });
       }
-      updateFields.email = cleanEmail;
+      user.email = cleanEmail;
+    }
+
+    if (phoneNumber !== undefined) {
+      user.phoneNumber = typeof phoneNumber === 'string' ? phoneNumber.trim() : '';
     }
 
     if (userId && userId.trim()) {
@@ -224,14 +257,19 @@ const updateSettings = async (req, res, next) => {
       if (existingUserId) {
         return res.status(400).json({ success: false, message: 'This User ID / Handle is already taken' });
       }
-      updateFields.userId = withAt;
+      user.userId = withAt;
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updateFields },
-      { new: true, runValidators: true }
-    );
+    const isDemo = user.isDemo || user.role === 'demo' || user.email === 'protrader@tradejourn.com';
+    if (!isDemo && password && password.trim()) {
+      if (password.trim().length < 8) {
+        return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
+      }
+      user.password = password.trim(); // Will be hashed by pre-save hook with 12 rounds
+      user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate all previous sessions
+    }
+
+    await user.save();
 
     res.json({
       success: true,
@@ -258,7 +296,7 @@ const demoLogin = async (req, res, next) => {
         tradingExperience: 'Expert',
         email: demoEmail,
         password: 'Password123!',
-        role: 'pro'
+        role: 'demo'
       });
       await Playbook.create({ userId: user._id });
       await Goal.create({ userId: user._id });
@@ -269,7 +307,7 @@ const demoLogin = async (req, res, next) => {
       await user.save();
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
 
     res.json({
       success: true,
@@ -281,7 +319,9 @@ const demoLogin = async (req, res, next) => {
         dob: user.dob,
         tradingExperience: user.tradingExperience,
         email: user.email,
-        role: user.role,
+        phoneNumber: user.phoneNumber || '',
+        role: 'demo',
+        isDemo: true,
         avatar: user.avatar || '',
         settings: user.settings
       }
@@ -296,33 +336,51 @@ const demoLogin = async (req, res, next) => {
 // @access  Public
 const socialLogin = async (req, res, next) => {
   try {
-    const { provider, name, email } = req.body;
-    const providerKey = (provider || 'google').toLowerCase();
-    const isApple = providerKey === 'apple';
-    const providerName = isApple ? 'Apple' : 'Google';
-    const defaultEmail = isApple ? 'trader.apple@tradejourn.com' : 'trader.google@tradejourn.com';
-    const handle = isApple ? '@apple_trader' : '@google_trader';
-    const userEmail = (email && email.trim()) ? email.trim().toLowerCase() : defaultEmail;
+    const { provider, idToken } = req.body;
 
-    let user = await User.findOne({
-      $or: [{ email: userEmail }, { userId: handle }]
-    });
+    if (!idToken || typeof idToken !== 'string' || idToken.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required OAuth idToken parameter.'
+      });
+    }
+
+    // SEC-02 Hardening: Cryptographically verify the OAuth token server-side (signature, audience, issuer, exp)
+    // Enforced across ALL environments (dev, test, staging, production)
+    let verifiedProfile;
+    try {
+      verifiedProfile = await verifyOAuthIdToken({ provider, idToken });
+    } catch (verifErr) {
+      return res.status(401).json({
+        success: false,
+        message: `OAuth authentication failed: ${verifErr.message}`
+      });
+    }
+
+    const { email: verifiedEmail, name: verifiedName, sub } = verifiedProfile;
+
+    // Securely find user by cryptographically verified email
+    let user = await User.findOne({ email: verifiedEmail });
 
     if (!user) {
+      const providerTag = (provider || 'google').toLowerCase();
+      const generatedHandle = `@${providerTag}_${(sub || crypto.randomBytes(4).toString('hex')).slice(-6)}`;
+      const secureRandomPassword = crypto.randomBytes(32).toString('hex') + 'Aa1!';
+
       user = await User.create({
-        name: name || `${providerName} Trader`,
-        userId: handle,
-        dob: '1998-06-20',
+        name: verifiedName,
+        userId: generatedHandle,
+        dob: '2000-01-01',
         tradingExperience: 'Intermediate',
-        email: userEmail,
-        password: 'SocialOAuth2026PasswordSecure!',
+        email: verifiedEmail,
+        password: secureRandomPassword,
         role: 'pro'
       });
       await Playbook.create({ userId: user._id });
       await Goal.create({ userId: user._id });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
 
     res.json({
       success: true,
@@ -334,6 +392,7 @@ const socialLogin = async (req, res, next) => {
         dob: user.dob,
         tradingExperience: user.tradingExperience,
         email: user.email,
+        phoneNumber: user.phoneNumber || '',
         role: user.role,
         avatar: user.avatar || '',
         settings: user.settings
@@ -344,6 +403,44 @@ const socialLogin = async (req, res, next) => {
   }
 };
 
+// In-memory sliding window rate-limiter per identifier to prevent OTP bombing and SMS cost abuse
+const otpRequestTracker = new Map();
+
+const checkIdentifierOtpLimit = (targetIdentifier) => {
+  const now = Date.now();
+  const history = (otpRequestTracker.get(targetIdentifier) || []).filter(
+    (ts) => now - ts < 15 * 60 * 1000 // 15-minute rolling window
+  );
+
+  // 1. Enforce 10-minute (600 seconds) cooldown between consecutive requests
+  if (history.length > 0) {
+    const lastRequest = history[history.length - 1];
+    const elapsedSec = Math.floor((now - lastRequest) / 1000);
+    if (elapsedSec < 600) {
+      const remainingSec = 600 - elapsedSec;
+      const m = Math.floor(remainingSec / 60);
+      const s = remainingSec % 60;
+      const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
+      return {
+        allowed: false,
+        message: `Please wait ${timeStr} before requesting another verification code.`
+      };
+    }
+  }
+
+  // 2. Enforce maximum 3 OTP requests per 15 minutes per phone/email identifier
+  if (history.length >= 3) {
+    return {
+      allowed: false,
+      message: 'Maximum OTP requests exceeded for this account. Please try again after 15 minutes.'
+    };
+  }
+
+  history.push(now);
+  otpRequestTracker.set(targetIdentifier, history);
+  return { allowed: true };
+};
+
 // @desc    Generate & send OTP for Forgot Password
 // @route   POST /api/auth/forgot-password/send-otp
 // @access  Public
@@ -351,42 +448,92 @@ const forgotPasswordSendOtp = async (req, res, next) => {
   try {
     const { identifier } = req.body;
     if (!identifier || !identifier.trim()) {
-      return res.status(400).json({ success: false, message: 'Please provide your registered User ID or Email' });
+      return res.status(400).json({ success: false, message: 'Please provide your registered User ID, Email, or Phone Number' });
     }
 
     const clean = identifier.trim().toLowerCase();
     const withAt = clean.startsWith('@') ? clean : `@${clean}`;
     const withoutAt = clean.startsWith('@') ? clean.slice(1) : clean;
+    const cleanDigits = clean.replace(/[^0-9+]/g, '');
+    const lastDigits = clean.replace(/[^0-9]/g, '').slice(-10);
 
     const user = await User.findOne({
       $or: [
         { userId: withAt },
         { userId: withoutAt },
-        { email: clean }
+        { email: clean },
+        ...(cleanDigits.length >= 7 ? [
+          { phoneNumber: cleanDigits },
+          { phoneNumber: clean },
+          { phoneNumber: cleanDigits.replace(/^\+/, '') },
+          { phoneNumber: `+${cleanDigits.replace(/^\+/, '')}` },
+          ...(lastDigits.length >= 7 ? [{ phoneNumber: { $regex: `${lastDigits}$` } }] : [])
+        ] : [])
       ]
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'No account found matching this User ID or Email'
+        message: 'No account found matching this User ID, Email, or Phone Number'
+      });
+    }
+
+    // SEC-DEMO: Shared demo account password cannot be reset
+    const isDemo = user.isDemo || user.role === 'demo' || user.email === 'protrader@tradejourn.com';
+    if (isDemo) {
+      return res.status(403).json({
+        success: false,
+        code: 'DEMO_READ_ONLY',
+        message: 'Password reset is disabled for the public demonstration account.'
+      });
+    }
+
+    // Determine destination and preferred channel
+    const isPhoneQuery = /^[+]?[0-9\s\-()]{7,18}$/.test(identifier.trim());
+    let destination = '';
+    let preferredChannel = 'email';
+
+    if (isPhoneQuery && user.phoneNumber) {
+      destination = user.phoneNumber;
+      preferredChannel = 'sms';
+    } else if (user.phoneNumber && !user.email) {
+      destination = user.phoneNumber;
+      preferredChannel = 'sms';
+    } else if (user.email) {
+      destination = user.email;
+      preferredChannel = 'email';
+    } else if (user.phoneNumber) {
+      destination = user.phoneNumber;
+      preferredChannel = 'sms';
+    } else {
+      destination = `${withoutAt}@tradejourn.local`;
+      preferredChannel = 'email';
+    }
+
+    // SEC-OTP: Enforce per-identifier rate limiting & cooldown to prevent OTP bombing and SMS toll fraud
+    const rateCheck = checkIdentifierOtpLimit(destination.toLowerCase());
+    if (!rateCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        code: 'OTP_RATE_LIMITED',
+        message: rateCheck.message
       });
     }
 
     // Generate secure 6-digit OTP
     const otp = generateOtp();
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     const otpHash = await bcrypt.hash(otp, salt);
 
     // Remove any previous active OTPs for this user
     await OtpToken.deleteMany({ userId: user._id });
 
     // Store in OtpToken with 10-minute expiry
-    const destination = user.email || `${withoutAt}@tradejourn.local`;
     await OtpToken.create({
       userId: user._id,
       identifier: clean,
-      channel: destination.includes('@') ? 'email' : 'sms',
+      channel: preferredChannel,
       destination,
       otpHash,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000)
@@ -396,7 +543,8 @@ const forgotPasswordSendOtp = async (req, res, next) => {
     const result = await sendOtp({
       destination,
       otp,
-      userName: user.name || user.userId
+      userName: user.name || user.userId,
+      preferredChannel
     });
 
     res.json({
@@ -418,18 +566,27 @@ const forgotPasswordVerifyOtp = async (req, res, next) => {
   try {
     const { identifier, otp } = req.body;
     if (!identifier || !otp) {
-      return res.status(400).json({ success: false, message: 'Please provide both User ID/Email and the 6-digit OTP' });
+      return res.status(400).json({ success: false, message: 'Please provide both User ID/Email/Phone and the 6-digit OTP' });
     }
 
     const clean = identifier.trim().toLowerCase();
     const withAt = clean.startsWith('@') ? clean : `@${clean}`;
     const withoutAt = clean.startsWith('@') ? clean.slice(1) : clean;
+    const cleanDigits = clean.replace(/[^0-9+]/g, '');
+    const lastDigits = clean.replace(/[^0-9]/g, '').slice(-10);
 
     const user = await User.findOne({
       $or: [
         { userId: withAt },
         { userId: withoutAt },
-        { email: clean }
+        { email: clean },
+        ...(cleanDigits.length >= 7 ? [
+          { phoneNumber: cleanDigits },
+          { phoneNumber: clean },
+          { phoneNumber: cleanDigits.replace(/^\+/, '') },
+          { phoneNumber: `+${cleanDigits.replace(/^\+/, '')}` },
+          ...(lastDigits.length >= 7 ? [{ phoneNumber: { $regex: `${lastDigits}$` } }] : [])
+        ] : [])
       ]
     });
 
@@ -517,8 +674,19 @@ const forgotPasswordReset = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'User account not found' });
     }
 
-    // Set new password (pre-save hook will hash it)
+    // SEC-DEMO: Shared demo account password cannot be reset
+    const isDemo = user.isDemo || user.role === 'demo' || user.email === 'protrader@tradejourn.com';
+    if (isDemo) {
+      return res.status(403).json({
+        success: false,
+        code: 'DEMO_READ_ONLY',
+        message: 'Password reset is disabled for the public demonstration account.'
+      });
+    }
+
+    // Set new password (pre-save hook will hash it with 12 rounds)
     user.password = newPassword;
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate all prior sessions on password reset
     await user.save();
 
     // Consume & destroy the OTP token
@@ -534,6 +702,118 @@ const forgotPasswordReset = async (req, res, next) => {
   }
 };
 
+// @desc    Verify Firebase Phone ID Token and reset password
+// @route   POST /api/auth/forgot-password/firebase-reset
+// @access  Public
+const forgotPasswordFirebaseReset = async (req, res, next) => {
+  try {
+    const { idToken, newPassword, identifier } = req.body;
+    if (!idToken || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Firebase ID token and new password are required.'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long.'
+      });
+    }
+
+    // Cryptographically verify the Firebase ID token with Google
+    const tokenInfo = await verifyFirebaseIdToken(idToken);
+    const tokenPhone = tokenInfo.phoneNumber || '';
+
+    // Search user by verified phone number or provided identifier
+    const cleanDigits = tokenPhone.replace(/[^0-9+]/g, '');
+    const lastDigits = tokenPhone.replace(/[^0-9]/g, '').slice(-10);
+
+    const queryOr = [];
+    if (tokenPhone) {
+      queryOr.push(
+        { phoneNumber: tokenPhone },
+        { phoneNumber: cleanDigits },
+        { phoneNumber: cleanDigits.replace(/^\+/, '') },
+        { phoneNumber: `+${cleanDigits.replace(/^\+/, '')}` }
+      );
+      if (lastDigits.length >= 7) {
+        queryOr.push({ phoneNumber: { $regex: `${lastDigits}$` } });
+      }
+    }
+
+    if (identifier && typeof identifier === 'string') {
+      const cleanIdent = identifier.trim().toLowerCase();
+      const withAt = cleanIdent.startsWith('@') ? cleanIdent : `@${cleanIdent}`;
+      const withoutAt = cleanIdent.startsWith('@') ? cleanIdent.slice(1) : cleanIdent;
+      queryOr.push(
+        { userId: withAt },
+        { userId: withoutAt },
+        { email: cleanIdent }
+      );
+    }
+
+    if (queryOr.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No verified phone number found in Firebase token.'
+      });
+    }
+
+    const user = await User.findOne({ $or: queryOr });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: `No TradeJourn account found registered with phone number ${tokenPhone || identifier}. Please check your credentials.`
+      });
+    }
+
+    // SEC-DEMO: Shared demo account password cannot be reset
+    const isDemo = user.isDemo || user.role === 'demo' || user.email === 'protrader@tradejourn.com';
+    if (isDemo) {
+      return res.status(403).json({
+        success: false,
+        code: 'DEMO_READ_ONLY',
+        message: 'Password reset is disabled for the public demonstration account.'
+      });
+    }
+
+    // Set new password (pre-save hook will hash it with 12 bcrypt rounds)
+    user.password = newPassword;
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate all prior sessions on password reset
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successful via Firebase Phone Authentication! You can now sign in with your new password.',
+      userId: user.userId
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user and invalidate active session tokens
+// @route   POST /api/auth/logout
+// @access  Private
+const logoutUser = async (req, res, next) => {
+  try {
+    if (req.user && req.user._id) {
+      const isDemo = req.user.isDemo || req.user.role === 'demo' || req.user.email === 'protrader@tradejourn.com';
+      if (!isDemo) {
+        await User.findByIdAndUpdate(req.user._id, { $inc: { tokenVersion: 1 } });
+      }
+    }
+    res.json({
+      success: true,
+      message: 'Logged out successfully. Active sessions invalidated.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -541,8 +821,10 @@ module.exports = {
   updateSettings,
   demoLogin,
   socialLogin,
+  logoutUser,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
-  forgotPasswordReset
+  forgotPasswordReset,
+  forgotPasswordFirebaseReset
 };
 

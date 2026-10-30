@@ -87,15 +87,6 @@ const request = async (endpoint, options = {}, isRetry = false) => {
     }
   }
 
-  // If 401 unauthorized, refresh demo token and retry once (only for app data endpoints, never auth endpoints)
-  if (response.status === 401 && !isRetry && !endpoint.startsWith('/auth')) {
-    localStorage.removeItem('tradejourn_token');
-    const newToken = await ensureToken();
-    if (newToken) {
-      return request(endpoint, options, true);
-    }
-  }
-
   let data;
   try {
     data = await response.json();
@@ -109,6 +100,27 @@ const request = async (endpoint, options = {}, isRetry = false) => {
       throw new Error(`Backend error (${response.status}): ${response.statusText || 'Server responded with invalid data'}`);
     }
     throw new Error('Failed to parse server response as JSON');
+  }
+
+  // Handle 401 Unauthorized & TOKEN_INVALIDATED
+  if (response.status === 401) {
+    localStorage.removeItem('tradejourn_token');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized', { detail: { code: data?.code || 'UNAUTHORIZED' } }));
+    }
+
+    // Only attempt auto-demo token recovery for initial guest session loads, never on invalidated tokens or auth routes
+    if (data?.code !== 'TOKEN_INVALIDATED' && !isRetry && !endpoint.startsWith('/auth')) {
+      const newToken = await ensureToken();
+      if (newToken) {
+        return request(endpoint, options, true);
+      }
+    }
+
+    const err = new Error(data?.message || 'Session expired or invalidated. Please sign in again.');
+    err.status = 401;
+    err.code = data?.code || 'TOKEN_INVALIDATED';
+    throw err;
   }
 
   if (!response.ok) {
@@ -129,7 +141,9 @@ export const api = {
   forgotPasswordSendOtp: (payload) => request('/auth/forgot-password/send-otp', { method: 'POST', body: JSON.stringify(payload) }),
   forgotPasswordVerifyOtp: (payload) => request('/auth/forgot-password/verify-otp', { method: 'POST', body: JSON.stringify(payload) }),
   forgotPasswordReset: (payload) => request('/auth/forgot-password/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPasswordFirebaseReset: (payload) => request('/auth/forgot-password/firebase-reset', { method: 'POST', body: JSON.stringify(payload) }),
   getMe: () => request('/auth/me'),
+  logout: () => request('/auth/logout', { method: 'POST' }),
   updateSettings: (payload) => {
     const body = (payload?.settings || payload?.name || payload?.dob || payload?.email || payload?.userId || payload?.tradingExperience || payload?.avatar !== undefined)
       ? payload

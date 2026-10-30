@@ -10,22 +10,28 @@ const {
   exportTradesCSV,
   seedSampleTrades
 } = require('../controllers/tradeController');
-const { protect } = require('../middleware/auth');
+const { protect, preventDemoModification } = require('../middleware/auth');
+const { validateBody, validateQuery } = require('../middleware/validate');
+const {
+  createTradeSchema,
+  updateTradeSchema,
+  queryTradeSchema
+} = require('../validators/tradeValidators');
 
 router.use(protect);
 
-router.post('/seed', seedSampleTrades);
+router.post('/seed', preventDemoModification, seedSampleTrades);
 
 router.route('/')
-  .get(getTrades)
-  .post(createTrade)
-  .delete(clearAllTrades);
+  .get(validateQuery(queryTradeSchema), getTrades)
+  .post(preventDemoModification, validateBody(createTradeSchema), createTrade)
+  .delete(preventDemoModification, clearAllTrades);
 
 router.get('/export/csv', exportTradesCSV);
 
 router.route('/:id')
   .get(getTradeById)
-  .put(updateTrade)
-  .delete(deleteTrade);
+  .put(preventDemoModification, validateBody(updateTradeSchema), updateTrade)
+  .delete(preventDemoModification, deleteTrade);
 
 module.exports = router;

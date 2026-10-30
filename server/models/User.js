@@ -32,6 +32,12 @@ const userSchema = new mongoose.Schema(
       trim: true,
       index: true
     },
+    phoneNumber: {
+      type: String,
+      required: false,
+      trim: true,
+      default: ''
+    },
     password: {
       type: String,
       required: [true, 'Please provide a password'],
@@ -44,8 +50,13 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin', 'pro'],
+      enum: ['user', 'admin', 'pro', 'demo'],
       default: 'pro'
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      required: true
     },
     settings: {
       currency: { type: String, default: 'USD' },
@@ -67,7 +78,7 @@ userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next();
   }
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });

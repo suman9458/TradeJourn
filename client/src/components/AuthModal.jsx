@@ -36,10 +36,10 @@ export const AuthModal = ({ isOpen, onClose }) => {
     try {
       if (isRegister) {
         if (!name.trim()) throw new Error('Please provide your name');
-        if (!userId.trim()) throw new Error('Please provide a unique User ID (e.g. @suman9458)');
+        if (!userId.trim()) throw new Error('Please provide a unique User ID (e.g. @abc123)');
         const cleanHandle = userId.replace(/^@/, '');
         if (!/^[a-zA-Z0-9_]{3,24}$/.test(cleanHandle)) {
-          throw new Error('User ID must contain 3-24 English letters and numbers (e.g. @suman9458)');
+          throw new Error('User ID must contain 3-24 English letters and numbers (e.g. @abc123)');
         }
         if (!dob) throw new Error('Please provide your Date of Birth');
         if (password.length < 6) throw new Error('Password must be at least 6 characters');
@@ -155,12 +155,12 @@ export const AuthModal = ({ isOpen, onClose }) => {
 
               <label>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                  Unique User ID * (e.g. @suman9458)
+                  Unique User ID * (e.g. @abc123)
                 </span>
                 <input
                   type="text"
                   required
-                  placeholder="@suman9458"
+                  placeholder="@abc123"
                   value={userId}
                   onChange={handleUserIdChange}
                 />
@@ -197,7 +197,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
               <input
                 type="text"
                 required
-                placeholder="e.g. @suman9458"
+                placeholder="e.g. @abc123"
                 value={loginId}
                 onChange={e => setLoginId(e.target.value)}
                 autoComplete="username"

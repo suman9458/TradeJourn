@@ -110,15 +110,15 @@ const sendOtp = async ({ destination, otp, userName = 'Trader', preferredChannel
     }
   }
 
-  // Development / Zero-Config Fallback:
-  // Prints prominently to console and returns devOtp so user/dev can test immediately without waiting for API keys!
-  console.log('\n======================================================');
-  console.log('🔐 [TRADEJOURN OTP SYSTEM - DEV / LOCAL PREVIEW]');
-  console.log(`Recipient: ${destination} (${userName})`);
-  console.log(`OTP Code:  >>>  ${otp}  <<<`);
-  console.log('Validity:  10 minutes');
-  console.log('Notice:    Add TWILIO_* or SMTP_* to server/.env for live delivery');
-  console.log('======================================================\n');
+  // SEC-09: Never print unmasked OTP codes in production logs
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('\n======================================================');
+    console.log('🔐 [TRADEJOURN OTP SYSTEM - DEV / LOCAL PREVIEW]');
+    console.log(`Recipient: ${maskDestination(destination)} (${userName})`);
+    console.log(`OTP Code:  >>>  ${otp}  <<<`);
+    console.log('Validity:  10 minutes');
+    console.log('======================================================\n');
+  }
 
   return {
     delivered: true,

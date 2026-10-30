@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const Playbook = require('../models/Playbook');
 const Goal = require('../models/Goal');
@@ -5,10 +6,17 @@ const Trade = require('../models/Trade');
 const { seedTradesForUser } = require('../controllers/tradeController');
 
 const seedDemoData = async () => {
+  // SEC-04 Hardening: Strictly disable hardcoded credential seeding in production environments
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    console.log('🔒 Production mode: automatic credential seeding is disabled for security.');
+    return;
+  }
+
   try {
     // 1. Seed or Ensure Admin User (@suman9458)
     const adminUserId = '@suman9458';
-    const adminEmail = 'suman9458@tradejourn.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'suman9458@tradejourn.com';
+    const adminPassword = process.env.ADMIN_SEED_PASSWORD || (`Admin_${crypto.randomBytes(8).toString('hex')}!`);
     let adminUser = await User.findOne({
       $or: [
         { userId: '@suman9458' },
@@ -24,7 +32,7 @@ const seedDemoData = async () => {
         dob: '1998-05-15',
         tradingExperience: 'Expert',
         email: adminEmail,
-        password: 'Skumar9458@',
+        password: adminPassword,
         role: 'admin'
       });
       await Playbook.create({ userId: adminUser._id });
@@ -48,6 +56,7 @@ const seedDemoData = async () => {
 
     // 2. Seed Demo User
     const demoEmail = 'protrader@tradejourn.com';
+    const demoPassword = process.env.DEMO_SEED_PASSWORD || 'Password123!';
     let user = await User.findOne({ email: demoEmail });
 
     if (!user) {
@@ -57,11 +66,14 @@ const seedDemoData = async () => {
         dob: '1996-01-15',
         tradingExperience: 'Expert',
         email: demoEmail,
-        password: 'Password123!',
-        role: 'pro'
+        password: demoPassword,
+        role: 'demo'
       });
       await Playbook.create({ userId: user._id });
       await Goal.create({ userId: user._id });
+    } else if (user.role !== 'demo') {
+      user.role = 'demo';
+      await user.save();
     }
 
     if (user) {
@@ -79,11 +91,12 @@ const seedDemoData = async () => {
 
     // 3. Seed or Ensure MT5 Account for Desktop Connector Sync
     const MT5Account = require('../models/MT5Account');
-    const defaultApiKeyId = 'mt5_key_1fdced6694ef0ca4';
-    const defaultApiKeyHash = 'c127089160a2fe714baafd841a38fb621ad71c5d77201cd4bdcbd32f9824ed7a';
+    const crypto = require('crypto');
+    const defaultApiKeyId = 'mt5_key_' + crypto.randomBytes(8).toString('hex');
+    const defaultApiKeyHash = crypto.randomBytes(32).toString('hex');
 
-    let mt5Account = await MT5Account.findOne({ apiKeyId: defaultApiKeyId });
     const targetUser = adminUser || user;
+    let mt5Account = await MT5Account.findOne({ userId: targetUser?._id, isActive: true });
 
     if (!mt5Account && targetUser) {
       mt5Account = await MT5Account.create({

@@ -7,6 +7,24 @@ let memoryServer = null;
 const connectDB = async () => {
   const uri = process.env.MONGODB_URI?.trim();
 
+  // SEC-15 Hardening: In production, require valid persistent MongoDB and refuse silent fallback to ephemeral in-memory storage
+  if (process.env.NODE_ENV === 'production') {
+    if (!uri) {
+      throw new Error('FATAL DATABASE CONFIGURATION: MONGODB_URI environment variable is required in production.');
+    }
+    try {
+      console.log('Connecting to production MongoDB Atlas cluster...');
+      const conn = await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 8000
+      });
+      console.log(`✅ Production MongoDB Connected: ${conn.connection.host}`);
+      return;
+    } catch (err) {
+      console.error(`❌ FATAL: Production MongoDB connection failed: ${err.message}`);
+      throw new Error(`Production database unreachable: ${err.message}`);
+    }
+  }
+
   if (uri) {
     try {
       console.log('Connecting to configured MongoDB...');

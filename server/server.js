@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+// TradeJourn Server Engine - Updated 2026-10-30T21:49:00
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config(); // Fallback if root .env exists
 const express = require('express');
@@ -24,43 +25,67 @@ const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
-// Security and compression middlewares for high scalability
+// SEC-13: Enable reverse proxy trust for Render cloud deployment
+app.set('trust proxy', 1);
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+// SEC-14: Hardened security headers with strict CSP and HSTS
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com', 'https:'],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrc: isProduction
+          ? ["'self'", "'unsafe-inline'"]
+          : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
         fontSrc: ["'self'", 'https:', 'data:'],
         connectSrc: ["'self'", 'https:', 'http:', 'ws:', 'wss:']
       }
     },
-    crossOriginResourcePolicy: { policy: 'cross-origin' }
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    hsts: isProduction
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : false
   })
 );
 app.use(compression());
+
+// SEC-05: Strict CORS whitelist - eliminate reflected origin credentials bypass
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  ...(isProduction ? [] : [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174'
+  ])
+].filter(Boolean);
+
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      if (
-        origin.startsWith('http://localhost') ||
-        origin.startsWith('http://127.0.0.1')
-      ) {
+
+      if (allowedOrigins.some(allowed => origin === allowed || (!isProduction && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))))) {
         return callback(null, true);
       }
-      if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) {
-        return callback(null, true);
+
+      if (isProduction) {
+        return callback(new Error('Blocked by CORS policy: Origin not allowed'));
       }
-      callback(null, true); // Fallback to allow for local dev
+
+      callback(null, true);
     },
     credentials: true
   })
 );
 
-// Rate limiting to protect against abuse on public endpoints (exempt MT5 connector streaming/telemetry)
+// General rate limiting across public API endpoints
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 300, // Limit each IP to 300 requests per 15 mins
@@ -74,14 +99,41 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
-// Body parsers with rawBody retention for cryptographically secure HMAC verification
+// SEC-13: Strict brute-force rate limiter for sensitive authentication & OTP endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Max 20 attempts per 15 mins
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many authentication attempts from this IP. Please try again after 15 minutes.'
+  }
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password/send-otp', authLimiter);
+app.use('/api/auth/verify-otp', authLimiter);
+
+// Body parsers: Restrict global payload size to standard 100kb to prevent Denial of Service (DoS) memory exhaustion
+// Dedicated 12MB limit is applied strictly and exclusively to the /api/upload/image route
 app.use(express.json({
-  limit: '10mb',
+  limit: '100kb',
   verify: (req, res, buf) => {
     req.rawBody = buf.toString('utf-8');
   }
 }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+// SEC-NoSQL: Sanitize user input across body, query & params to prevent NoSQL injection ($ and . stripping)
+const mongoSanitize = require('express-mongo-sanitize');
+app.use(mongoSanitize({
+  replaceWith: '_',
+  onSanitize: ({ req, key }) => {
+    console.warn(`[SECURITY ALERT] NoSQL Injection attempt sanitized: key=${key} from IP=${req.ip}`);
+  }
+}));
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -145,14 +197,16 @@ const startServer = async () => {
       }
     });
 
-    // Helper redirect: forward any accidental traffic on 5174 to Vite port 5173
-    const http = require('http');
-    const redirect5174 = http.createServer((req, res) => {
-      res.writeHead(302, { Location: `http://localhost:5173${req.url || '/'}` });
-      res.end();
-    });
-    redirect5174.on('error', () => {});
-    redirect5174.listen(5174, '127.0.0.1');
+    // Helper redirect for local development: forward any accidental traffic on 5174 to Vite port 5173
+    if (!isProduction) {
+      const http = require('http');
+      const redirect5174 = http.createServer((req, res) => {
+        res.writeHead(302, { Location: `http://localhost:5173${req.url || '/'}` });
+        res.end();
+      });
+      redirect5174.on('error', () => {});
+      redirect5174.listen(5174, '127.0.0.1');
+    }
   } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);

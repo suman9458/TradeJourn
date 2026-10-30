@@ -832,11 +832,23 @@ async function getDrawdownAnalysis(userId, options = {}) {
  * Tool 8: get_mistakes_and_emotions
  * Evaluates recurring execution mistakes and emotional performance
  */
-async function getMistakesAndEmotions(userId) {
+async function getMistakesAndEmotions(userId, filters = {}) {
   if (!isDbReady() || !isValidUserId(userId)) {
     return { hasData: false, message: 'No trades logged yet.' };
   }
-  const trades = await Trade.find({ userId, result: { $in: ['WIN', 'LOSS', 'BE'] } }).lean();
+  const query = { userId, result: { $in: ['WIN', 'LOSS', 'BE'] } };
+  if (filters.instrument) {
+    query.instrument = new RegExp(`^${escapeRegex(filters.instrument.trim())}$`, 'i');
+  }
+  if (filters.session) {
+    query.session = new RegExp(`^${escapeRegex(filters.session.trim())}$`, 'i');
+  }
+  if (filters.startDate || filters.endDate) {
+    query.date = {};
+    if (filters.startDate) query.date.$gte = filters.startDate;
+    if (filters.endDate) query.date.$lte = filters.endDate;
+  }
+  const trades = await Trade.find(query).lean();
   if (!trades.length) return { hasData: false, message: 'No closed trades logged yet.' };
 
   const mistakeMap = {};
@@ -935,6 +947,7 @@ async function getMistakesAndEmotions(userId) {
   return {
     hasData: true,
     totalTradesAnalyzed: trades.length,
+    biggestMistake: mistakes.length ? mistakes[0] : null,
     mistakes: mistakes.length ? mistakes : 'No repeated mistakes logged yet. Excellent execution discipline!',
     emotions,
     correlationVsCausationNote: 'Mistake correlation shows direct statistical damage: trades tagged with execution mistakes show significantly higher average losses than your disciplined baseline.'
@@ -1240,7 +1253,28 @@ async function compareTradingPeriods(userId, { type = 'SESSIONS', filter1, filte
   let label1 = filter1 || 'London';
   let label2 = filter2 || 'New York';
 
-  if (type === 'SESSIONS' || (!type && filter1 && !filter1.includes('-'))) {
+  const isMonthComparison = type === 'MONTHS' || (filter1 && /month|mahine/i.test(filter1)) || (filter2 && /month|mahine/i.test(filter2));
+
+  if (isMonthComparison) {
+    label1 = filter1 || 'Last Month';
+    label2 = filter2 || 'Previous Month';
+    const sorted = [...trades].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const uniqueMonths = [...new Set(sorted.map(t => (t.date || '').substring(0, 7)).filter(Boolean))].sort().reverse();
+
+    if (uniqueMonths.length >= 2) {
+      const m1 = uniqueMonths[0];
+      const m2 = uniqueMonths[1];
+      label1 = `${filter1 || 'Last Month'} (${m1})`;
+      label2 = `${filter2 || 'Previous Month'} (${m2})`;
+      group1 = sorted.filter(t => (t.date || '').startsWith(m1));
+      group2 = sorted.filter(t => (t.date || '').startsWith(m2));
+    } else {
+      // If trades are within one single month or date range, split chronologically into two halves
+      const mid = Math.ceil(sorted.length / 2);
+      group1 = sorted.slice(0, mid);
+      group2 = sorted.slice(mid);
+    }
+  } else if (type === 'SESSIONS' || (!type && filter1 && !filter1.includes('-'))) {
     group1 = trades.filter(t => (t.session || '').toLowerCase().includes(label1.toLowerCase()));
     group2 = trades.filter(t => (t.session || '').toLowerCase().includes(label2.toLowerCase()));
   } else {

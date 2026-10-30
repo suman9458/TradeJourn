@@ -173,6 +173,9 @@ export const api = {
   // AI Coach
   getRuleBasedCoach: () => request('/ai/coach'),
   askAiCoach: (payload) => request('/ai/chat', { method: 'POST', body: JSON.stringify(payload) }),
+  getAiConversations: () => request('/ai/conversations'),
+  getAiConversation: (id) => request(`/ai/conversations/${id}`),
+  deleteAiConversation: (id) => request(`/ai/conversations/${id}`, { method: 'DELETE' }),
 
   // MetaTrader 5 (MT5) Integration
   connectMT5CloudAccount: (payload) => request('/mt5/cloud/connect', { method: 'POST', body: JSON.stringify(payload) }),

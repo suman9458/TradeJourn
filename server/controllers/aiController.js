@@ -1,6 +1,11 @@
 const Trade = require('../models/Trade');
 const User = require('../models/User');
 const { processAiCoachChat, cleanAiText } = require('../services/ai/aiCoachService');
+const {
+  listUserConversations,
+  getOrCreateConversation,
+  deleteConversation
+} = require('../services/ai/conversationContextManager');
 
 
 const formatR = (value) => {
@@ -176,7 +181,7 @@ const cleanAiOutput = (text) => {
 // @access  Private
 const askAiCoach = async (req, res, next) => {
   try {
-    const { question, messages, image, userApiKey, userModel, userProvider } = req.body;
+    const { question, messages, image, userApiKey, userModel, userProvider, conversationId } = req.body;
 
     if (!question || !question.trim()) {
       return res.status(400).json({ success: false, message: 'Please provide a valid question' });
@@ -192,8 +197,13 @@ const askAiCoach = async (req, res, next) => {
       image: image || null,
       userModel: effectiveModel,
       userApiKey: effectiveApiKey,
-      user: req.user
+      user: req.user,
+      conversationId: conversationId || null
     });
+
+    if (result && result.code === 'FORBIDDEN') {
+      return res.status(403).json(result);
+    }
 
     res.json(result);
   } catch (error) {
@@ -201,7 +211,55 @@ const askAiCoach = async (req, res, next) => {
   }
 };
 
+// @desc    List all active conversations for the authenticated user
+// @route   GET /api/ai/conversations
+// @access  Private
+const getConversations = async (req, res, next) => {
+  try {
+    const conversations = await listUserConversations(req.user._id);
+    res.json({ success: true, conversations });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get a single conversation by ID (strictly isolated to authenticated user)
+// @route   GET /api/ai/conversations/:id
+// @access  Private
+const getConversationById = async (req, res, next) => {
+  try {
+    const convLookup = await getOrCreateConversation(req.user._id, req.params.id);
+    if (convLookup.forbidden) {
+      return res.status(403).json({ success: false, message: 'Access denied: Conversation belongs to another user.' });
+    }
+    if (convLookup.deleted || convLookup.expired || convLookup.notFound) {
+      return res.status(404).json({ success: false, message: 'Conversation not found or expired.' });
+    }
+    res.json({ success: true, conversation: convLookup.conversation });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Soft-delete conversation history
+// @route   DELETE /api/ai/conversations/:id
+// @access  Private
+const deleteConversationById = async (req, res, next) => {
+  try {
+    const success = await deleteConversation(req.user._id, req.params.id);
+    if (!success) {
+      return res.status(404).json({ success: false, message: 'Conversation not found or already deleted.' });
+    }
+    res.json({ success: true, message: 'Conversation deleted successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRuleBasedCoachAnalysis,
-  askAiCoach
+  askAiCoach,
+  getConversations,
+  getConversationById,
+  deleteConversationById
 };

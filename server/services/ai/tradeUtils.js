@@ -33,10 +33,14 @@ const getTradeGrossProfit = (t) => {
     return recoveredGross;
   }
 
-  // 1. Explicit takeProfitUSD or takeProfit
+  // 1. Explicit takeProfitUSD, profitUSD, takeProfit, or profit
   const rawTp = (t.takeProfitUSD !== undefined && t.takeProfitUSD !== null && t.takeProfitUSD !== '')
     ? t.takeProfitUSD
-    : (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== '' ? t.takeProfit : null);
+    : (t.profitUSD !== undefined && t.profitUSD !== null && t.profitUSD !== ''
+      ? t.profitUSD
+      : (t.takeProfit !== undefined && t.takeProfit !== null && t.takeProfit !== ''
+        ? t.takeProfit
+        : (t.profit !== undefined && t.profit !== null && t.profit !== '' ? t.profit : null)));
 
   if (rawTp !== null && rawTp !== undefined && rawTp !== '') {
     const tp = Number(rawTp);

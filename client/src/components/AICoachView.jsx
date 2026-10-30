@@ -143,6 +143,18 @@ export const AICoachView = ({ trades = [] }) => {
     ? `tradejourn_ai_chat_${user._id || user.userId || user.email}`
     : 'tradejourn_ai_chat_guest';
 
+  const convStorageKey = user?._id || user?.userId || user?.email
+    ? `tradejourn_ai_conv_${user._id || user.userId || user.email}`
+    : 'tradejourn_ai_conv_guest';
+
+  const [conversationId, setConversationId] = useState(() => {
+    try {
+      return localStorage.getItem(convStorageKey) || null;
+    } catch {
+      return null;
+    }
+  });
+
   // Chat conversation state isolated per user session
   const [chatHistory, setChatHistory] = useState(() => {
     try {
@@ -164,10 +176,23 @@ export const AICoachView = ({ trades = [] }) => {
       }
       const saved = localStorage.getItem(userStorageKey);
       setChatHistory(saved ? JSON.parse(saved) : []);
+      const savedConv = localStorage.getItem(convStorageKey);
+      setConversationId(savedConv || null);
     } catch {
       setChatHistory([]);
+      setConversationId(null);
     }
-  }, [userStorageKey]);
+  }, [userStorageKey, convStorageKey]);
+
+  useEffect(() => {
+    try {
+      if (conversationId) {
+        localStorage.setItem(convStorageKey, conversationId);
+      } else {
+        localStorage.removeItem(convStorageKey);
+      }
+    } catch {}
+  }, [conversationId, convStorageKey]);
 
   const [question, setQuestion] = useState('');
   const [isAsking, setIsAsking] = useState(false);
@@ -239,27 +264,41 @@ export const AICoachView = ({ trades = [] }) => {
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     if (chatHistory.length === 0 && !question.trim() && !attachedImage) return;
     if (chatHistory.length > 0) {
       if (!window.confirm('Start a new chat conversation?')) return;
     }
+    if (conversationId) {
+      try {
+        await api.deleteAiConversation(conversationId);
+      } catch {}
+    }
+    setConversationId(null);
     setChatHistory([]);
     setQuestion('');
     setAttachedImage(null);
     try {
       localStorage.removeItem(userStorageKey);
+      localStorage.removeItem(convStorageKey);
     } catch {}
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
     if (chatHistory.length === 0) return;
     if (window.confirm('Clear conversation history?')) {
+      if (conversationId) {
+        try {
+          await api.deleteAiConversation(conversationId);
+        } catch {}
+      }
+      setConversationId(null);
       setChatHistory([]);
       setQuestion('');
       setAttachedImage(null);
       try {
         localStorage.removeItem(userStorageKey);
+        localStorage.removeItem(convStorageKey);
       } catch {}
     }
   };
@@ -290,8 +329,13 @@ export const AICoachView = ({ trades = [] }) => {
         image: imagePayload,
         userProvider: activeProvider,
         userApiKey: isAdmin ? (activeProvider === 'gemini' ? geminiKey : openAiKey) : undefined,
-        userModel: activeModel
+        userModel: activeModel,
+        conversationId: conversationId || undefined
       });
+
+      if (res.conversationId) {
+        setConversationId(res.conversationId);
+      }
 
       setChatHistory(prev => [
         ...prev,

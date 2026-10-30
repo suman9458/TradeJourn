@@ -37,6 +37,13 @@ const Trade = require('../../models/Trade');
 const { generateStructuredOutlook } = require('./technicalAnalysisEngine');
 const { runStrategyBacktest } = require('./backtestEngine');
 const { generateGeminiContent, normalizeModelName } = require('./geminiClient');
+const {
+  resolveMultiTurnContext,
+  getOrCreateConversation,
+  saveConversationTurn,
+  generateConversationSummary,
+  generateConversationId
+} = require('./conversationContextManager');
 
 const SYSTEM_INSTRUCTION = `You are the TradeJourn AI Trading Copilot—an institutional trading mentor, quantitative analyst, and performance coach built into TradeJourn.
 
@@ -60,7 +67,8 @@ CORE PRINCIPLES & COMMUNICATION RULES:
 • [Follow-up question 2]
 9. Verified Ground Truth: Base all journal advice strictly on actual trade records. Never invent statistics, win rates, or profits.
 10. PERSONAL TRADING ANALYTICS RIGOR: All personal trading metrics (sample size N, date range, win rate, gross vs net P&L, fees/commissions, swaps, expectancy, profit factor, drawdown, holding duration, and session/strategy performance) must be grounded in verified backend calculations. Always report sample size (N) and date range. Differentiate Gross P&L from Net Realized P&L after fees. State win rate alongside breakeven rate and win rate excluding breakeven trades. Explain the evidence behind performance findings. Explicitly distinguish correlation from causation (e.g. remind traders that higher win rate in a session or setup tag correlates with adherence to confirmation and discipline, rather than the tag or session alone causing edge). Never fabricate unrecorded records or metrics.
-11. VERIFIED EXTERNAL MARKET DATA & NON-PROMISSORY DISCLOSURE: When answering market-analysis requests, use fresh data for the requested symbol and timeframe. State the provider source and data timestamp clearly. Distinguish LIVE, DELAYED (~15m), CACHED, and UNAVAILABLE feeds honestly. Explain technical trend, market structure, key inflection levels, and formulate both bullish and bearish scenarios with exact invalidation levels. Never fabricate current prices or claim a live lookup occurred when data is unavailable. Never promise or guarantee a profitable outcome.`;
+11. VERIFIED EXTERNAL MARKET DATA & NON-PROMISSORY DISCLOSURE: When answering market-analysis requests, use fresh data for the requested symbol and timeframe. State the provider source and data timestamp clearly. Distinguish LIVE, DELAYED (~15m), CACHED, and UNAVAILABLE feeds honestly. Explain technical trend, market structure, key inflection levels, and formulate both bullish and bearish scenarios with exact invalidation levels. Never fabricate current prices or claim a live lookup occurred when data is unavailable. Never promise or guarantee a profitable outcome.
+12. MULTI-TURN CONTEXT CONTINUITY & ZERO TRUST IN PRIOR STATS: Understand conversational references to previous turns (e.g. 'Only the last month', 'Now compare that with the previous month', 'What was my biggest mistake?'). Apply new constraints while maintaining the underlying task and active instrument/session filters. Crucially, NEVER treat past dialogue or previous assistant responses as authoritative numerical truth. Always rely strictly on the fresh database metrics provided in [AUTHORITATIVE VERIFIED FRESH DATABASE METRICS - QUERY EXECUTED JUST NOW].`;
 
 /**
  * Clean output text from excessive formatting quirks while preserving markdown bold and lists
@@ -107,8 +115,47 @@ ${journalContext.keyTakeaway}
 • *"Audit my trading psychology and emotional discipline."*`;
   }
 
-  // Handle Trading Psychology
+  // Handle Trading Psychology & Tilt / Execution Mistakes
   if (intent === 'TRADING_PSYCHOLOGY') {
+    if (journalContext && journalContext.mistakes) {
+      if (journalContext.biggestMistake && typeof journalContext.biggestMistake === 'object') {
+        const bm = journalContext.biggestMistake;
+        const otherMistakes = Array.isArray(journalContext.mistakes)
+          ? journalContext.mistakes.filter(m => m.mistake !== bm.mistake)
+          : [];
+
+        return `🚨 **BIGGEST RECURRING MISTAKE: ${bm.mistake}**
+• **Impact**: Total Loss **${bm.totalLossUSD}** across **${bm.occurrences} trades** (${bm.frequency || `${bm.occurrences} trades`})
+• **Average Loss**: ${bm.avgLossUSD || 'N/A'} (vs disciplined baseline: ${bm.baselineAvgLossUSD || 'N/A'})
+• **Causal Mechanism**: ${bm.causalMechanism || 'Violating trading rules directly increases negative skewness.'}
+• **Actionable Remedy**: ${bm.actionableRemedy || 'Follow strict execution plan.'}
+${otherMistakes.length > 0 ? `\n📋 **Other Logged Mistakes**:\n${otherMistakes.map(m => `• **${m.mistake}**: ${m.occurrences}x (${m.totalLossUSD})`).join('\n')}\n` : ''}
+💡 **Correlation vs Causation**:
+Trades tagged with rule violations mechanically increase downside volatility and reduce your mathematical expectancy. Adhering to predefined invalidation stops prevents negative tail outcomes.
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How do I enforce a rule against ${bm.mistake}?"*
+• *"Audit my trading psychology and emotional tilt."*`;
+      }
+
+      if (Array.isArray(journalContext.mistakes)) {
+        return `⚠️ **AUDITED RECURRING EXECUTION MISTAKES** (Analyzed N=${journalContext.totalTradesAnalyzed || journalContext.mistakes.length} trades):
+${journalContext.mistakes.map(m => `• **${m.mistake}** [${m.isRecurring ? 'RECURRING MISTAKE' : 'OCCURRENCE'}]:
+  - Frequency: ${m.occurrences} times (${m.frequency || `${m.occurrences} trades`})
+  - Total Loss Impact: **${m.totalLossUSD}** (Avg Loss: ${m.avgLossUSD || 'N/A'} vs Baseline Loss: ${m.baselineAvgLossUSD || 'N/A'})
+  - Causal Mechanism: ${m.causalMechanism || 'Violating trading rules directly increases negative skewness.'}
+  - Actionable Remedy: ${m.actionableRemedy || 'Follow strict execution plan.'}`).join('\n\n')}
+
+💡 **Correlation vs Causation**:
+Trades tagged with rule violations mechanically increase downside volatility and reduce your mathematical expectancy. Adhering to predefined invalidation stops prevents negative tail outcomes.
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How do I enforce a rule against moving stop-losses?"*
+• *"Audit my trading psychology and emotional tilt."*`;
+      }
+      return String(journalContext.mistakes);
+    }
+
     if (!journalContext || !journalContext.tiltRiskLevel) {
       return isHi
         ? `🧠 **Trading Psychology Audit**: Aapke journal me psychology pattern measure karne ke liye trades available nahi hain. Trade add karein aur har trade me emotion (Calm, FOMO, Revenge) log karein.\n\n💡 **Suggested Next Steps:**\n• *"Quick Add Trade se trade log karein"*\n• *"Loss ke baad revenge trading kaise rokein?"*`
@@ -379,6 +426,26 @@ ${journalContext.correlationVsCausationNote || 'Historical edge reflects discipl
 
   // Handle Mistakes
   if (journalContext.mistakes) {
+    if (journalContext.biggestMistake && typeof journalContext.biggestMistake === 'object') {
+      const bm = journalContext.biggestMistake;
+      const otherMistakes = Array.isArray(journalContext.mistakes)
+        ? journalContext.mistakes.filter(m => m.mistake !== bm.mistake)
+        : [];
+
+      return `🚨 **BIGGEST RECURRING MISTAKE: ${bm.mistake}**
+• **Impact**: Total Loss **${bm.totalLossUSD}** across **${bm.occurrences} trades** (${bm.frequency || `${bm.occurrences} trades`})
+• **Average Loss**: ${bm.avgLossUSD || 'N/A'} (vs disciplined baseline: ${bm.baselineAvgLossUSD || 'N/A'})
+• **Causal Mechanism**: ${bm.causalMechanism || 'Violating trading rules directly increases negative skewness.'}
+• **Actionable Remedy**: ${bm.actionableRemedy || 'Follow strict execution plan.'}
+${otherMistakes.length > 0 ? `\n📋 **Other Logged Mistakes**:\n${otherMistakes.map(m => `• **${m.mistake}**: ${m.occurrences}x (${m.totalLossUSD})`).join('\n')}\n` : ''}
+💡 **Correlation vs Causation**:
+Trades tagged with rule violations mechanically increase downside volatility and reduce your mathematical expectancy. Adhering to predefined invalidation stops prevents negative tail outcomes.
+
+💡 **Next Steps / Suggested Follow-ups:**
+• *"How do I enforce a rule against ${bm.mistake}?"*
+• *"Audit my trading psychology and emotional tilt."*`;
+    }
+
     if (Array.isArray(journalContext.mistakes)) {
       return `⚠️ **AUDITED RECURRING EXECUTION MISTAKES** (Analyzed N=${journalContext.totalTradesAnalyzed || journalContext.mistakes.length} trades):
 ${journalContext.mistakes.map(m => `• **${m.mistake}** [${m.isRecurring ? 'RECURRING MISTAKE' : 'OCCURRENCE'}]:
@@ -403,7 +470,8 @@ Trades tagged with rule violations mechanically increase downside volatility and
 }
 
 /**
- * Handle incoming chat interaction
+ * Handle incoming chat interaction with multi-turn conversation memory,
+ * dynamic constraint tracking, and authoritative fresh database metrics.
  */
 async function processAiCoachChat({
   question,
@@ -411,7 +479,9 @@ async function processAiCoachChat({
   image = null,
   userModel = 'gemini-2.0-flash',
   userApiKey = null,
-  user
+  user,
+  conversationId = null,
+  referenceDate = new Date()
 }) {
   if (!question || typeof question !== 'string' || !question.trim()) {
     throw new Error('Please provide a valid question or prompt for the AI Coach.');
@@ -420,10 +490,49 @@ async function processAiCoachChat({
   const cleanQuestion = question.trim();
   const userId = user?._id || user?.id || 'anonymous';
 
-  // 1. Fast Intent Classification
-  const intentResult = classifyIntent(cleanQuestion);
+  // 1. Manage Conversation Session & Multi-tenant Isolation
+  let activeConv = null;
+  let currentConvId = conversationId;
 
-  // If fast answer exists and no image attached, return verified fast answer immediately
+  if (currentConvId) {
+    const convLookup = await getOrCreateConversation(userId, currentConvId);
+    if (convLookup.forbidden) {
+      return {
+        success: false,
+        error: 'Access denied: Conversation belongs to another user.',
+        code: 'FORBIDDEN'
+      };
+    }
+    if (convLookup.deleted || convLookup.expired) {
+      // Graceful handling of deleted or expired conversation
+      const freshConv = await getOrCreateConversation(userId, null, cleanQuestion.substring(0, 40));
+      activeConv = freshConv.conversation;
+      currentConvId = activeConv.conversationId;
+    } else {
+      activeConv = convLookup.conversation;
+    }
+  } else if (userId !== 'anonymous') {
+    const convLookup = await getOrCreateConversation(userId, null, cleanQuestion.substring(0, 40));
+    activeConv = convLookup.conversation;
+    currentConvId = activeConv.conversationId;
+  }
+
+  // Combine conversation history with any client-supplied messages
+  const historyMessages = (activeConv && Array.isArray(activeConv.messages) && activeConv.messages.length > 0)
+    ? activeConv.messages
+    : (Array.isArray(messages) ? messages : []);
+
+  const priorContextState = activeConv?.contextState || {};
+
+  // 2. Classify Raw Intent & Resolve Multi-Turn Context
+  const intentResult = classifyIntent(cleanQuestion);
+  const resolvedContext = resolveMultiTurnContext(cleanQuestion, priorContextState, historyMessages, referenceDate);
+
+  // The effective intent is the resolved multi-turn intent
+  const effectiveIntent = resolvedContext.intent || intentResult.intent;
+
+  // 3. Fast Intent Handling (GREETING, IDENTITY, GRATITUDE, TRADING_EDUCATION, CLARIFICATION_NEEDED)
+  // ONLY trigger if not a multi-turn follow-up requiring fresh database queries!
   const fastAnswerIntents = [
     'GREETING',
     'IDENTITY',
@@ -433,9 +542,9 @@ async function processAiCoachChat({
     'CLARIFICATION_NEEDED'
   ];
 
-  if (!image && intentResult.fastAnswer && fastAnswerIntents.includes(intentResult.intent)) {
+  if (!image && !resolvedContext.isFollowUp && !resolvedContext.freshQueryNeeded && intentResult.fastAnswer && fastAnswerIntents.includes(effectiveIntent)) {
     let fastAnswer = intentResult.fastAnswer;
-    if (intentResult.intent === 'GREETING' && user) {
+    if (effectiveIntent === 'GREETING' && user) {
       const firstName = user?.name ? user.name.split(' ')[0] : (user?.username ? user.username.split(' ')[0] : '');
       if (firstName) {
         if (intentResult.language === 'hinglish') {
@@ -445,54 +554,58 @@ async function processAiCoachChat({
         }
       }
     }
+
+    if (currentConvId) {
+      await saveConversationTurn({
+        userId,
+        conversationId: currentConvId,
+        userMessage: cleanQuestion,
+        aiResponse: fastAnswer,
+        resolvedContext,
+        intent: effectiveIntent
+      });
+    }
+
     return {
       success: true,
       answer: fastAnswer,
-      intent: intentResult.intent,
+      intent: effectiveIntent,
+      conversationId: currentConvId,
+      activeContext: resolvedContext,
       provider: 'intent-engine',
       model: 'TradeJourn Conversational Router'
     };
   }
 
-  // 2. Resolve Active Context with Multi-Turn Memory
-  let activeSymbol = intentResult.extractedSymbol;
-  let activeTimeframe = intentResult.extractedTimeframe || '1h';
+  // 4. Resolve Active Symbol & Timeframe with Continuity
+  let activeSymbol = resolvedContext.activeSymbol;
+  let activeTimeframe = resolvedContext.activeTimeframe || '1h';
 
-  if (!activeSymbol && Array.isArray(messages) && messages.length > 0) {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const pastText = (messages[i].text || '').toLowerCase();
-      const words = pastText.replace(/[^a-z0-9]/g, ' ').split(/\s+/);
-      for (const w of words) {
-        if (MARKET_SYMBOLS_MAP[w]) {
-          activeSymbol = MARKET_SYMBOLS_MAP[w];
-          break;
-        }
-      }
-      if (activeSymbol) break;
-    }
-  }
-
-  if (!activeSymbol && (intentResult.intent === 'MARKET_QUERY' || cleanQuestion.toLowerCase().includes('invalidation') || cleanQuestion.toLowerCase().includes('level'))) {
+  if (!activeSymbol && (effectiveIntent === 'MARKET_QUERY' || cleanQuestion.toLowerCase().includes('invalidation') || cleanQuestion.toLowerCase().includes('level'))) {
     activeSymbol = 'XAUUSD';
   }
 
-  // 3. Pre-fetch Context if relevant (ONLY when needed!)
+  // 5. Pre-fetch Context with Fresh Database Queries (ONLY when needed!)
   let journalContext = null;
   let marketContext = null;
 
-  if (intentResult.intent === 'TRADE_REVIEW') {
+  if (effectiveIntent === 'TRADE_REVIEW') {
     try {
       journalContext = await reviewTrade(userId);
     } catch (e) {
       console.warn('Trade review prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'TRADING_PSYCHOLOGY' || cleanQuestion.toLowerCase().includes('tilt')) {
+  } else if (effectiveIntent === 'TRADING_PSYCHOLOGY' || cleanQuestion.toLowerCase().includes('mistake') || cleanQuestion.toLowerCase().includes('tilt')) {
     try {
-      journalContext = await getPsychologyAudit(userId);
+      if (cleanQuestion.toLowerCase().includes('mistake') || resolvedContext.isFollowUp) {
+        journalContext = await getMistakesAndEmotions(userId, resolvedContext.activeFilters);
+      } else {
+        journalContext = await getPsychologyAudit(userId);
+      }
     } catch (e) {
       console.warn('Psychology audit prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'PLAYBOOK_QUERY') {
+  } else if (effectiveIntent === 'PLAYBOOK_QUERY') {
     try {
       const recentTrades = await Trade.find({ userId }).sort({ date: -1, time: -1 }).limit(1).lean().catch(() => []);
       const playbook = await getPlaybookRules(userId);
@@ -505,21 +618,27 @@ async function processAiCoachChat({
     } catch (e) {
       console.warn('Playbook prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'PROP_FIRM_QUERY') {
+  } else if (effectiveIntent === 'PROP_FIRM_QUERY') {
     try {
       journalContext = await getPropFirmStatus(userId);
     } catch (e) {
       console.warn('Prop firm prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'JOURNAL_COMPARISON') {
+  } else if (effectiveIntent === 'JOURNAL_COMPARISON') {
     try {
-      journalContext = await compareTradingPeriods(userId, { type: 'SESSIONS', filter1: 'London', filter2: 'New York' });
+      const compConfig = resolvedContext.comparisonConfig || {
+        type: 'SESSIONS',
+        filter1: 'London',
+        filter2: 'New York',
+        instrument: activeSymbol
+      };
+      journalContext = await compareTradingPeriods(userId, compConfig);
     } catch (e) {
       console.warn('Comparison prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'ECONOMIC_CALENDAR') {
+  } else if (effectiveIntent === 'ECONOMIC_CALENDAR') {
     journalContext = getUpcomingEconomicEvents();
-  } else if (intentResult.intent === 'POSITION_SIZING') {
+  } else if (effectiveIntent === 'POSITION_SIZING') {
     const balanceMatch = cleanQuestion.match(/\$?\s*(\d[\d,]*(\.\d+)?)\s*(balance|account|equity|k\b)?/i);
     const slMatch = cleanQuestion.match(/(\d+(\.\d+)?)\s*(pip|pips|sl|stop|dollars?|\$)/i);
     const riskMatch = cleanQuestion.match(/(\d+(\.\d+)?)\s*%\s*(risk)?/i);
@@ -534,18 +653,18 @@ async function processAiCoachChat({
       stopLossDistance: slDistance,
       instrument: activeSymbol || 'EURUSD'
     });
-  } else if (intentResult.intent === 'STATISTICAL_ANALYSIS') {
+  } else if (effectiveIntent === 'STATISTICAL_ANALYSIS') {
     try {
       const allTrades = await Trade.find({ userId }).lean().catch(() => []);
       journalContext = calculateStatisticalDistribution(allTrades);
     } catch (e) {
       journalContext = calculateStatisticalDistribution([]);
     }
-  } else if (intentResult.intent === 'KNOWLEDGE_RETRIEVAL') {
+  } else if (effectiveIntent === 'KNOWLEDGE_RETRIEVAL') {
     journalContext = retrieveKnowledgeDocuments(cleanQuestion);
-  } else if (intentResult.intent === 'MACRO_ANALYSIS') {
+  } else if (effectiveIntent === 'MACRO_ANALYSIS') {
     journalContext = getMacroDrivers(activeSymbol || 'XAUUSD');
-  } else if (intentResult.intent === 'BACKTEST_QUERY') {
+  } else if (effectiveIntent === 'BACKTEST_QUERY') {
     try {
       const bData = await getMarketData(activeSymbol || 'EURUSD', activeTimeframe, 60);
       journalContext = runStrategyBacktest({
@@ -555,34 +674,35 @@ async function processAiCoachChat({
     } catch (e) {
       console.warn('Backtest prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'STRATEGY_COMPARISON') {
+  } else if (effectiveIntent === 'STRATEGY_COMPARISON') {
     try {
       journalContext = await compareStrategies(userId);
     } catch (e) {
       console.warn('Strategy comparison prefetch notice:', e.message);
     }
-  } else if (intentResult.intent === 'DRAWDOWN_ANALYSIS') {
+  } else if (effectiveIntent === 'DRAWDOWN_ANALYSIS') {
     try {
       journalContext = await getDrawdownAnalysis(userId);
     } catch (e) {
       console.warn('Drawdown prefetch notice:', e.message);
     }
-  } else if (intentResult.needsJournal || intentResult.intent === 'JOURNAL_QUERY') {
+  } else if (effectiveIntent === 'JOURNAL_QUERY' || resolvedContext.needsJournal || intentResult.needsJournal) {
     try {
-      if (cleanQuestion.toLowerCase().includes('last') || cleanQuestion.toLowerCase().includes('recent') || cleanQuestion.toLowerCase().includes('history')) {
-        journalContext = await getTradeHistory(userId, { limit: 10 });
+      if (cleanQuestion.toLowerCase().includes('last trade') || cleanQuestion.toLowerCase().includes('last 10') || cleanQuestion.toLowerCase().includes('recent trade') || cleanQuestion.toLowerCase().includes('history')) {
+        journalContext = await getTradeHistory(userId, { limit: 10, ...resolvedContext.activeFilters });
       } else if (cleanQuestion.toLowerCase().includes('mistake') || cleanQuestion.toLowerCase().includes('emotion') || cleanQuestion.toLowerCase().includes('fomo') || cleanQuestion.toLowerCase().includes('revenge')) {
-        journalContext = await getMistakesAndEmotions(userId);
+        journalContext = await getMistakesAndEmotions(userId, resolvedContext.activeFilters);
       } else if (cleanQuestion.toLowerCase().includes('drawdown')) {
         journalContext = await getDrawdownAnalysis(userId);
       } else if (cleanQuestion.toLowerCase().includes('compare') && (cleanQuestion.toLowerCase().includes('setup') || cleanQuestion.toLowerCase().includes('strateg'))) {
         journalContext = await compareStrategies(userId);
       } else if (cleanQuestion.toLowerCase().includes('symbol') || cleanQuestion.toLowerCase().includes('instrument')) {
         journalContext = await getPerformanceBySymbol(userId);
-      } else if (cleanQuestion.toLowerCase().includes('session')) {
+      } else if (cleanQuestion.toLowerCase().includes('session') && !cleanQuestion.toLowerCase().includes('compare')) {
         journalContext = await getPerformanceBySession(userId);
       } else {
-        journalContext = await getTradeStats(userId);
+        // Fresh database query respecting active filters (symbol, session, date range)
+        journalContext = await getTradeStats(userId, resolvedContext.activeFilters);
       }
     } catch (e) {
       console.warn('Journal prefetch notice:', e.message);
@@ -590,6 +710,7 @@ async function processAiCoachChat({
   }
 
   const isSpecialIntent = [
+    'JOURNAL_QUERY',
     'POSITION_SIZING',
     'MACRO_ANALYSIS',
     'ECONOMIC_CALENDAR',
@@ -603,11 +724,11 @@ async function processAiCoachChat({
     'JOURNAL_COMPARISON',
     'STRATEGY_COMPARISON',
     'DRAWDOWN_ANALYSIS'
-  ].includes(intentResult.intent);
+  ].includes(effectiveIntent);
 
-  if (!isSpecialIntent && activeSymbol && (intentResult.needsMarket || intentResult.intent === 'MARKET_QUERY' || intentResult.extractedTimeframe || cleanQuestion.toLowerCase().includes('invalidation') || cleanQuestion.toLowerCase().includes('level') || cleanQuestion.toLowerCase().includes('timeframe'))) {
-    intentResult.intent = 'MARKET_QUERY';
-    intentResult.needsMarket = true;
+  if (!isSpecialIntent && activeSymbol && (effectiveIntent === 'MARKET_QUERY' || intentResult.extractedTimeframe || cleanQuestion.toLowerCase().includes('invalidation') || cleanQuestion.toLowerCase().includes('level') || cleanQuestion.toLowerCase().includes('timeframe'))) {
+    resolvedContext.intent = 'MARKET_QUERY';
+    resolvedContext.needsMarket = true;
     try {
       marketContext = await getMarketData(activeSymbol, activeTimeframe);
     } catch (e) {
@@ -615,21 +736,33 @@ async function processAiCoachChat({
     }
   }
 
-  // 4. Resolve API Key & Execution Mode
+  // 6. Resolve API Key & Execution Mode
   if (userApiKey === 'offline') {
-    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
+    const groundedAnswer = formatGroundedAnswer(effectiveIntent, journalContext, marketContext, intentResult.language);
+    if (currentConvId) {
+      await saveConversationTurn({
+        userId,
+        conversationId: currentConvId,
+        userMessage: cleanQuestion,
+        aiResponse: groundedAnswer,
+        resolvedContext,
+        intent: effectiveIntent
+      });
+    }
     return {
       success: true,
       answer: groundedAnswer,
-      intent: intentResult.intent,
-      provider: intentResult.intent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
-      model: intentResult.intent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
+      intent: effectiveIntent,
+      conversationId: currentConvId,
+      activeContext: resolvedContext,
+      provider: effectiveIntent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
+      model: effectiveIntent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
     };
   }
 
   let apiKey = userApiKey?.trim() || user?.settings?.geminiApiKey || process.env.GEMINI_API_KEY;
 
-  if (!apiKey && mongoose.connection.readyState === 1) {
+  if (!apiKey && mongoose.connection.readyState === 1 && mongoose.connection.db) {
     const adminUser = await User.findOne({
       role: 'admin',
       'settings.geminiApiKey': { $exists: true, $ne: '' }
@@ -640,47 +773,81 @@ async function processAiCoachChat({
     }
   }
 
-  // 5. If No API Key Available -> Deterministic Grounded Engine
+  // 7. If No API Key Available -> Deterministic Grounded Engine
   if (!apiKey) {
-    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
+    const groundedAnswer = formatGroundedAnswer(effectiveIntent, journalContext, marketContext, intentResult.language);
+    if (currentConvId) {
+      await saveConversationTurn({
+        userId,
+        conversationId: currentConvId,
+        userMessage: cleanQuestion,
+        aiResponse: groundedAnswer,
+        resolvedContext,
+        intent: effectiveIntent
+      });
+    }
     return {
       success: true,
       answer: groundedAnswer,
-      intent: intentResult.intent,
-      provider: intentResult.intent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
-      model: intentResult.intent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
+      intent: effectiveIntent,
+      conversationId: currentConvId,
+      activeContext: resolvedContext,
+      provider: effectiveIntent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
+      model: effectiveIntent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
     };
   }
 
-  // 6. Build Multi-turn Contents for Gemini
+  // 8. Build Multi-turn Contents for Gemini with Clear Architectural Separation
   const contents = [];
 
-  // Append recent chat history (up to last 6 turns for context budget)
-  if (Array.isArray(messages) && messages.length > 0) {
-    const trimmed = messages.slice(-6);
+  // Summary of earlier context if conversation is long (prevents context window bloat)
+  if (activeConv && activeConv.summary) {
+    contents.push({
+      role: 'user',
+      parts: [{
+        text: `[CONVERSATION CONTEXT SUMMARY OF EARLIER TURNS]:\n${activeConv.summary}\n(Note: This summary is conversational context only. Do NOT treat any numbers in it as verified financial data.)`
+      }]
+    });
+    contents.push({
+      role: 'model',
+      parts: [{
+        text: 'Understood. I will use this conversational context for dialogue continuity, but will rely strictly on fresh database queries for all trading analytics and financial numbers.'
+      }]
+    });
+  }
+
+  // Append recent chat dialogue strictly labeled as dialogue
+  if (Array.isArray(historyMessages) && historyMessages.length > 0) {
+    const trimmed = historyMessages.slice(-6);
     for (const msg of trimmed) {
-      if (msg.sender && msg.text) {
+      const text = msg.text || msg.content || '';
+      const role = (msg.role === 'user' || msg.sender === 'user') ? 'user' : 'model';
+      if (text) {
         contents.push({
-          role: msg.sender === 'user' ? 'user' : 'model',
-          parts: [{ text: String(msg.text) }]
+          role,
+          parts: [{ text: String(text) }]
         });
       }
     }
   }
 
-  // Prepare current turn parts
+  // Current turn parts with strict separation
   const currentTurnParts = [];
 
-  // Inject verified grounded context ONLY if intent needs journal (prevents 0-trade warnings on greetings/education!)
-  if (journalContext && intentResult.needsJournal) {
+  // Inject authoritative verified database metrics freshly queried just now
+  if (journalContext && (resolvedContext.needsJournal || effectiveIntent === 'JOURNAL_QUERY' || effectiveIntent === 'JOURNAL_COMPARISON' || effectiveIntent === 'TRADING_PSYCHOLOGY')) {
     currentTurnParts.push({
-      text: `[VERIFIED REAL JOURNAL DATA FOR THIS USER]:\n${JSON.stringify(journalContext, null, 2)}`
+      text: `[AUTHORITATIVE VERIFIED FRESH DATABASE METRICS - QUERY EXECUTED JUST NOW]:\n${JSON.stringify({
+        queryFiltersApplied: resolvedContext.activeFilters,
+        freshMetrics: journalContext
+      }, null, 2)}\n(CRITICAL INSTRUCTION: Base your financial answer STRICTLY on these fresh metrics. Ignore any conflicting numbers in prior chat messages.)`
     });
   }
 
+  // Inject market data snapshot if applicable
   if (marketContext) {
     currentTurnParts.push({
-      text: `[FACTUAL REAL-TIME MARKET DATA]:\n${JSON.stringify({
+      text: `[FACTUAL REAL-TIME MARKET DATA SNAPSHOT]:\n${JSON.stringify({
         symbol: marketContext.symbol,
         price: marketContext.price,
         status: marketContext.status,
@@ -733,7 +900,7 @@ async function processAiCoachChat({
     parts: currentTurnParts
   });
 
-  // 7. Execute Gemini Call with Tool Calling
+  // 9. Execute Gemini Call with Tool Calling
   const targetModel = normalizeModelName(userModel);
 
   try {
@@ -787,12 +954,25 @@ async function processAiCoachChat({
       // Guard against Gemini repeating canned one-liners
       const finalAnswer = (candidateAnswer && candidateAnswer.length > 20 && !candidateAnswer.includes('Analysis completed based on your verified journal ledger'))
         ? candidateAnswer
-        : formatGroundedAnswer(intentResult.intent, toolResult, marketContext, intentResult.language);
+        : formatGroundedAnswer(effectiveIntent, toolResult, marketContext, intentResult.language);
+
+      if (currentConvId) {
+        await saveConversationTurn({
+          userId,
+          conversationId: currentConvId,
+          userMessage: cleanQuestion,
+          aiResponse: finalAnswer,
+          resolvedContext,
+          intent: effectiveIntent
+        });
+      }
 
       return {
         success: true,
         answer: finalAnswer,
-        intent: intentResult.intent,
+        intent: effectiveIntent,
+        conversationId: currentConvId,
+        activeContext: resolvedContext,
         provider: 'gemini',
         model: targetModel,
         toolExecuted: call.name
@@ -803,12 +983,25 @@ async function processAiCoachChat({
       const candidateAnswer = cleanAiText(geminiResult.text);
       const finalAnswer = (!candidateAnswer.includes('Analysis completed based on your verified journal ledger'))
         ? candidateAnswer
-        : formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
+        : formatGroundedAnswer(effectiveIntent, journalContext, marketContext, intentResult.language);
+
+      if (currentConvId) {
+        await saveConversationTurn({
+          userId,
+          conversationId: currentConvId,
+          userMessage: cleanQuestion,
+          aiResponse: finalAnswer,
+          resolvedContext,
+          intent: effectiveIntent
+        });
+      }
 
       return {
         success: true,
         answer: finalAnswer,
-        intent: intentResult.intent,
+        intent: effectiveIntent,
+        conversationId: currentConvId,
+        activeContext: resolvedContext,
         provider: 'gemini',
         model: targetModel
       };
@@ -818,13 +1011,27 @@ async function processAiCoachChat({
   } catch (err) {
     console.warn(`Gemini API execution note (${err.message}). Using verified grounded engine.`);
 
-    const groundedAnswer = formatGroundedAnswer(intentResult.intent, journalContext, marketContext, intentResult.language);
+    const groundedAnswer = formatGroundedAnswer(effectiveIntent, journalContext, marketContext, intentResult.language);
+
+    if (currentConvId) {
+      await saveConversationTurn({
+        userId,
+        conversationId: currentConvId,
+        userMessage: cleanQuestion,
+        aiResponse: groundedAnswer,
+        resolvedContext,
+        intent: effectiveIntent
+      });
+    }
+
     return {
       success: true,
       answer: groundedAnswer,
-      intent: intentResult.intent,
-      provider: intentResult.intent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
-      model: intentResult.intent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
+      intent: effectiveIntent,
+      conversationId: currentConvId,
+      activeContext: resolvedContext,
+      provider: effectiveIntent === 'MARKET_QUERY' ? 'technical-engine' : 'grounded-audit',
+      model: effectiveIntent === 'MARKET_QUERY' ? 'TradeJourn Market Intelligence' : 'Institutional Ledger Engine'
     };
   }
 }

@@ -1406,19 +1406,17 @@ export const TradesTableView = ({
                 className="chart-preview-modal-card"
                 style={{
                   maxWidth: 'min(96vw, 1400px)',
-                  maxHeight: 'calc(100dvh - 20px)',
-                  height: 'calc(100dvh - 20px)',
+                  maxHeight: '92vh',
                   position: 'relative',
                   background: 'var(--bg-card, #04080e)',
-                  padding: '10px 14px',
+                  padding: '12px 16px',
                   borderRadius: '14px',
                   border: '1px solid var(--border-bright)',
                   boxShadow: '0 20px 50px rgba(0,0,0,0.95)',
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
-                  margin: 'auto',
-                  overflow: 'hidden'
+                  margin: 'auto'
                 }}
                 onClick={e => e.stopPropagation()}
               >
@@ -1542,16 +1540,17 @@ export const TradesTableView = ({
                   className="chart-preview-viewport"
                   style={{
                     flex: '1 1 auto',
-                    minHeight: 0,
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: detailZoomScale > 1 ? 'auto' : 'hidden',
                     borderRadius: '10px',
-                    padding: '4px',
+                    padding: '6px',
                     background: '#020509',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    maxHeight: 'calc(92vh - 75px)',
+                    minHeight: '200px'
                   }}
                 >
                   {zoomImages.length > 1 && (
@@ -1586,9 +1585,9 @@ export const TradesTableView = ({
                     crossOrigin="anonymous"
                     style={{
                       maxWidth: detailZoomScale > 1 ? 'none' : '100%',
-                      maxHeight: detailZoomScale > 1 ? 'none' : '100%',
+                      maxHeight: detailZoomScale > 1 ? 'none' : 'calc(92vh - 85px)',
                       width: detailZoomScale > 1 ? `${detailZoomScale * 100}%` : 'auto',
-                      height: detailZoomScale > 1 ? 'auto' : '100%',
+                      height: 'auto',
                       objectFit: 'contain',
                       display: 'block',
                       margin: 'auto',
@@ -1660,16 +1659,14 @@ export const TradesTableView = ({
                 style={{
                   maxWidth: chartImages.length > 0 ? 'min(96vw, 1440px)' : '520px',
                   width: '100%',
-                  maxHeight: 'calc(100dvh - 20px)',
-                  height: chartImages.length > 0 ? 'calc(100dvh - 20px)' : 'auto',
+                  maxHeight: '92vh',
                   position: 'relative',
-                  padding: chartImages.length > 0 ? '10px 14px' : '20px 22px',
+                  padding: chartImages.length > 0 ? '12px 16px' : '20px 22px',
                   borderRadius: '14px',
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
-                  margin: 'auto',
-                  overflow: 'hidden'
+                  margin: 'auto'
                 }}
               >
                 {/* Hidden file input for this trade */}
@@ -1858,16 +1855,17 @@ export const TradesTableView = ({
                       className="chart-preview-viewport"
                       style={{
                         flex: '1 1 auto',
-                        minHeight: 0,
                         position: 'relative',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         overflow: chartZoomScale > 1 ? 'auto' : 'hidden',
                         borderRadius: '10px',
-                        padding: '4px',
+                        padding: '6px',
                         background: '#020509',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        maxHeight: chartImages.length > 1 ? 'calc(92vh - 120px)' : 'calc(92vh - 75px)',
+                        minHeight: '200px'
                       }}
                     >
                       {chartImages.length > 1 && (
@@ -1903,9 +1901,9 @@ export const TradesTableView = ({
                         crossOrigin="anonymous"
                         style={{
                           maxWidth: chartZoomScale > 1 ? 'none' : '100%',
-                          maxHeight: chartZoomScale > 1 ? 'none' : '100%',
+                          maxHeight: chartZoomScale > 1 ? 'none' : (chartImages.length > 1 ? 'calc(92vh - 130px)' : 'calc(92vh - 85px)'),
                           width: chartZoomScale > 1 ? `${chartZoomScale * 100}%` : 'auto',
-                          height: chartZoomScale > 1 ? 'auto' : '100%',
+                          height: 'auto',
                           objectFit: 'contain',
                           borderRadius: '6px',
                           display: 'block',

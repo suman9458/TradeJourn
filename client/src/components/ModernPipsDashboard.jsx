@@ -2094,7 +2094,7 @@ export const ModernPipsDashboard = ({
               padding: 'clamp(8px, 1.5vh, 16px)',
               overflowY: 'auto',
               display: 'flex',
-              alignItems: 'safe center',
+              alignItems: 'center',
               justifyContent: 'center',
               boxSizing: 'border-box'
             }}
@@ -2109,19 +2109,17 @@ export const ModernPipsDashboard = ({
               style={{
                 maxWidth: hasImages ? 'min(96vw, 1440px)' : '520px',
                 width: '100%',
-                maxHeight: 'calc(100dvh - 20px)',
-                height: hasImages ? 'calc(100dvh - 20px)' : 'auto',
+                maxHeight: '92vh',
                 position: 'relative',
                 background: '#060c15',
-                padding: hasImages ? '10px 14px' : '20px 22px',
+                padding: hasImages ? '12px 16px' : '20px 22px',
                 borderRadius: '14px',
                 border: '1px solid var(--border-bright)',
                 boxShadow: '0 30px 80px rgba(0, 0, 0, 0.95)',
                 display: 'flex',
                 flexDirection: 'column',
                 boxSizing: 'border-box',
-                margin: 'auto',
-                overflow: 'hidden'
+                margin: 'auto'
               }}
             >
               {/* Hidden file input for dashboard chart */}
@@ -2310,7 +2308,6 @@ export const ModernPipsDashboard = ({
                     className="chart-preview-viewport"
                     style={{
                       flex: '1 1 auto',
-                      minHeight: 0,
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
@@ -2319,8 +2316,10 @@ export const ModernPipsDashboard = ({
                       background: '#020509',
                       borderRadius: '10px',
                       border: '1px solid var(--border-subtle)',
-                      padding: '4px',
-                      boxSizing: 'border-box'
+                      padding: '6px',
+                      boxSizing: 'border-box',
+                      maxHeight: chartImages.length > 1 ? 'calc(92vh - 120px)' : 'calc(92vh - 75px)',
+                      minHeight: '200px'
                     }}
                   >
                     <img
@@ -2329,9 +2328,9 @@ export const ModernPipsDashboard = ({
                       crossOrigin="anonymous"
                       style={{
                         maxWidth: dashboardChartZoomScale > 1 ? 'none' : '100%',
-                        maxHeight: dashboardChartZoomScale > 1 ? 'none' : '100%',
+                        maxHeight: dashboardChartZoomScale > 1 ? 'none' : (chartImages.length > 1 ? 'calc(92vh - 130px)' : 'calc(92vh - 85px)'),
                         width: dashboardChartZoomScale > 1 ? `${dashboardChartZoomScale * 100}%` : 'auto',
-                        height: dashboardChartZoomScale > 1 ? 'auto' : '100%',
+                        height: 'auto',
                         objectFit: 'contain',
                         borderRadius: '6px',
                         display: 'block',

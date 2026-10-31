@@ -1209,7 +1209,7 @@ label {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;
-  align-items: safe center;
+  align-items: center;
   justify-content: center;
   z-index: 100000;
   padding: clamp(8px, 1.5vh, 18px);

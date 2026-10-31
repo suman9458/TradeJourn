@@ -216,7 +216,7 @@ const getMe = async (req, res, next) => {
 const updateSettings = async (req, res, next) => {
   try {
     const { settings, name, dob, email, phoneNumber, userId, tradingExperience, avatar, password, securityPin } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+securityPin');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -341,7 +341,8 @@ const demoLogin = async (req, res, next) => {
         role: 'demo',
         isDemo: true,
         avatar: user.avatar || '',
-        settings: user.settings
+        settings: user.settings,
+        hasSecurityPin: true
       }
     });
   } catch (error) {

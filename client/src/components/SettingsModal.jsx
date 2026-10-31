@@ -45,7 +45,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setDob(user.dob || '');
       setEmail(user.email || '');
       setPhoneNumber(user.phoneNumber || '');
-      setSecurityPin('');
+      setSecurityPin(user.hasSecurityPin ? '••••' : '');
       setTradingExperience(user.tradingExperience || 'Intermediate');
       setAvatar(user.avatar || '');
       setCurrency(globalCurrency || user.settings?.currency || 'USD');
@@ -166,29 +166,17 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         updatedSettings.aiApiKey = aiApiKey;
       }
 
-      if (securityPin.trim() && !/^\d{4}$/.test(securityPin.trim())) {
-        setErrorMsg('Security PIN must be exactly 4 digits (e.g. 1234)');
-        setSaving(false);
-        return;
-      }
-
-      const updatePayload = {
-        name: name.trim(),
-        userId: userId.trim(),
-        dob: dob.trim(),
-        email: email.trim(),
-        phoneNumber: phoneNumber.trim(),
-        tradingExperience,
-        avatar,
-        settings: updatedSettings
-      };
-
-      if (securityPin.trim()) {
+      if (securityPin.trim() && securityPin.trim() !== '••••' && securityPin.trim() !== '****') {
+        if (!/^\d{4}$/.test(securityPin.trim())) {
+          setErrorMsg('Security PIN must be exactly 4 digits (e.g. 1234)');
+          setSaving(false);
+          return;
+        }
         updatePayload.securityPin = securityPin.trim();
       }
 
-      await updateUserSettings(updatePayload);
-      setSecurityPin('');
+      const updatedUser = await updateUserSettings(updatePayload);
+      setSecurityPin(updatedUser?.hasSecurityPin || user?.hasSecurityPin ? '••••' : '');
 
       setGlobalCurrency(currency);
       setSaved(true);
@@ -528,22 +516,92 @@ export const SettingsModal = ({ isOpen, onClose }) => {
 
               <div className="form-grid-2">
                 <label style={{ gridColumn: 'span 2' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <KeyRound size={13} color="var(--accent-cyan)" />
-                    <span>4-Digit Security PIN (Password Recovery)</span>
-                  </span>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    inputMode="numeric"
-                    pattern="[0-9]{4}"
-                    value={securityPin}
-                    onChange={e => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder={user?.hasSecurityPin ? "•••• (PIN is configured — enter new 4-digit PIN to change)" : "Set 4-digit PIN (e.g. 1234)"}
-                    autoComplete="off"
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <KeyRound size={13} color="var(--accent-cyan)" />
+                      <span>4-Digit Security PIN (Password Recovery)</span>
+                    </span>
+                    {user?.hasSecurityPin ? (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          color: 'var(--profit)',
+                          background: 'rgba(0, 245, 155, 0.1)',
+                          border: '1px solid rgba(0, 245, 155, 0.25)',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Check size={11} strokeWidth={3} /> PIN Set (••••)
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                          padding: '2px 8px',
+                          borderRadius: '12px'
+                        }}
+                      >
+                        Not Set
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={securityPin === '••••' ? 'text' : 'password'}
+                      maxLength={4}
+                      inputMode="numeric"
+                      pattern="[0-9]{4}"
+                      value={securityPin}
+                      onFocus={() => {
+                        if (securityPin === '••••') {
+                          setSecurityPin('');
+                        }
+                      }}
+                      onChange={e => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      placeholder={user?.hasSecurityPin ? "••••" : "Set 4-digit PIN (e.g. 1234)"}
+                      style={{
+                        letterSpacing: securityPin === '••••' ? '6px' : 'normal',
+                        fontFamily: securityPin === '••••' ? 'monospace' : 'inherit',
+                        fontSize: securityPin === '••••' ? '1.05rem' : 'inherit'
+                      }}
+                      autoComplete="off"
+                    />
+                    {user?.hasSecurityPin && securityPin === '••••' && (
+                      <button
+                        type="button"
+                        onClick={() => setSecurityPin('')}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          borderRadius: '6px',
+                          color: 'var(--accent-cyan)',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: '3px 8px'
+                        }}
+                      >
+                        Change PIN
+                      </button>
+                    )}
+                  </div>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
-                    Used to instantly reset your password via the login screen without needing an external OTP.
+                    {user?.hasSecurityPin
+                      ? "4-digit PIN is active (shown as ••••). To change your PIN, click 'Change PIN' or type a new 4-digit PIN above."
+                      : "Used to instantly reset your password via the login screen without needing an external OTP."}
                   </span>
                 </label>
               </div>

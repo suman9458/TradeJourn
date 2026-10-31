@@ -23,7 +23,7 @@ const seedDemoData = async () => {
         { userId: 'suman9458' },
         { email: adminEmail }
       ]
-    }).select('+password');
+    }).select('+password +securityPin');
 
     if (!adminUser) {
       adminUser = await User.create({
@@ -49,6 +49,10 @@ const seedDemoData = async () => {
         adminUser.userId = adminUserId;
         needsSave = true;
       }
+      if (!adminUser.securityPin) {
+        adminUser.securityPin = '1234';
+        needsSave = true;
+      }
       if (needsSave) {
         await adminUser.save();
       }
@@ -58,7 +62,7 @@ const seedDemoData = async () => {
     // 2. Seed Demo User
     const demoEmail = 'protrader@tradejourn.com';
     const demoPassword = process.env.DEMO_SEED_PASSWORD || 'Password123!';
-    let user = await User.findOne({ email: demoEmail });
+    let user = await User.findOne({ email: demoEmail }).select('+securityPin');
 
     if (!user) {
       user = await User.create({
@@ -73,9 +77,19 @@ const seedDemoData = async () => {
       });
       await Playbook.create({ userId: user._id });
       await Goal.create({ userId: user._id });
-    } else if (user.role !== 'demo') {
-      user.role = 'demo';
-      await user.save();
+    } else {
+      let needsDemoSave = false;
+      if (user.role !== 'demo') {
+        user.role = 'demo';
+        needsDemoSave = true;
+      }
+      if (!user.securityPin) {
+        user.securityPin = '1234';
+        needsDemoSave = true;
+      }
+      if (needsDemoSave) {
+        await user.save();
+      }
     }
 
     if (user) {

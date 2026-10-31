@@ -6,8 +6,41 @@ const Trade = require('../models/Trade');
 const { seedTradesForUser } = require('../controllers/tradeController');
 
 const seedDemoData = async () => {
-  // SEC-04 Hardening: Strictly disable hardcoded credential seeding in production environments
+  // SEC-04 Hardening: In production, skip mock credentials seeding, but ensure admin identity & email stay synchronized
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL || 'sumantd9458@gmail.com';
+      const adminUser = await User.findOne({
+        $or: [
+          { userId: '@sumansingh9458' },
+          { role: 'admin' },
+          { email: 'sumantd9458@gmail.com' },
+          { email: 'sumansingh9458@tradejourn.com' },
+          { email: 'suman9458@tradejourn.com' }
+        ]
+      });
+      if (adminUser) {
+        let changed = false;
+        if (adminUser.email !== adminEmail) {
+          adminUser.email = adminEmail;
+          changed = true;
+        }
+        if (adminUser.role !== 'admin') {
+          adminUser.role = 'admin';
+          changed = true;
+        }
+        if (adminUser.userId !== '@sumansingh9458') {
+          adminUser.userId = '@sumansingh9458';
+          changed = true;
+        }
+        if (changed) {
+          await adminUser.save();
+          console.log(`✅ Production Admin account synchronized to ${adminUser.userId} (${adminUser.email}).`);
+        }
+      }
+    } catch (prodErr) {
+      console.warn('Production admin email sync warning:', prodErr.message);
+    }
     console.log('🔒 Production mode: automatic credential seeding is disabled for security.');
     return;
   }
@@ -15,7 +48,7 @@ const seedDemoData = async () => {
   try {
     // 1. Seed or Ensure Single Authoritative Admin User (@sumansingh9458)
     const adminUserId = '@sumansingh9458';
-    const adminEmail = process.env.ADMIN_EMAIL || 'sumansingh9458@tradejourn.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'sumantd9458@gmail.com';
     const adminName = 'Suman Singh (Admin)';
     const adminPassword = process.env.ADMIN_SEED_PASSWORD || (`Admin_${crypto.randomBytes(8).toString('hex')}!`);
 
@@ -23,6 +56,7 @@ const seedDemoData = async () => {
       $or: [
         { userId: '@sumansingh9458' },
         { userId: 'sumansingh9458' },
+        { email: 'sumantd9458@gmail.com' },
         { email: 'sumansingh9458@tradejourn.com' },
         { userId: '@suman9458' },
         { userId: 'suman9458' },
@@ -56,7 +90,7 @@ const seedDemoData = async () => {
         adminUser.userId = adminUserId;
         needsSave = true;
       }
-      if (adminUser.email === 'suman9458@tradejourn.com') {
+      if (adminUser.email !== adminEmail) {
         adminUser.email = adminEmail;
         needsSave = true;
       }
@@ -71,16 +105,17 @@ const seedDemoData = async () => {
       if (needsSave) {
         await adminUser.save();
       }
-      console.log('✅ Admin user (@sumansingh9458) verified with admin privileges.');
+      console.log(`✅ Admin user (@sumansingh9458) verified with admin privileges (${adminUser.email}).`);
     }
 
-    // 1b. Purge any duplicate legacy @suman9458 accounts to guarantee strictly ONE admin exists
+    // 1b. Purge any duplicate legacy accounts to guarantee strictly ONE admin exists
     await User.deleteMany({
       _id: { $ne: adminUser._id },
       $or: [
         { userId: '@suman9458' },
         { userId: 'suman9458' },
-        { email: 'suman9458@tradejourn.com' }
+        { email: 'suman9458@tradejourn.com' },
+        { email: 'sumansingh9458@tradejourn.com' }
       ]
     });
 

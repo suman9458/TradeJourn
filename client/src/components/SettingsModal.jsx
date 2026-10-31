@@ -489,13 +489,13 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                 <label>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={13} color="var(--accent-cyan)" />
-                    <span>Mobile / Phone (OTP & Password Recovery)</span>
+                    <span>Mobile No. (Optional)</span>
                   </span>
                   <input
                     type="tel"
                     value={phoneNumber}
                     onChange={e => setPhoneNumber(e.target.value)}
-                    placeholder="+911234******"
+                    placeholder="+91 12345 67890 (Optional)"
                   />
                 </label>
               </div>

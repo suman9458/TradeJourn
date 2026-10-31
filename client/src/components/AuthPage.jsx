@@ -643,7 +643,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 <Phone size={17} className="input-leading-icon" />
                 <input
                   type="tel"
-                  placeholder="Mobile / Phone (e.g. +911234****** for OTP recovery)"
+                  placeholder="Mobile No. (Optional)"
                   value={regPhone}
                   onChange={e => setRegPhone(e.target.value)}
                   className="modern-input"

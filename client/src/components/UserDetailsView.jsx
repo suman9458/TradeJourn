@@ -1277,7 +1277,7 @@ export const UserDetailsView = ({ theme }) => {
 
                           {/* Phone Number */}
                           <div>
-                            <div style={{ fontSize: '0.72rem', color: isLight ? '#64748b' : '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Mobile / Phone Number</div>
+                            <div style={{ fontSize: '0.72rem', color: isLight ? '#64748b' : '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Mobile No. (Optional)</div>
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',

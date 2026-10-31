@@ -35,7 +35,9 @@ import {
   Camera,
   UploadCloud,
   Trash2,
-  Download
+  Download,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -172,6 +174,11 @@ export const ModernPipsDashboard = ({
   const [dashboardChartUrlInput, setDashboardChartUrlInput] = useState('');
   const [isDashboardChartDragging, setIsDashboardChartDragging] = useState(false);
   const dashboardChartFileInputRef = useRef(null);
+  const [dashboardChartZoomScale, setDashboardChartZoomScale] = useState(1);
+
+  useEffect(() => {
+    setDashboardChartZoomScale(1);
+  }, [activeDashboardChartTrade, activeDashboardChartImageIndex]);
 
   // Keyboard navigation & Paste screenshot with Ctrl+V while Dashboard Chart Modal is open
   useEffect(() => {
@@ -2078,21 +2085,43 @@ export const ModernPipsDashboard = ({
         const currentImg = chartImages[activeDashboardChartImageIndex] || chartImages[0];
 
         return (
-          <div className="modal-overlay" style={{ zIndex: 125000, background: 'rgba(2, 6, 12, 0.92)', backdropFilter: 'blur(10px)' }} onClick={() => setActiveDashboardChartTrade(null)}>
+          <div
+            className="modal-overlay"
+            style={{
+              zIndex: 125000,
+              background: 'rgba(2, 6, 12, 0.92)',
+              backdropFilter: 'blur(10px)',
+              padding: 'clamp(8px, 1.5vh, 16px)',
+              overflowY: 'auto',
+              display: 'flex',
+              alignItems: 'safe center',
+              justifyContent: 'center',
+              boxSizing: 'border-box'
+            }}
+            onClick={() => {
+              setActiveDashboardChartTrade(null);
+              setDashboardChartZoomScale(1);
+            }}
+          >
             <div
+              className="chart-preview-modal-card"
               onClick={e => e.stopPropagation()}
               style={{
-                maxWidth: hasImages ? '95vw' : '520px',
+                maxWidth: hasImages ? 'min(96vw, 1440px)' : '520px',
                 width: '100%',
-                maxHeight: '94vh',
+                maxHeight: 'calc(100dvh - 20px)',
+                height: hasImages ? 'calc(100dvh - 20px)' : 'auto',
                 position: 'relative',
                 background: '#060c15',
-                padding: hasImages ? '14px 18px' : '22px 24px',
-                borderRadius: '16px',
+                padding: hasImages ? '10px 14px' : '20px 22px',
+                borderRadius: '14px',
                 border: '1px solid var(--border-bright)',
                 boxShadow: '0 30px 80px rgba(0, 0, 0, 0.95)',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                boxSizing: 'border-box',
+                margin: 'auto',
+                overflow: 'hidden'
               }}
             >
               {/* Hidden file input for dashboard chart */}
@@ -2115,29 +2144,34 @@ export const ModernPipsDashboard = ({
                   {/* Top Control Bar with Image Switcher & Actions */}
                   <div
                     style={{
+                      flex: '0 0 auto',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       gap: '8px',
-                      marginBottom: '10px',
-                      flexWrap: 'wrap'
+                      marginBottom: '8px',
+                      flexWrap: 'wrap',
+                      minHeight: '34px'
                     }}
                   >
                     {/* Left: Multi-Image Tabs & Add Slot */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '3px', gap: '3px' }}>
                         {chartImages.map((img, idx) => (
                           <button
                             key={idx}
                             type="button"
-                            onClick={() => setActiveDashboardChartImageIndex(idx)}
+                            onClick={() => {
+                              setActiveDashboardChartImageIndex(idx);
+                              setDashboardChartZoomScale(1);
+                            }}
                             style={{
                               background: activeDashboardChartImageIndex === idx ? 'var(--accent-cyan)' : 'transparent',
                               color: activeDashboardChartImageIndex === idx ? '#000' : 'var(--text-secondary)',
                               fontWeight: activeDashboardChartImageIndex === idx ? '800' : '500',
                               border: 'none',
                               borderRadius: '6px',
-                              padding: '5px 12px',
+                              padding: '4px 10px',
                               fontSize: '0.78rem',
                               cursor: 'pointer',
                               display: 'flex',
@@ -2158,7 +2192,7 @@ export const ModernPipsDashboard = ({
                           className="btn-secondary"
                           onClick={() => dashboardChartFileInputRef.current?.click()}
                           disabled={uploadingDashboardChart}
-                          style={{ fontSize: '0.74rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--profit)' }}
+                          style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--profit)' }}
                           title="Add up to 3 chart images to this recorded trade"
                         >
                           <Plus size={13} /> Add Chart ({chartImages.length}/3)
@@ -2166,8 +2200,75 @@ export const ModernPipsDashboard = ({
                       )}
                     </div>
 
-                    {/* Right: Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Right: Actions + Interactive Zoom Controls */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {/* Zoom Controls Pill */}
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          padding: '2px 4px',
+                          gap: '2px'
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setDashboardChartZoomScale(prev => Math.max(0.6, +(prev - 0.2).toFixed(1)))}
+                          disabled={dashboardChartZoomScale <= 0.6}
+                          title="Zoom Out (-)"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: dashboardChartZoomScale <= 0.6 ? 'var(--text-dim)' : 'var(--text-secondary)',
+                            cursor: dashboardChartZoomScale <= 0.6 ? 'not-allowed' : 'pointer',
+                            padding: '3px 5px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <ZoomOut size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDashboardChartZoomScale(1)}
+                          title="Reset to Fit (100%)"
+                          style={{
+                            background: dashboardChartZoomScale === 1 ? 'transparent' : 'var(--accent-cyan-soft)',
+                            border: 'none',
+                            color: dashboardChartZoomScale === 1 ? 'var(--text-muted)' : 'var(--accent-cyan)',
+                            fontWeight: '700',
+                            fontSize: '0.72rem',
+                            cursor: 'pointer',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          {Math.round(dashboardChartZoomScale * 100)}%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDashboardChartZoomScale(prev => Math.min(3, +(prev + 0.2).toFixed(1)))}
+                          disabled={dashboardChartZoomScale >= 3}
+                          title="Zoom In (+)"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: dashboardChartZoomScale >= 3 ? 'var(--text-dim)' : 'var(--text-secondary)',
+                            cursor: dashboardChartZoomScale >= 3 ? 'not-allowed' : 'pointer',
+                            padding: '3px 5px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <ZoomIn size={13} />
+                        </button>
+                      </div>
+
                       <a
                         href={currentImg}
                         download={`trade-chart-${Date.now()}-${activeDashboardChartImageIndex + 1}.png`}
@@ -2175,7 +2276,7 @@ export const ModernPipsDashboard = ({
                         rel="noopener noreferrer"
                         className="btn-ghost"
                         title="Download Chart Screenshot"
-                        style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                        style={{ fontSize: '0.75rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
                       >
                         <Download size={13} /> Download
                       </a>
@@ -2185,36 +2286,41 @@ export const ModernPipsDashboard = ({
                         onClick={() => handleRemoveDashboardChart(activeDashboardChartImageIndex)}
                         disabled={uploadingDashboardChart}
                         title={`Remove Chart ${activeDashboardChartImageIndex + 1}`}
-                        style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        style={{ fontSize: '0.75rem', padding: '5px 10px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
                         <Trash2 size={13} /> Remove
                       </button>
                       <button
                         type="button"
                         className="btn-close"
-                        onClick={() => setActiveDashboardChartTrade(null)}
+                        onClick={() => {
+                          setActiveDashboardChartTrade(null);
+                          setDashboardChartZoomScale(1);
+                        }}
                         title="Close"
-                        style={{ marginLeft: '4px' }}
+                        style={{ marginLeft: '2px' }}
                       >
-                        <X size={20} />
+                        <X size={18} />
                       </button>
                     </div>
                   </div>
 
                   {/* Pure Chart Viewport */}
                   <div
+                    className="chart-preview-viewport"
                     style={{
-                      flex: 1,
+                      flex: '1 1 auto',
+                      minHeight: 0,
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      overflow: 'hidden',
+                      overflow: dashboardChartZoomScale > 1 ? 'auto' : 'hidden',
                       background: '#020509',
                       borderRadius: '10px',
                       border: '1px solid var(--border-subtle)',
-                      padding: '8px',
-                      minHeight: '400px'
+                      padding: '4px',
+                      boxSizing: 'border-box'
                     }}
                   >
                     <img
@@ -2222,11 +2328,15 @@ export const ModernPipsDashboard = ({
                       alt={`Trade Chart ${activeDashboardChartImageIndex + 1}`}
                       crossOrigin="anonymous"
                       style={{
-                        maxWidth: '92vw',
-                        maxHeight: chartImages.length > 1 ? '74vh' : '82vh',
+                        maxWidth: dashboardChartZoomScale > 1 ? 'none' : '100%',
+                        maxHeight: dashboardChartZoomScale > 1 ? 'none' : '100%',
+                        width: dashboardChartZoomScale > 1 ? `${dashboardChartZoomScale * 100}%` : 'auto',
+                        height: dashboardChartZoomScale > 1 ? 'auto' : '100%',
                         objectFit: 'contain',
                         borderRadius: '6px',
-                        display: 'block'
+                        display: 'block',
+                        margin: 'auto',
+                        transition: 'width 0.15s ease'
                       }}
                     />
 
@@ -2235,14 +2345,17 @@ export const ModernPipsDashboard = ({
                       <>
                         <button
                           type="button"
-                          onClick={() => setActiveDashboardChartImageIndex(prev => (prev === 0 ? chartImages.length - 1 : prev - 1))}
+                          onClick={() => {
+                            setActiveDashboardChartImageIndex(prev => (prev === 0 ? chartImages.length - 1 : prev - 1));
+                            setDashboardChartZoomScale(1);
+                          }}
                           style={{
                             position: 'absolute',
-                            left: '14px',
+                            left: '12px',
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            width: '40px',
-                            height: '40px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: '50%',
                             background: 'rgba(0, 0, 0, 0.7)',
                             border: '1px solid var(--border-bright)',
@@ -2254,18 +2367,21 @@ export const ModernPipsDashboard = ({
                           }}
                           title="Previous Chart (or ArrowLeft)"
                         >
-                          <ChevronLeft size={22} />
+                          <ChevronLeft size={20} />
                         </button>
                         <button
                           type="button"
-                          onClick={() => setActiveDashboardChartImageIndex(prev => (prev === chartImages.length - 1 ? 0 : prev + 1))}
+                          onClick={() => {
+                            setActiveDashboardChartImageIndex(prev => (prev === chartImages.length - 1 ? 0 : prev + 1));
+                            setDashboardChartZoomScale(1);
+                          }}
                           style={{
                             position: 'absolute',
-                            right: '14px',
+                            right: '12px',
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            width: '40px',
-                            height: '40px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: '50%',
                             background: 'rgba(0, 0, 0, 0.7)',
                             border: '1px solid var(--border-bright)',
@@ -2277,23 +2393,37 @@ export const ModernPipsDashboard = ({
                           }}
                           title="Next Chart (or ArrowRight)"
                         >
-                          <ChevronRight size={22} />
+                          <ChevronRight size={20} />
                         </button>
                       </>
                     )}
                   </div>
 
                   {/* Bottom Thumbnail Bar & Multi-Image Status */}
-                  <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      flex: '0 0 auto',
+                      marginTop: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                      minHeight: '36px'
+                    }}
+                  >
                     {chartImages.length > 1 ? (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         {chartImages.map((img, idx) => (
                           <div
                             key={idx}
-                            onClick={() => setActiveDashboardChartImageIndex(idx)}
+                            onClick={() => {
+                              setActiveDashboardChartImageIndex(idx);
+                              setDashboardChartZoomScale(1);
+                            }}
                             style={{
-                              width: '56px',
-                              height: '40px',
+                              width: '52px',
+                              height: '34px',
                               borderRadius: '6px',
                               overflow: 'hidden',
                               border: activeDashboardChartImageIndex === idx ? '2px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',

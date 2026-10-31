@@ -1205,14 +1205,16 @@ label {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(3, 6, 11, 0.82);
+  background: rgba(3, 6, 11, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   z-index: 100000;
-  padding: 20px;
+  padding: clamp(8px, 1.5vh, 18px);
+  overflow-y: auto;
+  box-sizing: border-box;
   animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -8015,11 +8017,15 @@ select option {
   background: #060c15;
   border: 1px solid var(--border-bright);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95);
+  box-sizing: border-box;
+  margin: auto;
 }
 
 .chart-preview-viewport {
   background: #020509;
   border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+  min-height: 0;
 }
 
 .chart-upload-dropzone {

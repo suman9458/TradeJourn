@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles, Camera, Image as ImageIcon, UploadCloud, Maximize2, LayoutGrid, List, Plus, Download, Edit3, Check } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Trash2, Filter, Eye, ArrowUpDown, X, FileText, Sparkles, Camera, Image as ImageIcon, UploadCloud, Maximize2, LayoutGrid, List, Plus, Download, Edit3, Check, ZoomIn, ZoomOut } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
@@ -133,6 +133,16 @@ export const TradesTableView = ({
   const chartUploadInputRef = useRef(null);
   const detailFileInputRef = useRef(null);
   const [seeding, setSeeding] = useState(false);
+  const [chartZoomScale, setChartZoomScale] = useState(1);
+  const [detailZoomScale, setDetailZoomScale] = useState(1);
+
+  useEffect(() => {
+    setChartZoomScale(1);
+  }, [activeChartTrade, activeChartImageIndex]);
+
+  useEffect(() => {
+    setDetailZoomScale(1);
+  }, [detailZoom, detailZoomIndex]);
 
   // Keyboard navigation & Clipboard paste support while Chart Modal is open
   useEffect(() => {
@@ -1372,38 +1382,61 @@ export const TradesTableView = ({
 
       {/* Lightbox Modal for Detail Zoom with Multi-Image Navigation */}
       {detailZoom && selectedTrade && (
-        <div className="modal-overlay" style={{ zIndex: 120000 }} onClick={() => setDetailZoom(false)}>
+        <div
+          className="modal-overlay"
+          style={{
+            zIndex: 130000,
+            padding: 'clamp(8px, 1.5vh, 16px)',
+            overflowY: 'auto',
+            display: 'flex',
+            alignItems: 'safe center',
+            justifyContent: 'center',
+            boxSizing: 'border-box'
+          }}
+          onClick={() => {
+            setDetailZoom(false);
+            setDetailZoomScale(1);
+          }}
+        >
           {(() => {
             const zoomImages = getTradeImages(selectedTrade);
             const activeImg = zoomImages[detailZoomIndex] || zoomImages[0];
             return (
               <div
+                className="chart-preview-modal-card"
                 style={{
-                  maxWidth: '92vw',
-                  maxHeight: '92vh',
+                  maxWidth: 'min(96vw, 1400px)',
+                  maxHeight: 'calc(100dvh - 20px)',
+                  height: 'calc(100dvh - 20px)',
                   position: 'relative',
                   background: 'var(--bg-card, #04080e)',
-                  padding: '16px',
+                  padding: '10px 14px',
                   borderRadius: '14px',
                   border: '1px solid var(--border-bright)',
                   boxShadow: '0 20px 50px rgba(0,0,0,0.95)',
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  boxSizing: 'border-box',
+                  margin: 'auto',
+                  overflow: 'hidden'
                 }}
                 onClick={e => e.stopPropagation()}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', minHeight: '32px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-white)' }}>
                       Chart {detailZoomIndex + 1} of {zoomImages.length}
                     </span>
                     {zoomImages.length > 1 && (
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '5px' }}>
                         {zoomImages.map((_, idx) => (
                           <button
                             key={idx}
                             type="button"
-                            onClick={() => setDetailZoomIndex(idx)}
+                            onClick={() => {
+                              setDetailZoomIndex(idx);
+                              setDetailZoomScale(1);
+                            }}
                             style={{
                               width: '24px',
                               height: '24px',
@@ -1424,20 +1457,110 @@ export const TradesTableView = ({
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setDetailZoom(false)}
-                  >
-                    <X size={20} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Zoom In / Out Pill */}
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '6px',
+                        padding: '2px 4px',
+                        gap: '2px'
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setDetailZoomScale(prev => Math.max(0.6, +(prev - 0.2).toFixed(1)))}
+                        disabled={detailZoomScale <= 0.6}
+                        title="Zoom Out (-)"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: detailZoomScale <= 0.6 ? 'var(--text-dim)' : 'var(--text-secondary)',
+                          cursor: detailZoomScale <= 0.6 ? 'not-allowed' : 'pointer',
+                          padding: '3px 5px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <ZoomOut size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailZoomScale(1)}
+                        title="Reset to Fit (100%)"
+                        style={{
+                          background: detailZoomScale === 1 ? 'transparent' : 'var(--accent-cyan-soft)',
+                          border: 'none',
+                          color: detailZoomScale === 1 ? 'var(--text-muted)' : 'var(--accent-cyan)',
+                          fontWeight: '700',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {Math.round(detailZoomScale * 100)}%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailZoomScale(prev => Math.min(3, +(prev + 0.2).toFixed(1)))}
+                        disabled={detailZoomScale >= 3}
+                        title="Zoom In (+)"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: detailZoomScale >= 3 ? 'var(--text-dim)' : 'var(--text-secondary)',
+                          cursor: detailZoomScale >= 3 ? 'not-allowed' : 'pointer',
+                          padding: '3px 5px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <ZoomIn size={13} />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={() => {
+                        setDetailZoom(false);
+                        setDetailZoomScale(1);
+                      }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: '80vh', overflow: 'hidden' }}>
+                <div
+                  className="chart-preview-viewport"
+                  style={{
+                    flex: '1 1 auto',
+                    minHeight: 0,
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: detailZoomScale > 1 ? 'auto' : 'hidden',
+                    borderRadius: '10px',
+                    padding: '4px',
+                    background: '#020509',
+                    boxSizing: 'border-box'
+                  }}
+                >
                   {zoomImages.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => setDetailZoomIndex(prev => (prev - 1 + zoomImages.length) % zoomImages.length)}
+                      onClick={() => {
+                        setDetailZoomIndex(prev => (prev - 1 + zoomImages.length) % zoomImages.length);
+                        setDetailZoomScale(1);
+                      }}
                       style={{
                         position: 'absolute',
                         left: '12px',
@@ -1462,18 +1585,25 @@ export const TradesTableView = ({
                     alt={`Trade Chart Setup ${detailZoomIndex + 1}`}
                     crossOrigin="anonymous"
                     style={{
-                      maxWidth: '88vw',
-                      maxHeight: '78vh',
+                      maxWidth: detailZoomScale > 1 ? 'none' : '100%',
+                      maxHeight: detailZoomScale > 1 ? 'none' : '100%',
+                      width: detailZoomScale > 1 ? `${detailZoomScale * 100}%` : 'auto',
+                      height: detailZoomScale > 1 ? 'auto' : '100%',
                       objectFit: 'contain',
                       display: 'block',
-                      borderRadius: '8px'
+                      margin: 'auto',
+                      borderRadius: '6px',
+                      transition: 'width 0.15s ease'
                     }}
                   />
 
                   {zoomImages.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => setDetailZoomIndex(prev => (prev + 1) % zoomImages.length)}
+                      onClick={() => {
+                        setDetailZoomIndex(prev => (prev + 1) % zoomImages.length);
+                        setDetailZoomScale(1);
+                      }}
                       style={{
                         position: 'absolute',
                         right: '12px',
@@ -1504,7 +1634,22 @@ export const TradesTableView = ({
           DOWNLOAD, REMOVE, AND DIRECT ADD/ATTACH FLOW FOR RECORDED TRADES
           ========================================================================= */}
       {activeChartTrade && (
-        <div className="modal-overlay" style={{ zIndex: 125000 }} onClick={() => setActiveChartTrade(null)}>
+        <div
+          className="modal-overlay"
+          style={{
+            zIndex: 125000,
+            padding: 'clamp(8px, 1.5vh, 16px)',
+            overflowY: 'auto',
+            display: 'flex',
+            alignItems: 'safe center',
+            justifyContent: 'center',
+            boxSizing: 'border-box'
+          }}
+          onClick={() => {
+            setActiveChartTrade(null);
+            setChartZoomScale(1);
+          }}
+        >
           {(() => {
             const chartImages = getTradeImages(activeChartTrade);
             const currentImg = chartImages[activeChartImageIndex] || chartImages[0];
@@ -1513,14 +1658,18 @@ export const TradesTableView = ({
                 className="chart-preview-modal-card"
                 onClick={e => e.stopPropagation()}
                 style={{
-                  maxWidth: chartImages.length > 0 ? '95vw' : '520px',
+                  maxWidth: chartImages.length > 0 ? 'min(96vw, 1440px)' : '520px',
                   width: '100%',
-                  maxHeight: '94vh',
+                  maxHeight: 'calc(100dvh - 20px)',
+                  height: chartImages.length > 0 ? 'calc(100dvh - 20px)' : 'auto',
                   position: 'relative',
-                  padding: chartImages.length > 0 ? '14px 18px' : '22px 24px',
-                  borderRadius: '16px',
+                  padding: chartImages.length > 0 ? '10px 14px' : '20px 22px',
+                  borderRadius: '14px',
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  boxSizing: 'border-box',
+                  margin: 'auto',
+                  overflow: 'hidden'
                 }}
               >
                 {/* Hidden file input for this trade */}
@@ -1542,22 +1691,27 @@ export const TradesTableView = ({
                     {/* Top Control Bar with Image Switcher Tabs & Controls */}
                     <div
                       style={{
+                        flex: '0 0 auto',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         gap: '8px',
-                        marginBottom: '10px',
-                        flexWrap: 'wrap'
+                        marginBottom: '8px',
+                        flexWrap: 'wrap',
+                        minHeight: '34px'
                       }}
                     >
                       {/* Left: Image Tabs */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '4px' }}>
                           {chartImages.map((_, idx) => (
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => setActiveChartImageIndex(idx)}
+                              onClick={() => {
+                                setActiveChartImageIndex(idx);
+                                setChartZoomScale(1);
+                              }}
                               style={{
                                 border: '1px solid',
                                 borderColor: activeChartImageIndex === idx ? 'var(--accent-cyan)' : 'var(--border-subtle)',
@@ -1565,7 +1719,7 @@ export const TradesTableView = ({
                                 color: activeChartImageIndex === idx ? 'var(--accent-cyan)' : 'var(--text-secondary)',
                                 fontSize: '0.75rem',
                                 fontWeight: '700',
-                                padding: '5px 12px',
+                                padding: '4px 10px',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
                                 display: 'flex',
@@ -1586,7 +1740,7 @@ export const TradesTableView = ({
                             className="btn-secondary"
                             onClick={() => chartUploadInputRef.current?.click()}
                             disabled={uploadingChart}
-                            style={{ fontSize: '0.74rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--profit)' }}
+                            style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--profit)' }}
                             title="Add up to 3 chart images to this recorded trade"
                           >
                             <Plus size={13} /> Add Chart ({chartImages.length}/3)
@@ -1594,8 +1748,75 @@ export const TradesTableView = ({
                         )}
                       </div>
 
-                      {/* Right: Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {/* Right: Actions + Interactive Zoom Controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        {/* Zoom Controls Pill */}
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            padding: '2px 4px',
+                            gap: '2px'
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setChartZoomScale(prev => Math.max(0.6, +(prev - 0.2).toFixed(1)))}
+                            disabled={chartZoomScale <= 0.6}
+                            title="Zoom Out (-)"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: chartZoomScale <= 0.6 ? 'var(--text-dim)' : 'var(--text-secondary)',
+                              cursor: chartZoomScale <= 0.6 ? 'not-allowed' : 'pointer',
+                              padding: '3px 5px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <ZoomOut size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setChartZoomScale(1)}
+                            title="Reset to Fit (100%)"
+                            style={{
+                              background: chartZoomScale === 1 ? 'transparent' : 'var(--accent-cyan-soft)',
+                              border: 'none',
+                              color: chartZoomScale === 1 ? 'var(--text-muted)' : 'var(--accent-cyan)',
+                              fontWeight: '700',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            {Math.round(chartZoomScale * 100)}%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setChartZoomScale(prev => Math.min(3, +(prev + 0.2).toFixed(1)))}
+                            disabled={chartZoomScale >= 3}
+                            title="Zoom In (+)"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: chartZoomScale >= 3 ? 'var(--text-dim)' : 'var(--text-secondary)',
+                              cursor: chartZoomScale >= 3 ? 'not-allowed' : 'pointer',
+                              padding: '3px 5px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <ZoomIn size={13} />
+                          </button>
+                        </div>
+
                         <a
                           href={currentImg}
                           download={`trade-chart-${activeChartTrade.tradeName || 'chart'}-${activeChartImageIndex + 1}.png`}
@@ -1603,7 +1824,7 @@ export const TradesTableView = ({
                           rel="noopener noreferrer"
                           className="btn-ghost"
                           title="Download Chart Screenshot"
-                          style={{ fontSize: '0.76rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
                         >
                           <Download size={13} /> Download
                         </a>
@@ -1613,18 +1834,21 @@ export const TradesTableView = ({
                           onClick={() => handleRemoveActiveChart(activeChartImageIndex)}
                           disabled={uploadingChart}
                           title="Remove this Chart Screenshot"
-                          style={{ fontSize: '0.76rem', padding: '6px 12px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 10px', color: 'var(--loss)', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
-                          <Trash2 size={13} /> Remove Chart
+                          <Trash2 size={13} /> Remove
                         </button>
                         <button
                           type="button"
                           className="btn-close"
-                          onClick={() => setActiveChartTrade(null)}
+                          onClick={() => {
+                            setActiveChartTrade(null);
+                            setChartZoomScale(1);
+                          }}
                           title="Close"
-                          style={{ marginLeft: '4px' }}
+                          style={{ marginLeft: '2px' }}
                         >
-                          <X size={20} />
+                          <X size={18} />
                         </button>
                       </div>
                     </div>
@@ -1633,27 +1857,32 @@ export const TradesTableView = ({
                     <div
                       className="chart-preview-viewport"
                       style={{
-                        flex: 1,
+                        flex: '1 1 auto',
+                        minHeight: 0,
                         position: 'relative',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        overflow: 'auto',
+                        overflow: chartZoomScale > 1 ? 'auto' : 'hidden',
                         borderRadius: '10px',
-                        padding: '8px',
-                        background: '#020509'
+                        padding: '4px',
+                        background: '#020509',
+                        boxSizing: 'border-box'
                       }}
                     >
                       {chartImages.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => setActiveChartImageIndex(prev => (prev - 1 + chartImages.length) % chartImages.length)}
+                          onClick={() => {
+                            setActiveChartImageIndex(prev => (prev - 1 + chartImages.length) % chartImages.length);
+                            setChartZoomScale(1);
+                          }}
                           style={{
                             position: 'absolute',
-                            left: '14px',
+                            left: '12px',
                             zIndex: 4,
-                            width: '38px',
-                            height: '38px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: '50%',
                             background: 'rgba(3, 6, 11, 0.85)',
                             border: '1px solid var(--border-bright)',
@@ -1664,7 +1893,7 @@ export const TradesTableView = ({
                           }}
                           title="Previous Chart"
                         >
-                          <ChevronLeft size={22} />
+                          <ChevronLeft size={20} />
                         </button>
                       )}
 
@@ -1673,24 +1902,31 @@ export const TradesTableView = ({
                         alt={`Trade Chart ${activeChartImageIndex + 1}`}
                         crossOrigin="anonymous"
                         style={{
-                          maxWidth: '92vw',
-                          maxHeight: '74vh',
+                          maxWidth: chartZoomScale > 1 ? 'none' : '100%',
+                          maxHeight: chartZoomScale > 1 ? 'none' : '100%',
+                          width: chartZoomScale > 1 ? `${chartZoomScale * 100}%` : 'auto',
+                          height: chartZoomScale > 1 ? 'auto' : '100%',
                           objectFit: 'contain',
                           borderRadius: '6px',
-                          display: 'block'
+                          display: 'block',
+                          margin: 'auto',
+                          transition: 'width 0.15s ease'
                         }}
                       />
 
                       {chartImages.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => setActiveChartImageIndex(prev => (prev + 1) % chartImages.length)}
+                          onClick={() => {
+                            setActiveChartImageIndex(prev => (prev + 1) % chartImages.length);
+                            setChartZoomScale(1);
+                          }}
                           style={{
                             position: 'absolute',
-                            right: '14px',
+                            right: '12px',
                             zIndex: 4,
-                            width: '38px',
-                            height: '38px',
+                            width: '36px',
+                            height: '36px',
                             borderRadius: '50%',
                             background: 'rgba(3, 6, 11, 0.85)',
                             border: '1px solid var(--border-bright)',
@@ -1701,20 +1937,33 @@ export const TradesTableView = ({
                           }}
                           title="Next Chart"
                         >
-                          <ChevronRight size={22} />
+                          <ChevronRight size={20} />
                         </button>
                       )}
                     </div>
 
                     {/* Bottom Mini Thumbnails Bar */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+                    <div
+                      style={{
+                        flex: '0 0 auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        marginTop: '8px',
+                        minHeight: '36px'
+                      }}
+                    >
                       {chartImages.map((img, idx) => (
                         <div
                           key={idx}
-                          onClick={() => setActiveChartImageIndex(idx)}
+                          onClick={() => {
+                            setActiveChartImageIndex(idx);
+                            setChartZoomScale(1);
+                          }}
                           style={{
-                            width: '56px',
-                            height: '38px',
+                            width: '52px',
+                            height: '34px',
                             borderRadius: '6px',
                             overflow: 'hidden',
                             border: '2px solid',
@@ -1734,8 +1983,8 @@ export const TradesTableView = ({
                           onClick={() => chartUploadInputRef.current?.click()}
                           disabled={uploadingChart}
                           style={{
-                            width: '56px',
-                            height: '38px',
+                            width: '52px',
+                            height: '34px',
                             borderRadius: '6px',
                             border: '1px dashed var(--border-medium)',
                             background: 'rgba(0, 210, 255, 0.05)',
@@ -1746,7 +1995,7 @@ export const TradesTableView = ({
                           }}
                           title="Add another chart image"
                         >
-                          <Plus size={16} />
+                          <Plus size={15} />
                         </button>
                       )}
                     </div>

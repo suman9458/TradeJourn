@@ -7,7 +7,6 @@ const Goal = require('../models/Goal');
 const OtpToken = require('../models/OtpToken');
 const { generateOtp, sendOtp } = require('../services/otpService');
 const { verifyOAuthIdToken } = require('../services/oauthService');
-const { verifyFirebaseIdToken } = require('../services/firebaseAuthService');
 
 const generateToken = (id, tokenVersion = 0) => {
   const secret = process.env.JWT_SECRET;
@@ -702,98 +701,6 @@ const forgotPasswordReset = async (req, res, next) => {
   }
 };
 
-// @desc    Verify Firebase Phone ID Token and reset password
-// @route   POST /api/auth/forgot-password/firebase-reset
-// @access  Public
-const forgotPasswordFirebaseReset = async (req, res, next) => {
-  try {
-    const { idToken, newPassword, identifier } = req.body;
-    if (!idToken || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Firebase ID token and new password are required.'
-      });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 8 characters long.'
-      });
-    }
-
-    // Cryptographically verify the Firebase ID token with Google
-    const tokenInfo = await verifyFirebaseIdToken(idToken);
-    const tokenPhone = tokenInfo.phoneNumber || '';
-
-    // Search user by verified phone number or provided identifier
-    const cleanDigits = tokenPhone.replace(/[^0-9+]/g, '');
-    const lastDigits = tokenPhone.replace(/[^0-9]/g, '').slice(-10);
-
-    const queryOr = [];
-    if (tokenPhone) {
-      queryOr.push(
-        { phoneNumber: tokenPhone },
-        { phoneNumber: cleanDigits },
-        { phoneNumber: cleanDigits.replace(/^\+/, '') },
-        { phoneNumber: `+${cleanDigits.replace(/^\+/, '')}` }
-      );
-      if (lastDigits.length >= 7) {
-        queryOr.push({ phoneNumber: { $regex: `${lastDigits}$` } });
-      }
-    }
-
-    if (identifier && typeof identifier === 'string') {
-      const cleanIdent = identifier.trim().toLowerCase();
-      const withAt = cleanIdent.startsWith('@') ? cleanIdent : `@${cleanIdent}`;
-      const withoutAt = cleanIdent.startsWith('@') ? cleanIdent.slice(1) : cleanIdent;
-      queryOr.push(
-        { userId: withAt },
-        { userId: withoutAt },
-        { email: cleanIdent }
-      );
-    }
-
-    if (queryOr.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No verified phone number found in Firebase token.'
-      });
-    }
-
-    const user = await User.findOne({ $or: queryOr });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: `No TradeJourn account found registered with phone number ${tokenPhone || identifier}. Please check your credentials.`
-      });
-    }
-
-    // SEC-DEMO: Shared demo account password cannot be reset
-    const isDemo = user.isDemo || user.role === 'demo' || user.email === 'protrader@tradejourn.com';
-    if (isDemo) {
-      return res.status(403).json({
-        success: false,
-        code: 'DEMO_READ_ONLY',
-        message: 'Password reset is disabled for the public demonstration account.'
-      });
-    }
-
-    // Set new password (pre-save hook will hash it with 12 bcrypt rounds)
-    user.password = newPassword;
-    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate all prior sessions on password reset
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Password reset successful via Firebase Phone Authentication! You can now sign in with your new password.',
-      userId: user.userId
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // @desc    Logout user and invalidate active session tokens
 // @route   POST /api/auth/logout
 // @access  Private
@@ -824,7 +731,6 @@ module.exports = {
   logoutUser,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
-  forgotPasswordReset,
-  forgotPasswordFirebaseReset
+  forgotPasswordReset
 };
 

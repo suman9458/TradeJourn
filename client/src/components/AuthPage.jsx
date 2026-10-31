@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { isFirebaseConfigured, sendFirebasePhoneOtp, confirmFirebaseOtp } from '../services/firebase';
 import authHeroImg1 from '../assets/auth-trading-hero.jpg';
 import authHeroImg2 from '../assets/auth-trading-hero-2.jpg';
 import authHeroImg3 from '../assets/auth-trading-hero-3.jpg';
@@ -113,7 +112,6 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
   const [maskedDestination, setMaskedDestination] = useState('');
   const [devOtpHint, setDevOtpHint] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [confirmationResult, setConfirmationResult] = useState(null);
 
   // Resend OTP countdown timer
   useEffect(() => {
@@ -133,7 +131,6 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     setForgotError('');
     setForgotSuccess('');
     setDevOtpHint('');
-    setConfirmationResult(null);
     setShowForgotModal(true);
   };
 
@@ -147,31 +144,16 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
       return;
     }
 
-    const isPhone = !ident.includes('@') && /[0-9]{7,}/.test(ident.replace(/[^0-9]/g, ''));
-
     setForgotLoading(true);
     try {
-      if (isPhone && isFirebaseConfigured()) {
-        const { confirmationResult: confRes, formattedPhone } = await sendFirebasePhoneOtp(
-          ident,
-          'firebase-recaptcha-container'
-        );
-        setConfirmationResult(confRes);
-        setMaskedDestination(formattedPhone.slice(0, 3) + '****' + formattedPhone.slice(-4));
-        setForgotSuccess(`Google SMS verification code sent to ${formattedPhone}`);
-        setForgotStep(2);
-        setResendCooldown(600); // 10-minute cooldown
-      } else {
-        const data = await api.forgotPasswordSendOtp({ identifier: ident });
-        setConfirmationResult(null);
-        setMaskedDestination(data.destination || 'your registered contact');
-        if (data.devOtp) {
-          setDevOtpHint(data.devOtp);
-        }
-        setForgotSuccess(data.message || 'Verification code sent!');
-        setForgotStep(2);
-        setResendCooldown(600); // 10-minute cooldown
+      const data = await api.forgotPasswordSendOtp({ identifier: ident });
+      setMaskedDestination(data.destination || 'your registered contact');
+      if (data.devOtp) {
+        setDevOtpHint(data.devOtp);
       }
+      setForgotSuccess(data.message || 'Verification code sent!');
+      setForgotStep(2);
+      setResendCooldown(600); // 10-minute cooldown
     } catch (err) {
       setForgotError(err.message || 'Failed to send OTP code. Please verify your User ID, Email, or Mobile.');
     } finally {
@@ -184,26 +166,15 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     setForgotError('');
     setForgotSuccess('');
     const ident = forgotIdentifier.trim();
-    const isPhone = !ident.includes('@') && /[0-9]{7,}/.test(ident.replace(/[^0-9]/g, ''));
 
     setForgotLoading(true);
     try {
-      if (isPhone && isFirebaseConfigured()) {
-        const { confirmationResult: confRes, formattedPhone } = await sendFirebasePhoneOtp(
-          ident,
-          'firebase-recaptcha-container'
-        );
-        setConfirmationResult(confRes);
-        setForgotSuccess(`New Google SMS verification code sent to ${formattedPhone}`);
-        setResendCooldown(600); // 10-minute cooldown
-      } else {
-        const data = await api.forgotPasswordSendOtp({ identifier: ident });
-        if (data.devOtp) {
-          setDevOtpHint(data.devOtp);
-        }
-        setForgotSuccess('New verification code sent!');
-        setResendCooldown(600); // 10-minute cooldown
+      const data = await api.forgotPasswordSendOtp({ identifier: ident });
+      if (data.devOtp) {
+        setDevOtpHint(data.devOtp);
       }
+      setForgotSuccess('New verification code sent!');
+      setResendCooldown(600); // 10-minute cooldown
     } catch (err) {
       setForgotError(err.message || 'Failed to resend code');
     } finally {
@@ -234,35 +205,20 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
     setForgotLoading(true);
     try {
-      if (confirmationResult) {
-        // Step A: Verify OTP via Google Firebase client SDK
-        const { idToken } = await confirmFirebaseOtp(confirmationResult, cleanOtp);
+      // Step A: Verify OTP and obtain verified resetToken
+      const verifyData = await api.forgotPasswordVerifyOtp({
+        identifier: forgotIdentifier.trim(),
+        otp: cleanOtp
+      });
 
-        // Step B: Reset password via server-verified Firebase ID Token
-        const resetData = await api.forgotPasswordFirebaseReset({
-          idToken,
-          newPassword: forgotNewPassword,
-          identifier: forgotIdentifier.trim()
-        });
+      // Step B: Reset password with the verified resetToken
+      const resetData = await api.forgotPasswordReset({
+        resetToken: verifyData.resetToken,
+        newPassword: forgotNewPassword
+      });
 
-        setForgotSuccess(resetData.message || 'Password reset successfully via Firebase!');
-        setForgotStep(3);
-      } else {
-        // Step A: Verify OTP and obtain verified resetToken
-        const verifyData = await api.forgotPasswordVerifyOtp({
-          identifier: forgotIdentifier.trim(),
-          otp: cleanOtp
-        });
-
-        // Step B: Reset password with the verified resetToken
-        const resetData = await api.forgotPasswordReset({
-          resetToken: verifyData.resetToken,
-          newPassword: forgotNewPassword
-        });
-
-        setForgotSuccess(resetData.message || 'Password reset successfully!');
-        setForgotStep(3);
-      }
+      setForgotSuccess(resetData.message || 'Password reset successfully!');
+      setForgotStep(3);
     } catch (err) {
       setForgotError(err.message || 'Verification failed. Please check the OTP code and try again.');
     } finally {
@@ -1230,9 +1186,6 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
             {/* Modal Body */}
             <div className="forgot-modal-body" style={{ padding: '20px 22px' }}>
-              {/* Invisible Google reCAPTCHA Container for Firebase Phone Auth */}
-              <div id="firebase-recaptcha-container"></div>
-
               {/* Error Banner */}
               {forgotError && (
                 <div className="auth-feedback-banner error" style={{ margin: '0 0 16px' }}>

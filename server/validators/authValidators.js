@@ -38,19 +38,12 @@ const forgotPasswordResetSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters long')
 });
 
-const forgotPasswordFirebaseSchema = z.object({
-  idToken: z.string().trim().min(20, 'Firebase ID token must be a valid JWT token string'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
-  identifier: z.string().trim().optional()
-});
-
 module.exports = {
   registerSchema,
   loginSchema,
   socialSchema,
   forgotPasswordSendSchema,
   forgotPasswordVerifySchema,
-  forgotPasswordResetSchema,
-  forgotPasswordFirebaseSchema
+  forgotPasswordResetSchema
 };
 

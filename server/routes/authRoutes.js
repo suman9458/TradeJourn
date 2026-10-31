@@ -11,8 +11,7 @@ const {
   logoutUser,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
-  forgotPasswordReset,
-  forgotPasswordFirebaseReset
+  forgotPasswordReset
 } = require('../controllers/authController');
 const { protect, preventDemoModification } = require('../middleware/auth');
 const { validateBody } = require('../middleware/validate');
@@ -22,8 +21,7 @@ const {
   socialSchema,
   forgotPasswordSendSchema,
   forgotPasswordVerifySchema,
-  forgotPasswordResetSchema,
-  forgotPasswordFirebaseSchema
+  forgotPasswordResetSchema
 } = require('../validators/authValidators');
 
 // Dedicated rate limiting for authentication endpoints to prevent brute-force
@@ -57,7 +55,6 @@ router.post('/social', authLimiter, validateBody(socialSchema), socialLogin);
 router.post('/forgot-password/send-otp', sendOtpLimiter, validateBody(forgotPasswordSendSchema), forgotPasswordSendOtp);
 router.post('/forgot-password/verify-otp', authLimiter, validateBody(forgotPasswordVerifySchema), forgotPasswordVerifyOtp);
 router.post('/forgot-password/reset-password', authLimiter, validateBody(forgotPasswordResetSchema), forgotPasswordReset);
-router.post('/forgot-password/firebase-reset', authLimiter, validateBody(forgotPasswordFirebaseSchema), forgotPasswordFirebaseReset);
 router.get('/me', protect, getMe);
 router.put('/settings', protect, preventDemoModification, updateSettings);
 router.post('/logout', protect, logoutUser);

@@ -20,7 +20,6 @@ import { ExportPDFModal } from './components/ExportPDFModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthPage } from './components/AuthPage';
 import { SettingsModal } from './components/SettingsModal';
-import { PhonePromptModal } from './components/PhonePromptModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { exportTradeHistoryPDF } from './utils/exportPDF';
@@ -396,8 +395,6 @@ const DashboardContent = () => {
         loading={isGeneratingPDF}
         totalTradesCount={allTrades.length}
       />
-
-      <PhonePromptModal />
     </div>
   );
 };

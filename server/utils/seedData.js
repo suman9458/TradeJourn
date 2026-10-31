@@ -13,21 +13,28 @@ const seedDemoData = async () => {
   }
 
   try {
-    // 1. Seed or Ensure Admin User (@suman9458)
-    const adminUserId = '@suman9458';
-    const adminEmail = process.env.ADMIN_EMAIL || 'suman9458@tradejourn.com';
+    // 1. Seed or Ensure Single Authoritative Admin User (@sumansingh9458)
+    const adminUserId = '@sumansingh9458';
+    const adminEmail = process.env.ADMIN_EMAIL || 'sumansingh9458@tradejourn.com';
+    const adminName = 'Suman Singh (Admin)';
     const adminPassword = process.env.ADMIN_SEED_PASSWORD || (`Admin_${crypto.randomBytes(8).toString('hex')}!`);
+
     let adminUser = await User.findOne({
       $or: [
+        { userId: '@sumansingh9458' },
+        { userId: 'sumansingh9458' },
+        { email: 'sumansingh9458@tradejourn.com' },
         { userId: '@suman9458' },
         { userId: 'suman9458' },
-        { email: adminEmail }
+        { email: 'suman9458@tradejourn.com' },
+        { email: adminEmail },
+        { role: 'admin' }
       ]
     }).select('+password +securityPin');
 
     if (!adminUser) {
       adminUser = await User.create({
-        name: 'Suman Sharma (Admin)',
+        name: adminName,
         userId: adminUserId,
         dob: '1998-05-15',
         tradingExperience: 'Expert',
@@ -38,7 +45,7 @@ const seedDemoData = async () => {
       });
       await Playbook.create({ userId: adminUser._id });
       await Goal.create({ userId: adminUser._id });
-      console.log('✅ Created Admin user (@suman9458).');
+      console.log('✅ Created Admin user (@sumansingh9458).');
     } else {
       let needsSave = false;
       if (adminUser.role !== 'admin') {
@@ -49,6 +56,14 @@ const seedDemoData = async () => {
         adminUser.userId = adminUserId;
         needsSave = true;
       }
+      if (adminUser.email === 'suman9458@tradejourn.com') {
+        adminUser.email = adminEmail;
+        needsSave = true;
+      }
+      if (adminUser.name === 'Suman Sharma (Admin)' || adminUser.name === 'Suman Kumar (Admin)') {
+        adminUser.name = adminName;
+        needsSave = true;
+      }
       if (!adminUser.securityPin) {
         adminUser.securityPin = '1234';
         needsSave = true;
@@ -56,8 +71,18 @@ const seedDemoData = async () => {
       if (needsSave) {
         await adminUser.save();
       }
-      console.log('✅ Admin user (@suman9458) verified with admin privileges.');
+      console.log('✅ Admin user (@sumansingh9458) verified with admin privileges.');
     }
+
+    // 1b. Purge any duplicate legacy @suman9458 accounts to guarantee strictly ONE admin exists
+    await User.deleteMany({
+      _id: { $ne: adminUser._id },
+      $or: [
+        { userId: '@suman9458' },
+        { userId: 'suman9458' },
+        { email: 'suman9458@tradejourn.com' }
+      ]
+    });
 
     // 2. Seed Demo User
     const demoEmail = 'protrader@tradejourn.com';

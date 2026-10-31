@@ -449,7 +449,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                     required
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="e.g. Suman Sharma"
+                    placeholder="e.g. Suman Singh"
                   />
                 </label>
 

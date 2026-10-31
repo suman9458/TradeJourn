@@ -152,7 +152,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Suman Sharma"
+                  placeholder="e.g. Suman Singh"
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />

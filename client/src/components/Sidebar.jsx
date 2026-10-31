@@ -202,7 +202,8 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
                     letterSpacing: '0.06em',
                     background: 'rgba(245, 158, 11, 0.2)',
                     color: '#f59e0b',
-                    border: '1px solid rgba(245, 158, 11, 0.4)'
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    flexShrink: 0
                   }}>
                     ADMIN
                   </span>
@@ -215,13 +216,25 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
                     letterSpacing: '0.04em',
                     background: user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.15)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.15)' : 'rgba(168, 85, 247, 0.15)',
                     color: user.tradingExperience === 'Expert' ? 'var(--profit)' : user.tradingExperience === 'Beginner' ? 'var(--accent-cyan)' : 'var(--accent-purple)',
-                    border: `1px solid ${user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.3)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
+                    border: `1px solid ${user.tradingExperience === 'Expert' ? 'rgba(0, 245, 155, 0.3)' : user.tradingExperience === 'Beginner' ? 'rgba(0, 210, 255, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`,
+                    flexShrink: 0
                   }}>
                     {user.tradingExperience.toUpperCase()}
                   </span>
                 ) : null}
               </div>
-              <p style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+              <p
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--accent-cyan)',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden'
+                }}
+                title={user?.userId || (user?.email ? `@${user.email.split('@')[0]}` : '@trader')}
+              >
                 {user?.userId || (user?.email ? `@${user.email.split('@')[0]}` : '@trader')}
               </p>
             </div>

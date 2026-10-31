@@ -47,7 +47,7 @@ const registerUser = async (req, res, next) => {
     if (!/^@?[a-zA-Z0-9_]{3,24}$/.test(cleanRaw)) {
       return res.status(400).json({
         success: false,
-        message: 'User ID must contain 3-24 English letters and numbers (e.g. @suman9458)'
+        message: 'User ID must contain 3-24 English letters and numbers (e.g. @sumansingh9458)'
       });
     }
 

@@ -124,8 +124,16 @@ const request = async (endpoint, options = {}, isRetry = false) => {
   }
 
   if (!response.ok) {
-    const err = new Error(data.message || 'API request failed');
+    let errorMsg = data?.message || 'API request failed';
+    if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+      const details = data.errors.map(e => e.message || `${e.field}: ${e.message}`).join(', ');
+      if (!errorMsg.includes(details)) {
+        errorMsg = `${errorMsg} (${details})`;
+      }
+    }
+    const err = new Error(errorMsg);
     err.status = response.status;
+    err.data = data;
     throw err;
   }
 

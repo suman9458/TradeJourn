@@ -15,9 +15,10 @@ const validateBody = (schema) => (req, res, next) => {
         field: e.path.join('.'),
         message: e.message
       }));
+      const formatted = details.map(d => `${d.field ? `${d.field}: ` : ''}${d.message}`).join(', ');
       return res.status(400).json({
         success: false,
-        message: 'Validation failed on request body',
+        message: formatted ? `Validation error: ${formatted}` : 'Validation failed on request body',
         errors: details
       });
     }
@@ -39,9 +40,10 @@ const validateQuery = (schema) => (req, res, next) => {
         parameter: e.path.join('.'),
         message: e.message
       }));
+      const formatted = details.map(d => `${d.parameter ? `${d.parameter}: ` : ''}${d.message}`).join(', ');
       return res.status(400).json({
         success: false,
-        message: 'Validation failed on query parameters',
+        message: formatted ? `Validation error: ${formatted}` : 'Validation failed on query parameters',
         errors: details
       });
     }

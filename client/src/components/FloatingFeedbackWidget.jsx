@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
+export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab, theme }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [type, setType] = useState('Feedback'); // 'Feedback' | 'Bug'
@@ -23,6 +23,7 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
   const [success, setSuccess] = useState(false);
 
   const isAdmin = user?.role === 'admin';
+  const isLight = theme === 'light';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -84,13 +85,15 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
           style={{
             width: '350px',
             maxWidth: 'calc(100vw - 36px)',
-            background: '#09131f',
-            border: '1px solid rgba(0, 245, 155, 0.3)',
+            background: isLight ? '#ffffff' : '#09131f',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(0, 245, 155, 0.3)',
             borderRadius: '14px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.65), 0 0 25px rgba(0, 245, 155, 0.12)',
+            boxShadow: isLight
+              ? '0 20px 45px rgba(15, 23, 42, 0.16), 0 4px 16px rgba(15, 23, 42, 0.08)'
+              : '0 20px 50px rgba(0, 0, 0, 0.65), 0 0 25px rgba(0, 245, 155, 0.12)',
             padding: '18px',
             marginBottom: '12px',
-            color: '#f8fafc',
+            color: isLight ? '#0f172a' : '#f8fafc',
             animation: 'modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)'
@@ -104,20 +107,24 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                   width: '30px',
                   height: '30px',
                   borderRadius: '8px',
-                  background: type === 'Bug' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 245, 155, 0.15)',
-                  border: `1px solid ${type === 'Bug' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(0, 245, 155, 0.35)'}`,
+                  background: type === 'Bug'
+                    ? (isLight ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.15)')
+                    : (isLight ? 'rgba(5, 150, 105, 0.12)' : 'rgba(0, 245, 155, 0.15)'),
+                  border: type === 'Bug'
+                    ? (isLight ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(239, 68, 68, 0.35)')
+                    : (isLight ? '1px solid rgba(5, 150, 105, 0.25)' : '1px solid rgba(0, 245, 155, 0.35)'),
                   display: 'grid',
                   placeItems: 'center',
-                  color: type === 'Bug' ? '#ff6685' : 'var(--profit, #00f59b)'
+                  color: type === 'Bug' ? '#ef4444' : (isLight ? '#059669' : 'var(--profit, #00f59b)')
                 }}
               >
                 {type === 'Bug' ? <Bug size={16} /> : <MessageSquare size={16} />}
               </div>
               <div>
-                <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 800 }}>
+                <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc' }}>
                   {type === 'Bug' ? 'Report a Bug' : 'Share Feedback'}
                 </h4>
-                <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary, #94a3b8)' }}>
+                <p style={{ margin: 0, fontSize: '0.72rem', color: isLight ? '#64748b' : 'var(--text-secondary, #94a3b8)' }}>
                   Help us refine TradeJourn
                 </p>
               </div>
@@ -128,9 +135,9 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
               type="button"
               onClick={() => setIsOpen(false)}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: 'var(--text-muted, #94a3b8)',
+                background: isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.05)',
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.1)',
+                color: isLight ? '#475569' : 'var(--text-muted, #94a3b8)',
                 cursor: 'pointer',
                 padding: '5px',
                 borderRadius: '6px',
@@ -149,12 +156,12 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
           {success ? (
             <div
               style={{
-                background: 'rgba(0, 245, 155, 0.12)',
-                border: '1px solid rgba(0, 245, 155, 0.3)',
+                background: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 245, 155, 0.12)',
+                border: isLight ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(0, 245, 155, 0.3)',
                 borderRadius: '10px',
                 padding: '22px 14px',
                 textAlign: 'center',
-                color: 'var(--profit, #00f59b)',
+                color: isLight ? '#059669' : 'var(--profit, #00f59b)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -165,7 +172,7 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
               <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
                 {type === 'Bug' ? 'Bug Report Submitted!' : 'Feedback Received!'}
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #94a3b8)' }}>
+              <span style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-secondary, #94a3b8)' }}>
                 Thank you for helping us improve TradeJourn.
               </span>
             </div>
@@ -177,10 +184,10 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
                   gap: '6px',
-                  background: 'rgba(255, 255, 255, 0.04)',
+                  background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.04)',
                   padding: '3px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)'
                 }}
               >
                 <button
@@ -190,8 +197,12 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                     padding: '6px 10px',
                     borderRadius: '6px',
                     border: 'none',
-                    background: type === 'Feedback' ? 'var(--accent-cyan, #00d2ff)' : 'transparent',
-                    color: type === 'Feedback' ? '#060c14' : 'var(--text-secondary, #94a3b8)',
+                    background: type === 'Feedback'
+                      ? (isLight ? '#0284c7' : 'var(--accent-cyan, #00d2ff)')
+                      : 'transparent',
+                    color: type === 'Feedback'
+                      ? '#ffffff'
+                      : (isLight ? '#475569' : 'var(--text-secondary, #94a3b8)'),
                     fontSize: '0.78rem',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -214,7 +225,9 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                     borderRadius: '6px',
                     border: 'none',
                     background: type === 'Bug' ? '#ef4444' : 'transparent',
-                    color: type === 'Bug' ? '#ffffff' : 'var(--text-secondary, #94a3b8)',
+                    color: type === 'Bug'
+                      ? '#ffffff'
+                      : (isLight ? '#475569' : 'var(--text-secondary, #94a3b8)'),
                     fontSize: '0.78rem',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -245,10 +258,10 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: '#060c14',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    background: isLight ? '#f8fafc' : '#060c14',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
                     borderRadius: '8px',
-                    color: '#f8fafc',
+                    color: isLight ? '#0f172a' : '#f8fafc',
                     fontSize: '0.82rem',
                     lineHeight: 1.45,
                     resize: 'none',
@@ -264,12 +277,12 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
               {error && (
                 <div
                   style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
+                    background: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.12)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     borderRadius: '6px',
                     padding: '8px 10px',
                     fontSize: '0.75rem',
-                    color: '#ff6685',
+                    color: '#ef4444',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px'
@@ -281,9 +294,9 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
               )}
 
               {/* User Identity Note */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: isLight ? '#64748b' : 'var(--text-muted, #94a3b8)' }}>
                 <span>
-                  Sending as: <strong style={{ color: 'var(--text-white, #fff)' }}>{user?.userId || user?.name || 'Trader'}</strong>
+                  Sending as: <strong style={{ color: isLight ? '#0f172a' : 'var(--text-white, #fff)' }}>{user?.userId || user?.name || 'Trader'}</strong>
                 </span>
                 {isAdmin && (
                   <button
@@ -292,7 +305,7 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#f59e0b',
+                      color: isLight ? '#d97706' : '#f59e0b',
                       fontSize: '0.72rem',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -316,10 +329,10 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                   style={{
                     flex: 1,
                     padding: '8px 12px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '8px',
-                    color: 'var(--text-secondary, #94a3b8)',
+                    color: isLight ? '#475569' : 'var(--text-secondary, #94a3b8)',
                     fontSize: '0.8rem',
                     fontWeight: 600,
                     cursor: 'pointer'
@@ -333,10 +346,10 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
                   style={{
                     flex: 2,
                     padding: '8px 14px',
-                    background: type === 'Bug' ? '#ef4444' : 'var(--profit, #00f59b)',
+                    background: type === 'Bug' ? '#ef4444' : (isLight ? '#059669' : 'var(--profit, #00f59b)'),
                     border: 'none',
                     borderRadius: '8px',
-                    color: type === 'Bug' ? '#ffffff' : '#060c14',
+                    color: '#ffffff',
                     fontSize: '0.8rem',
                     fontWeight: 800,
                     cursor: (loading || !message.trim()) ? 'not-allowed' : 'pointer',
@@ -371,15 +384,21 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
           width: '50px',
           height: '50px',
           borderRadius: '50%',
-          background: isOpen ? '#0b1626' : 'linear-gradient(135deg, #09131f 0%, #0d2035 100%)',
-          border: `2px solid ${isOpen ? 'var(--accent-cyan, #00d2ff)' : 'rgba(0, 245, 155, 0.45)'}`,
-          boxShadow: isOpen
-            ? '0 0 25px rgba(0, 210, 255, 0.4), 0 8px 20px rgba(0, 0, 0, 0.6)'
-            : '0 0 20px rgba(0, 245, 155, 0.3), 0 8px 20px rgba(0, 0, 0, 0.6)',
+          background: isLight
+            ? (isOpen ? '#f1f5f9' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)')
+            : (isOpen ? '#0b1626' : 'linear-gradient(135deg, #09131f 0%, #0d2035 100%)'),
+          border: isLight
+            ? `2px solid ${isOpen ? '#0284c7' : '#059669'}`
+            : `2px solid ${isOpen ? 'var(--accent-cyan, #00d2ff)' : 'rgba(0, 245, 155, 0.45)'}`,
+          boxShadow: isLight
+            ? (isOpen ? '0 0 20px rgba(2, 132, 199, 0.35), 0 6px 16px rgba(15, 23, 42, 0.15)' : '0 6px 20px rgba(5, 150, 105, 0.25), 0 4px 12px rgba(15, 23, 42, 0.1)')
+            : (isOpen ? '0 0 25px rgba(0, 210, 255, 0.4), 0 8px 20px rgba(0, 0, 0, 0.6)' : '0 0 20px rgba(0, 245, 155, 0.3), 0 8px 20px rgba(0, 0, 0, 0.6)'),
           display: 'grid',
           placeItems: 'center',
           cursor: 'pointer',
-          color: isOpen ? 'var(--accent-cyan, #00d2ff)' : 'var(--profit, #00f59b)',
+          color: isLight
+            ? (isOpen ? '#0284c7' : '#059669')
+            : (isOpen ? 'var(--accent-cyan, #00d2ff)' : 'var(--profit, #00f59b)'),
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           outline: 'none',
           position: 'relative'
@@ -396,4 +415,3 @@ export const FloatingFeedbackWidget = ({ activeTab, onNavigateTab }) => {
     </div>
   );
 };
-

@@ -388,7 +388,7 @@ const DashboardContent = () => {
           )}
 
           {activeTab === 'feedback-responses' && (
-            <FeedbackResponsesView />
+            <FeedbackResponsesView theme={theme} />
           )}
         </ErrorBoundary>
       </main>
@@ -396,6 +396,7 @@ const DashboardContent = () => {
       <FloatingFeedbackWidget
         activeTab={activeTab}
         onNavigateTab={handleTabChange}
+        theme={theme}
       />
 
       <QuickAddTradeModal

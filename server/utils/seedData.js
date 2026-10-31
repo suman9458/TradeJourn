@@ -33,6 +33,7 @@ const seedDemoData = async () => {
         tradingExperience: 'Expert',
         email: adminEmail,
         password: adminPassword,
+        securityPin: '1234',
         role: 'admin'
       });
       await Playbook.create({ userId: adminUser._id });
@@ -67,6 +68,7 @@ const seedDemoData = async () => {
         tradingExperience: 'Expert',
         email: demoEmail,
         password: demoPassword,
+        securityPin: '1234',
         role: 'demo'
       });
       await Playbook.create({ userId: user._id });

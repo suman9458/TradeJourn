@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     const data = await api.login(credentials);
     localStorage.setItem('tradejourn_token', data.token);
+    sessionStorage.removeItem('tradejourn_dismissed_pin_prompt');
     setToken(data.token);
     setUser(data.user);
     return data;
@@ -121,6 +122,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('tradejourn_token');
     localStorage.removeItem('tradejourn_ai_chat_v3');
     localStorage.removeItem('tradejourn_ai_chat_guest');
+    sessionStorage.removeItem('tradejourn_dismissed_pin_prompt');
     setToken(null);
     setUser(null);
     if (typeof window !== 'undefined' && window.location.pathname !== '/') {

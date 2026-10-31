@@ -11,7 +11,8 @@ const {
   logoutUser,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
-  forgotPasswordReset
+  forgotPasswordReset,
+  forgotPasswordResetWithPin
 } = require('../controllers/authController');
 const { protect, preventDemoModification } = require('../middleware/auth');
 const { validateBody } = require('../middleware/validate');
@@ -21,7 +22,8 @@ const {
   socialSchema,
   forgotPasswordSendSchema,
   forgotPasswordVerifySchema,
-  forgotPasswordResetSchema
+  forgotPasswordResetSchema,
+  forgotPasswordPinResetSchema
 } = require('../validators/authValidators');
 
 // Dedicated rate limiting for authentication endpoints to prevent brute-force
@@ -55,6 +57,7 @@ router.post('/social', authLimiter, validateBody(socialSchema), socialLogin);
 router.post('/forgot-password/send-otp', sendOtpLimiter, validateBody(forgotPasswordSendSchema), forgotPasswordSendOtp);
 router.post('/forgot-password/verify-otp', authLimiter, validateBody(forgotPasswordVerifySchema), forgotPasswordVerifyOtp);
 router.post('/forgot-password/reset-password', authLimiter, validateBody(forgotPasswordResetSchema), forgotPasswordReset);
+router.post('/forgot-password/reset-with-pin', authLimiter, validateBody(forgotPasswordPinResetSchema), forgotPasswordResetWithPin);
 router.get('/me', protect, getMe);
 router.put('/settings', protect, preventDemoModification, updateSettings);
 router.post('/logout', protect, logoutUser);

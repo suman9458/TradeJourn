@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Settings, Check, User, Calendar, Mail, Phone, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
+import { X, Settings, Check, User, Calendar, Mail, Phone, AtSign, Sparkles, Sliders, ShieldCheck, ExternalLink, Camera, Upload, Trash2, Loader2, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
@@ -16,6 +16,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
   const [dob, setDob] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [securityPin, setSecurityPin] = useState('');
   const [tradingExperience, setTradingExperience] = useState('Intermediate');
   const [avatar, setAvatar] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -44,6 +45,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setDob(user.dob || '');
       setEmail(user.email || '');
       setPhoneNumber(user.phoneNumber || '');
+      setSecurityPin('');
       setTradingExperience(user.tradingExperience || 'Intermediate');
       setAvatar(user.avatar || '');
       setCurrency(globalCurrency || user.settings?.currency || 'USD');
@@ -164,7 +166,13 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         updatedSettings.aiApiKey = aiApiKey;
       }
 
-      await updateUserSettings({
+      if (securityPin.trim() && !/^\d{4}$/.test(securityPin.trim())) {
+        setErrorMsg('Security PIN must be exactly 4 digits (e.g. 1234)');
+        setSaving(false);
+        return;
+      }
+
+      const updatePayload = {
         name: name.trim(),
         userId: userId.trim(),
         dob: dob.trim(),
@@ -173,7 +181,14 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         tradingExperience,
         avatar,
         settings: updatedSettings
-      });
+      };
+
+      if (securityPin.trim()) {
+        updatePayload.securityPin = securityPin.trim();
+      }
+
+      await updateUserSettings(updatePayload);
+      setSecurityPin('');
 
       setGlobalCurrency(currency);
       setSaved(true);
@@ -508,6 +523,28 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                     <option value="Intermediate">Intermediate (1 - 3 years, prop challenge scaling)</option>
                     <option value="Expert">Expert (3+ years, funded institutional management)</option>
                   </select>
+                </label>
+              </div>
+
+              <div className="form-grid-2">
+                <label style={{ gridColumn: 'span 2' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <KeyRound size={13} color="var(--accent-cyan)" />
+                    <span>4-Digit Security PIN (Password Recovery)</span>
+                  </span>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    inputMode="numeric"
+                    pattern="[0-9]{4}"
+                    value={securityPin}
+                    onChange={e => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder={user?.hasSecurityPin ? "•••• (PIN is configured — enter new 4-digit PIN to change)" : "Set 4-digit PIN (e.g. 1234)"}
+                    autoComplete="off"
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
+                    Used to instantly reset your password via the login screen without needing an external OTP.
+                  </span>
                 </label>
               </div>
             </div>

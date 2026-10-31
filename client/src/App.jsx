@@ -20,6 +20,7 @@ import { ExportPDFModal } from './components/ExportPDFModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthPage } from './components/AuthPage';
 import { SettingsModal } from './components/SettingsModal';
+import { SetupPinModal } from './components/SetupPinModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { exportTradeHistoryPDF } from './utils/exportPDF';
@@ -58,6 +59,7 @@ const DashboardContent = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSetupPinOpen, setIsSetupPinOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   // Data state
@@ -83,6 +85,25 @@ const DashboardContent = () => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('tradejourn_theme', theme);
   }, [theme]);
+
+  // Auto-prompt to set 4-digit Security PIN on login or restart if not yet configured
+  useEffect(() => {
+    if (!loading && token && user) {
+      const isDemo = user.role === 'demo' || user.isDemo || user.email === 'protrader@tradejourn.com';
+      const isDismissed = sessionStorage.getItem('tradejourn_dismissed_pin_prompt') === 'true';
+      if (!isDemo && !user.hasSecurityPin && !isDismissed) {
+        const timer = setTimeout(() => {
+          setIsSetupPinOpen(true);
+        }, 700);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [loading, token, user?.hasSecurityPin]);
+
+  const handleCloseSetupPin = () => {
+    sessionStorage.setItem('tradejourn_dismissed_pin_prompt', 'true');
+    setIsSetupPinOpen(false);
+  };
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -379,6 +400,11 @@ const DashboardContent = () => {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <SetupPinModal
+        isOpen={isSetupPinOpen}
+        onClose={handleCloseSetupPin}
       />
 
       <ResetDatasetModal

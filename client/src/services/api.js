@@ -141,6 +141,7 @@ export const api = {
   forgotPasswordSendOtp: (payload) => request('/auth/forgot-password/send-otp', { method: 'POST', body: JSON.stringify(payload) }),
   forgotPasswordVerifyOtp: (payload) => request('/auth/forgot-password/verify-otp', { method: 'POST', body: JSON.stringify(payload) }),
   forgotPasswordReset: (payload) => request('/auth/forgot-password/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPasswordResetWithPin: (payload) => request('/auth/forgot-password/reset-with-pin', { method: 'POST', body: JSON.stringify(payload) }),
   getMe: () => request('/auth/me'),
   logout: () => request('/auth/logout', { method: 'POST' }),
   updateSettings: (payload) => {

@@ -32,7 +32,7 @@ const generateToken = (id, tokenVersion = 0) => {
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, userId, dob, tradingExperience, password, email, phoneNumber } = req.body;
+    const { name, userId, dob, tradingExperience, password, email, phoneNumber, securityPin } = req.body;
 
     if (!name || !userId || !password) {
       return res.status(400).json({ success: false, message: 'Please provide Name, User ID, and Password' });
@@ -82,6 +82,8 @@ const registerUser = async (req, res, next) => {
       ? tradingExperience
       : 'Intermediate';
 
+    const cleanPin = (securityPin && typeof securityPin === 'string') ? securityPin.trim() : '';
+
     const user = await User.create({
       name: name.trim(),
       userId: formattedUserId,
@@ -89,6 +91,7 @@ const registerUser = async (req, res, next) => {
       tradingExperience: validExperience,
       email: userEmail,
       phoneNumber: (phoneNumber && typeof phoneNumber === 'string') ? phoneNumber.trim() : '',
+      securityPin: cleanPin,
       password
     });
 
@@ -111,7 +114,8 @@ const registerUser = async (req, res, next) => {
         phoneNumber: user.phoneNumber || '',
         role: user.role,
         avatar: user.avatar || '',
-        settings: user.settings
+        settings: user.settings,
+        hasSecurityPin: Boolean(cleanPin)
       }
     });
   } catch (error) {
@@ -141,7 +145,7 @@ const loginUser = async (req, res, next) => {
         { userId: withoutAt },
         { email: clean }
       ]
-    }).select('+password');
+    }).select('+password +securityPin');
 
     if (!user) {
       await bcrypt.compare(password, '$2a$12$e8O6nB55N3l3sA7Hj2z79e5Z0u4U9i0k4W7y3Q5e7u1I3o5q7y9W2').catch(() => {});
@@ -171,7 +175,8 @@ const loginUser = async (req, res, next) => {
         role: isDemo ? 'demo' : user.role,
         isDemo: Boolean(isDemo),
         avatar: user.avatar || '',
-        settings: user.settings
+        settings: user.settings,
+        hasSecurityPin: Boolean(user.securityPin)
       }
     });
   } catch (error) {
@@ -184,7 +189,7 @@ const loginUser = async (req, res, next) => {
 // @access  Private
 const getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+securityPin');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -194,6 +199,8 @@ const getMe = async (req, res, next) => {
       userObj.isDemo = true;
       userObj.role = 'demo';
     }
+    userObj.hasSecurityPin = Boolean(user.securityPin);
+    delete userObj.securityPin;
     res.json({
       success: true,
       user: userObj
@@ -208,7 +215,7 @@ const getMe = async (req, res, next) => {
 // @access  Private
 const updateSettings = async (req, res, next) => {
   try {
-    const { settings, name, dob, email, phoneNumber, userId, tradingExperience, avatar, password } = req.body;
+    const { settings, name, dob, email, phoneNumber, userId, tradingExperience, avatar, password, securityPin } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -248,6 +255,14 @@ const updateSettings = async (req, res, next) => {
       user.phoneNumber = typeof phoneNumber === 'string' ? phoneNumber.trim() : '';
     }
 
+    if (securityPin !== undefined && securityPin !== null && securityPin !== '') {
+      const cleanPin = securityPin.toString().trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        return res.status(400).json({ success: false, message: 'Security PIN must be exactly 4 digits (e.g. 1234)' });
+      }
+      user.securityPin = cleanPin;
+    }
+
     if (userId && userId.trim()) {
       const cleanUserId = userId.trim().toLowerCase();
       const withAt = cleanUserId.startsWith('@') ? cleanUserId : `@${cleanUserId}`;
@@ -270,9 +285,13 @@ const updateSettings = async (req, res, next) => {
 
     await user.save();
 
+    const userObj = user.toObject();
+    userObj.hasSecurityPin = Boolean(user.securityPin);
+    delete userObj.securityPin;
+
     res.json({
       success: true,
-      user
+      user: userObj
     });
   } catch (error) {
     next(error);
@@ -359,7 +378,7 @@ const socialLogin = async (req, res, next) => {
     const { email: verifiedEmail, name: verifiedName, sub } = verifiedProfile;
 
     // Securely find user by cryptographically verified email
-    let user = await User.findOne({ email: verifiedEmail });
+    let user = await User.findOne({ email: verifiedEmail }).select('+securityPin');
 
     if (!user) {
       const providerTag = (provider || 'google').toLowerCase();
@@ -394,7 +413,8 @@ const socialLogin = async (req, res, next) => {
         phoneNumber: user.phoneNumber || '',
         role: user.role,
         avatar: user.avatar || '',
-        settings: user.settings
+        settings: user.settings,
+        hasSecurityPin: Boolean(user.securityPin)
       }
     });
   } catch (error) {
@@ -701,6 +721,124 @@ const forgotPasswordReset = async (req, res, next) => {
   }
 };
 
+// @desc    Reset password directly using 4-digit Security PIN
+// @route   POST /api/auth/forgot-password/reset-with-pin
+// @access  Public
+const forgotPasswordResetWithPin = async (req, res, next) => {
+  try {
+    const { identifier, securityPin, newPassword } = req.body;
+    if (!identifier || !securityPin || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Identifier, 4-digit security PIN, and new password are required.'
+      });
+    }
+
+    const cleanPin = securityPin.toString().trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Security PIN must be exactly 4 digits (e.g. 1234).'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long.'
+      });
+    }
+
+    const cleanIdent = identifier.trim().toLowerCase();
+    const withAt = cleanIdent.startsWith('@') ? cleanIdent : `@${cleanIdent}`;
+    const withoutAt = cleanIdent.startsWith('@') ? cleanIdent.slice(1) : cleanIdent;
+    const cleanDigits = identifier.replace(/[^0-9+]/g, '');
+
+    const queryOr = [
+      { userId: withAt },
+      { userId: withoutAt },
+      { email: cleanIdent }
+    ];
+    if (cleanDigits.length >= 7) {
+      queryOr.push(
+        { phoneNumber: cleanDigits },
+        { phoneNumber: `+${cleanDigits.replace(/^\+/, '')}` },
+        { phoneNumber: cleanDigits.replace(/^\+/, '') }
+      );
+    }
+
+    const user = await User.findOne({ $or: queryOr }).select('+password +securityPin');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No trader account found with this User ID, Email, or Mobile Number.'
+      });
+    }
+
+    // SEC-DEMO: Shared demo account password cannot be reset
+    const isDemo = user.isDemo || user.role === 'demo' || user.email === 'protrader@tradejourn.com';
+    if (isDemo) {
+      return res.status(403).json({
+        success: false,
+        code: 'DEMO_READ_ONLY',
+        message: 'Password reset is disabled for the public demonstration account.'
+      });
+    }
+
+    if (!user.securityPin) {
+      return res.status(400).json({
+        success: false,
+        code: 'NO_PIN_CONFIGURED',
+        message: 'No 4-digit Security PIN has been configured for this account. Please use OTP verification or contact support.'
+      });
+    }
+
+    // Brute-force lockout protection (15 minutes after 5 failed attempts)
+    if (user.pinLockedUntil && user.pinLockedUntil > new Date()) {
+      const waitMinutes = Math.ceil((user.pinLockedUntil - new Date()) / 60000);
+      return res.status(429).json({
+        success: false,
+        message: `Too many incorrect PIN attempts. Security PIN recovery is locked for ${waitMinutes} more minute${waitMinutes === 1 ? '' : 's'}.`
+      });
+    }
+
+    const isMatch = await user.comparePin(cleanPin);
+    if (!isMatch) {
+      user.pinAttempts = (user.pinAttempts || 0) + 1;
+      if (user.pinAttempts >= 5) {
+        user.pinLockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        user.pinAttempts = 0;
+        await user.save();
+        return res.status(429).json({
+          success: false,
+          message: 'Too many incorrect PIN attempts. Your account PIN recovery is locked for 15 minutes.'
+        });
+      }
+      await user.save();
+      const remaining = 5 - user.pinAttempts;
+      return res.status(400).json({
+        success: false,
+        message: `Incorrect 4-digit Security PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+      });
+    }
+
+    // PIN matched! Reset attempts and update password
+    user.pinAttempts = 0;
+    user.pinLockedUntil = null;
+    user.password = newPassword;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successful using 4-digit Security PIN! You can now log in with your new password.',
+      userId: user.userId
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Logout user and invalidate active session tokens
 // @route   POST /api/auth/logout
 // @access  Private
@@ -731,6 +869,7 @@ module.exports = {
   logoutUser,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
-  forgotPasswordReset
+  forgotPasswordReset,
+  forgotPasswordResetWithPin
 };
 

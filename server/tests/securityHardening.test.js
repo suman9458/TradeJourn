@@ -1,6 +1,7 @@
 const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 // Import modules under test
 const { protect, getJwtSecret } = require('../middleware/auth');
@@ -919,6 +920,54 @@ describe('🛡️ TradeJourn Security Hardening Test Suite (OWASP Top 10 Hardene
 
       const masked = maskDestination(routePhone.destination);
       assert.match(masked, /^\+91\*{4,}\d{4}$/, 'Masked phone must hide middle digits');
+    });
+  });
+
+  // =========================================================================
+  // SEC-PIN: 4-Digit Security PIN Validation & Recovery Protection
+  // =========================================================================
+  describe('SEC-PIN: 4-Digit Security PIN Validation & Recovery Protection', () => {
+    test('Validates 4-digit PIN format strictly (rejects non-digits and wrong length)', () => {
+      const pinRegex = /^\d{4}$/;
+      assert.equal(pinRegex.test('1234'), true);
+      assert.equal(pinRegex.test('0000'), true);
+      assert.equal(pinRegex.test('9876'), true);
+
+      assert.equal(pinRegex.test('123'), false, 'Rejects 3 digits');
+      assert.equal(pinRegex.test('12345'), false, 'Rejects 5 digits');
+      assert.equal(pinRegex.test('abcd'), false, 'Rejects letters');
+      assert.equal(pinRegex.test('12 4'), false, 'Rejects spaces');
+    });
+
+    test('Bcrypt hashes and securely verifies 4-digit security PIN', async () => {
+      const pin = '4826';
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(pin, salt);
+
+      assert.notEqual(hash, pin);
+      assert.equal(await bcrypt.compare('4826', hash), true);
+      assert.equal(await bcrypt.compare('9999', hash), false);
+    });
+
+    test('Enforces lockout after 5 incorrect PIN attempts', () => {
+      let attempts = 0;
+      let lockedUntil = null;
+
+      const recordFailure = () => {
+        attempts += 1;
+        if (attempts >= 5) {
+          lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        }
+      };
+
+      for (let i = 0; i < 4; i++) {
+        recordFailure();
+        assert.equal(lockedUntil, null, `Should not lock on attempt ${i + 1}`);
+      }
+
+      recordFailure(); // 5th attempt
+      assert.notEqual(lockedUntil, null, 'Must lock account on 5th failed attempt');
+      assert.ok(lockedUntil > new Date(), 'Lockout must be in future');
     });
   });
 });

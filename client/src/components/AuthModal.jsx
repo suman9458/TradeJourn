@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, LogIn, UserPlus, Play, User, AtSign, Calendar, Lock, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { X, LogIn, UserPlus, Play, User, AtSign, Calendar, Lock, AlertTriangle, ShieldCheck, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
@@ -14,6 +14,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
   const [dob, setDob] = useState('');
   const [tradingExperience, setTradingExperience] = useState('Intermediate');
   const [password, setPassword] = useState('');
+  const [securityPin, setSecurityPin] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,13 +44,17 @@ export const AuthModal = ({ isOpen, onClose }) => {
         }
         if (!dob) throw new Error('Please provide your Date of Birth');
         if (password.length < 6) throw new Error('Password must be at least 6 characters');
+        if (securityPin.trim() && !/^\d{4}$/.test(securityPin.trim())) {
+          throw new Error('Security PIN must be exactly 4 digits');
+        }
 
         await register({
           name: name.trim(),
           userId: userId.trim(),
           dob,
           tradingExperience,
-          password
+          password,
+          securityPin: securityPin.trim() || undefined
         });
       } else {
         if (!loginId.trim()) throw new Error('Please provide your User ID');
@@ -190,6 +195,23 @@ export const AuthModal = ({ isOpen, onClose }) => {
                   </select>
                 </label>
               </div>
+
+              <label>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <KeyRound size={13} color="var(--accent-cyan)" />
+                  <span>4-Digit Security PIN (Password Recovery)</span>
+                </span>
+                <input
+                  type="password"
+                  maxLength={4}
+                  inputMode="numeric"
+                  pattern="[0-9]{4}"
+                  placeholder="e.g. 1234 (Used to reset password)"
+                  value={securityPin}
+                  onChange={e => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  autoComplete="off"
+                />
+              </label>
             </>
           ) : (
             <label>

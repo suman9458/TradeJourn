@@ -87,6 +87,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
   const [regExperience, setRegExperience] = useState('Intermediate');
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [regSecurityPin, setRegSecurityPin] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -98,10 +99,12 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
-  // Forgot Password & OTP State
+  // Forgot Password & Recovery State
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotStep, setForgotStep] = useState(1); // 1: identify, 2: otp & new pass, 3: success
+  const [forgotRecoveryMethod, setForgotRecoveryMethod] = useState('pin'); // 'pin' or 'otp'
+  const [forgotStep, setForgotStep] = useState(1); // 1: input/reset, 2: otp & new pass, 3: success
   const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotSecurityPin, setForgotSecurityPin] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
@@ -124,6 +127,8 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
   const openForgotPassword = () => {
     setForgotIdentifier(loginId || '');
+    setForgotRecoveryMethod('pin');
+    setForgotSecurityPin('');
     setForgotStep(1);
     setForgotOtp('');
     setForgotNewPassword('');
@@ -132,6 +137,50 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
     setForgotSuccess('');
     setDevOtpHint('');
     setShowForgotModal(true);
+  };
+
+  const handleResetWithPin = async (e) => {
+    if (e) e.preventDefault();
+    setForgotError('');
+    setForgotSuccess('');
+
+    const ident = forgotIdentifier.trim();
+    if (!ident) {
+      setForgotError('Please enter your User ID, Email, or Mobile Number');
+      return;
+    }
+
+    const cleanPin = forgotSecurityPin.trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      setForgotError('Please enter your 4-digit Security PIN (e.g. 1234)');
+      return;
+    }
+
+    if (forgotNewPassword.length < 8) {
+      setForgotError('New password must be at least 8 characters long');
+      return;
+    }
+
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setForgotError('Passwords do not match. Please re-enter both carefully.');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const data = await api.forgotPasswordResetWithPin({
+        identifier: ident,
+        securityPin: cleanPin,
+        newPassword: forgotNewPassword
+      });
+
+      setForgotSuccess(data.message || 'Password reset successfully with your 4-digit Security PIN!');
+      setForgotStep(3);
+    } catch (err) {
+      setForgotError(err.message || 'Failed to reset password. Please check your 4-digit PIN.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const handleSendOtp = async (e) => {
@@ -301,6 +350,11 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
       return;
     }
 
+    if (regSecurityPin && !/^\d{4}$/.test(regSecurityPin.trim())) {
+      setError('Security PIN must be exactly 4 digits (e.g. 1234)');
+      return;
+    }
+
     if (!agreeTerms) {
       setError('Please agree to the Terms & Conditions to create an account');
       return;
@@ -316,6 +370,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
         tradingExperience: regExperience,
         email: regEmail.trim(),
         phoneNumber: regPhone.trim(),
+        securityPin: regSecurityPin.trim(),
         password: regPassword
       });
     } catch (err) {
@@ -699,6 +754,41 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 >
                   {showRegPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+              </div>
+
+              {/* Row 6: 4-Digit Security PIN for Password Recovery */}
+              <div className="modern-input-group has-icon-left" style={{ position: 'relative' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-9px',
+                    left: '12px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: 'var(--accent-cyan, #00f59b)',
+                    backgroundColor: 'var(--bg-card, #0f172a)',
+                    padding: '0 6px',
+                    borderRadius: '4px',
+                    zIndex: 3,
+                    letterSpacing: '0.4px',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  4-Digit Security PIN (Password Recovery)
+                </span>
+                <Key size={17} className="input-leading-icon" />
+                <input
+                  type="password"
+                  maxLength={4}
+                  pattern="[0-9]{4}"
+                  inputMode="numeric"
+                  placeholder="Set 4-digit PIN (e.g. 1234)"
+                  value={regSecurityPin}
+                  onChange={e => setRegSecurityPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                  className="modern-input"
+                  style={{ letterSpacing: '3px', fontFamily: 'monospace' }}
+                  title="Set 4-Digit Security PIN to reset password if you ever forget it"
+                />
               </div>
 
               {/* Terms & Conditions Checkbox */}
@@ -1169,7 +1259,7 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                       Reset Password
                     </h3>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                      2-Factor OTP Security Verification
+                      {forgotRecoveryMethod === 'pin' ? 'Fast 4-Digit Security PIN Recovery' : '2-Factor OTP Security Verification'}
                     </div>
                   </div>
                 </div>
@@ -1186,6 +1276,58 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
 
             {/* Modal Body */}
             <div className="forgot-modal-body" style={{ padding: '20px 22px' }}>
+              {/* Method Switcher Tabs */}
+              {forgotStep !== 3 && (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setForgotRecoveryMethod('pin'); setForgotStep(1); setForgotError(''); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: forgotRecoveryMethod === 'pin' ? 'var(--bg-card, #0f172a)' : 'transparent',
+                      color: forgotRecoveryMethod === 'pin' ? 'var(--profit, #00f59b)' : 'var(--text-muted, #94a3b8)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <ShieldCheck size={14} />
+                    <span>4-Digit PIN (Instant)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setForgotRecoveryMethod('otp'); setForgotStep(1); setForgotError(''); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: forgotRecoveryMethod === 'otp' ? 'var(--bg-card, #0f172a)' : 'transparent',
+                      color: forgotRecoveryMethod === 'otp' ? 'var(--profit, #00f59b)' : 'var(--text-muted, #94a3b8)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Mail size={14} />
+                    <span>OTP Verification</span>
+                  </button>
+                </div>
+              )}
+
               {/* Error Banner */}
               {forgotError && (
                 <div className="auth-feedback-banner error" style={{ margin: '0 0 16px' }}>
@@ -1202,8 +1344,133 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                 </div>
               )}
 
-              {/* STEP 1: Enter User ID, Email or Phone Number */}
-              {forgotStep === 1 && (
+              {/* PIN METHOD: Direct Reset using 4-digit PIN */}
+              {forgotRecoveryMethod === 'pin' && forgotStep === 1 && (
+                <form onSubmit={handleResetWithPin}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.45 }}>
+                    Enter your User ID, 4-digit Security PIN, and new password to reset instantly without waiting for OTP.
+                  </p>
+
+                  {/* Identifier */}
+                  <div className="modern-input-group has-icon-left" style={{ marginBottom: '14px' }}>
+                    <AtSign size={17} className="input-leading-icon" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Trader User ID (@handle), Email, or Mobile"
+                      value={forgotIdentifier}
+                      onChange={e => setForgotIdentifier(e.target.value)}
+                      className="modern-input"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* 4-Digit Security PIN */}
+                  <div className="modern-input-group has-icon-left" style={{ marginBottom: '14px', position: 'relative' }}>
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '-9px',
+                        left: '12px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        color: 'var(--accent-cyan, #00f59b)',
+                        backgroundColor: 'var(--bg-card, #0f172a)',
+                        padding: '0 6px',
+                        borderRadius: '4px',
+                        zIndex: 3,
+                        letterSpacing: '0.4px',
+                        pointerEvents: 'none'
+                      }}
+                    >
+                      4-Digit Security PIN
+                    </span>
+                    <Key size={17} className="input-leading-icon" />
+                    <input
+                      type="password"
+                      required
+                      maxLength={4}
+                      pattern="[0-9]{4}"
+                      inputMode="numeric"
+                      placeholder="• • • • (Enter your 4-digit PIN)"
+                      value={forgotSecurityPin}
+                      onChange={e => setForgotSecurityPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                      className="modern-input"
+                      style={{ letterSpacing: '4px', fontFamily: 'monospace' }}
+                    />
+                  </div>
+
+                  {/* New Password */}
+                  <div className="modern-input-group has-icon-left has-icon-right" style={{ marginBottom: '14px' }}>
+                    <Lock size={17} className="input-leading-icon" />
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      placeholder="New Password (min 8 characters)"
+                      value={forgotNewPassword}
+                      onChange={e => setForgotNewPassword(e.target.value)}
+                      className="modern-input"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="input-trailing-action"
+                      onClick={() => setShowForgotNewPassword(prev => !prev)}
+                      title={showForgotNewPassword ? "Hide password" : "Show password"}
+                    >
+                      {showForgotNewPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div className="modern-input-group has-icon-left" style={{ marginBottom: '18px' }}>
+                    <Lock size={17} className="input-leading-icon" />
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      placeholder="Confirm New Password"
+                      value={forgotConfirmPassword}
+                      onChange={e => setForgotConfirmPassword(e.target.value)}
+                      className="modern-input"
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="terms-dismiss-btn"
+                      style={{ flex: 1, padding: '11px', fontSize: '0.84rem' }}
+                      onClick={() => setShowForgotModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="auth-primary-btn"
+                      style={{ flex: 2, margin: 0, padding: '11px', fontSize: '0.84rem' }}
+                      disabled={forgotLoading || !forgotIdentifier.trim() || forgotSecurityPin.length !== 4 || forgotNewPassword.length < 8}
+                    >
+                      {forgotLoading ? (
+                        <>
+                          <div className="auth-spinner" />
+                          <span>Verifying PIN...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck size={15} />
+                          <span>Reset Password with PIN</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* OTP METHOD STEP 1: Enter Identifier */}
+              {forgotRecoveryMethod === 'otp' && forgotStep === 1 && (
                 <form onSubmit={handleSendOtp}>
                   <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.5 }}>
                     Enter your registered User ID, Email address, or Mobile Number

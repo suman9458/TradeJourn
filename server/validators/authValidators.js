@@ -7,7 +7,8 @@ const registerSchema = z.object({
   dob: z.string().optional(),
   tradingExperience: z.enum(['Beginner', 'Intermediate', 'Advanced', 'Expert', '']).optional(),
   email: z.string().trim().email('Invalid email address format').optional().or(z.literal('')),
-  phoneNumber: z.string().trim().max(25).optional().or(z.literal(''))
+  phoneNumber: z.string().trim().max(25).optional().or(z.literal('')),
+  securityPin: z.string().trim().regex(/^\d{4}$/, 'Security PIN must be exactly 4 digits').optional().or(z.literal(''))
 });
 
 const loginSchema = z.object({
@@ -38,12 +39,19 @@ const forgotPasswordResetSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters long')
 });
 
+const forgotPasswordPinResetSchema = z.object({
+  identifier: z.string().trim().min(2, 'User ID, Email, or Phone Number is required'),
+  securityPin: z.string().trim().regex(/^\d{4}$/, 'Security PIN must be exactly 4 digits'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters long')
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
   socialSchema,
   forgotPasswordSendSchema,
   forgotPasswordVerifySchema,
-  forgotPasswordResetSchema
+  forgotPasswordResetSchema,
+  forgotPasswordPinResetSchema
 };
 

@@ -15,7 +15,8 @@ import {
   Cpu,
   X,
   Camera,
-  MessageSquare
+  MessageSquare,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -31,7 +32,10 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
     { id: 'goals', label: 'Prop Goals & Milestones', icon: Target },
     { id: 'database', label: 'Database Ledger', icon: Database },
     { id: 'mt5', label: 'MT5 Integration', icon: Cpu, badge: 'LIVE' },
-    ...(user?.role === 'admin' ? [{ id: 'feedback-responses', label: 'Feedback Responses', icon: MessageSquare, badge: 'ADMIN' }] : [])
+    ...(user?.role === 'admin' ? [
+      { id: 'user-details', label: 'User Details', icon: Users, badge: 'ADMIN' },
+      { id: 'feedback-responses', label: 'Feedback Responses', icon: MessageSquare, badge: 'ADMIN' }
+    ] : [])
   ];
 
   const discipline = Math.round(stats?.disciplineScoreAverage || 0);
@@ -105,46 +109,48 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
           })}
         </nav>
 
-        {/* Quick Lens Card */}
-        <div className="quick-lens-card">
-          <div className="quick-lens-header">
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldCheck size={14} color="var(--profit)" />
-              <span>Live Audit Lens</span>
-            </span>
-            <span style={{ fontSize: '0.62rem', color: 'var(--profit)', background: 'var(--profit-soft)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
-              ACTIVE
-            </span>
-          </div>
+        {/* Quick Lens Card (Hidden for Admin accounts) */}
+        {user?.role !== 'admin' && (
+          <div className="quick-lens-card">
+            <div className="quick-lens-header">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={14} color="var(--profit)" />
+                <span>Live Audit Lens</span>
+              </span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--profit)', background: 'var(--profit-soft)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                ACTIVE
+              </span>
+            </div>
 
-          <div className="quick-metric">
-            <span>Discipline Score</span>
-            <strong style={{ color: discipline >= 75 ? 'var(--profit)' : 'var(--warning)', fontVariantNumeric: 'tabular-nums', fontWeight: '700' }}>
-              {discipline}/100
-            </strong>
-          </div>
+            <div className="quick-metric">
+              <span>Discipline Score</span>
+              <strong style={{ color: discipline >= 75 ? 'var(--profit)' : 'var(--warning)', fontVariantNumeric: 'tabular-nums', fontWeight: '700' }}>
+                {discipline}/100
+              </strong>
+            </div>
 
-          <div className="quick-metric">
-            <span>Win Rate</span>
-            <strong style={{ color: 'var(--text-white)', fontVariantNumeric: 'tabular-nums', fontWeight: '700' }}>
-              {(stats?.winRate || 0).toFixed(1)}%
-            </strong>
-          </div>
+            <div className="quick-metric">
+              <span>Win Rate</span>
+              <strong style={{ color: 'var(--text-white)', fontVariantNumeric: 'tabular-nums', fontWeight: '700' }}>
+                {(stats?.winRate || 0).toFixed(1)}%
+              </strong>
+            </div>
 
-          <div className="quick-metric">
-            <span>Top Setup</span>
-            <strong style={{ color: 'var(--profit)', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
-              {stats?.bestSetup || '-'}
-            </strong>
-          </div>
+            <div className="quick-metric">
+              <span>Top Setup</span>
+              <strong style={{ color: 'var(--profit)', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                {stats?.bestSetup || '-'}
+              </strong>
+            </div>
 
-          <div className="quick-metric">
-            <span>Dominant Session</span>
-            <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
-              {stats?.bestSession || '-'}
-            </strong>
+            <div className="quick-metric">
+              <span>Dominant Session</span>
+              <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                {stats?.bestSession || '-'}
+              </strong>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Trader Profile Footer (Always Pinned & Accessible) */}

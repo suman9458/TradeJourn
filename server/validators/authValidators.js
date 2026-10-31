@@ -36,7 +36,8 @@ const forgotPasswordVerifySchema = z.object({
 
 const forgotPasswordResetSchema = z.object({
   resetToken: z.string().trim().min(16, 'Reset token must be a valid security token'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters long')
+  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
+  securityPin: z.string().trim().regex(/^\d{4}$/, 'Security PIN must be exactly 4 digits').optional()
 });
 
 const forgotPasswordPinResetSchema = z.object({

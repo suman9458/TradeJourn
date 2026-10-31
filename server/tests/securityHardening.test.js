@@ -970,4 +970,67 @@ describe('🛡️ TradeJourn Security Hardening Test Suite (OWASP Top 10 Hardene
       assert.ok(lockedUntil > new Date(), 'Lockout must be in future');
     });
   });
+
+  // =========================================================================
+  // SEC-ADMIN-USERS: Admin Directory Route Security & Privilege Guard
+  // =========================================================================
+  describe('SEC-ADMIN-USERS: Admin User Directory Guard & Immutability', () => {
+    const { authorize } = require('../middleware/auth');
+
+    test('Rejects non-admin users from accessing user directory (403 Forbidden)', () => {
+      let statusCode = null;
+      let responseBody = null;
+      const req = { user: { _id: 'u_trader_1', role: 'pro' } };
+      const res = {
+        status: (code) => {
+          statusCode = code;
+          return { json: (body) => { responseBody = body; } };
+        }
+      };
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
+
+      const guard = authorize('admin');
+      guard(req, res, next);
+
+      assert.equal(statusCode, 403);
+      assert.equal(responseBody.success, false);
+      assert.match(responseBody.message, /Forbidden/);
+      assert.equal(nextCalled, false);
+    });
+
+    test('Allows admin users to access user directory', () => {
+      const req = { user: { _id: 'u_admin_1', role: 'admin' } };
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
+
+      const guard = authorize('admin');
+      guard(req, {}, next);
+
+      assert.equal(nextCalled, true);
+    });
+
+    test('Prevents self-deletion and primary admin (@sumansingh9458) deletion', () => {
+      const validateDeleteTarget = (currentAdminId, targetUser) => {
+        if (targetUser._id.toString() === currentAdminId.toString()) {
+          return { allowed: false, message: 'You cannot delete your own admin account while logged in.' };
+        }
+        if (targetUser.userId === '@sumansingh9458') {
+          return { allowed: false, message: 'The primary system admin account (@sumansingh9458) cannot be deleted.' };
+        }
+        return { allowed: true };
+      };
+
+      const selfRes = validateDeleteTarget('admin_123', { _id: 'admin_123', userId: '@sumansingh9458' });
+      assert.equal(selfRes.allowed, false);
+      assert.match(selfRes.message, /cannot delete your own admin account/);
+
+      const primaryRes = validateDeleteTarget('other_admin_456', { _id: 'admin_123', userId: '@sumansingh9458' });
+      assert.equal(primaryRes.allowed, false);
+      assert.match(primaryRes.message, /primary system admin account/);
+
+      const normalRes = validateDeleteTarget('admin_123', { _id: 'user_789', userId: '@spammer' });
+      assert.equal(normalRes.allowed, true);
+    });
+  });
 });

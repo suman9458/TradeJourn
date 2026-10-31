@@ -261,10 +261,14 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
       });
 
       // Step B: Reset password with the verified resetToken
-      const resetData = await api.forgotPasswordReset({
+      const resetPayload = {
         resetToken: verifyData.resetToken,
         newPassword: forgotNewPassword
-      });
+      };
+      if (forgotSecurityPin.trim()) {
+        resetPayload.securityPin = forgotSecurityPin.trim();
+      }
+      const resetData = await api.forgotPasswordReset(resetPayload);
 
       setForgotSuccess(resetData.message || 'Password reset successfully!');
       setForgotStep(3);
@@ -1561,6 +1565,27 @@ export const AuthPage = ({ onDemoAccess, theme: propTheme, onToggleTheme: propTo
                       className="modern-input otp-digit-input"
                       autoFocus
                     />
+                  </div>
+
+                  {/* 4-Digit Security PIN (Required if configured on account) */}
+                  <div style={{ marginBottom: '16px', position: 'relative' }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      4-Digit Security PIN <span style={{ color: 'var(--accent-cyan, #00f59b)', fontWeight: 600, textTransform: 'none' }}>(Mandatory if set on account)</span>
+                    </label>
+                    <div className="modern-input-group has-icon-left">
+                      <Key size={17} className="input-leading-icon" />
+                      <input
+                        type="password"
+                        maxLength={4}
+                        pattern="[0-9]{4}"
+                        inputMode="numeric"
+                        placeholder="• • • • (Enter your 4-digit PIN)"
+                        value={forgotSecurityPin}
+                        onChange={e => setForgotSecurityPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                        className="modern-input"
+                        style={{ letterSpacing: '4px', fontFamily: 'monospace' }}
+                      />
+                    </div>
                   </div>
 
                   {/* New Password */}

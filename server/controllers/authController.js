@@ -667,13 +667,13 @@ const forgotPasswordVerifyOtp = async (req, res, next) => {
 // @access  Public
 const forgotPasswordReset = async (req, res, next) => {
   try {
-    const { resetToken, newPassword } = req.body;
+    const { resetToken, newPassword, securityPin } = req.body;
     if (!resetToken || !newPassword) {
       return res.status(400).json({ success: false, message: 'Please provide reset token and your new password' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
     }
 
     const otpRecord = await OtpToken.findOne({
@@ -689,7 +689,7 @@ const forgotPasswordReset = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(otpRecord.userId);
+    const user = await User.findById(otpRecord.userId).select('+password +securityPin');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User account not found' });
     }
@@ -702,6 +702,24 @@ const forgotPasswordReset = async (req, res, next) => {
         code: 'DEMO_READ_ONLY',
         message: 'Password reset is disabled for the public demonstration account.'
       });
+    }
+
+    // Mandatory PIN verification: If this user has a 4-digit Security PIN configured, PIN verification is mandatory
+    if (user.hasSecurityPin || user.securityPin) {
+      if (!securityPin || !/^\d{4}$/.test(securityPin.toString().trim())) {
+        return res.status(400).json({
+          success: false,
+          requirePin: true,
+          message: 'This account has a 4-digit Security PIN enabled. Please provide your 4-digit PIN to complete password reset.'
+        });
+      }
+      const isPinValid = await user.comparePin(securityPin.toString().trim());
+      if (!isPinValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Incorrect 4-digit Security PIN. Password reset failed.'
+        });
+      }
     }
 
     // Set new password (pre-save hook will hash it with 12 rounds)

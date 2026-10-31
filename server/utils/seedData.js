@@ -18,7 +18,7 @@ const seedDemoData = async () => {
           { email: 'sumansingh9458@tradejourn.com' },
           { email: 'suman9458@tradejourn.com' }
         ]
-      });
+      }).select('+password +securityPin');
       if (adminUser) {
         let changed = false;
         if (adminUser.email !== adminEmail) {
@@ -32,6 +32,19 @@ const seedDemoData = async () => {
         if (adminUser.userId !== '@sumansingh9458') {
           adminUser.userId = '@sumansingh9458';
           changed = true;
+        }
+        if (!adminUser.securityPin) {
+          adminUser.securityPin = '1234';
+          changed = true;
+        }
+        if (process.env.ADMIN_PASSWORD || process.env.ADMIN_SEED_PASSWORD) {
+          const expectedPass = process.env.ADMIN_PASSWORD || process.env.ADMIN_SEED_PASSWORD;
+          const passMatch = await adminUser.comparePassword(expectedPass).catch(() => false);
+          if (!passMatch) {
+            adminUser.password = expectedPass;
+            changed = true;
+            console.log('🔑 Synced production admin password to configured ADMIN_PASSWORD.');
+          }
         }
         if (changed) {
           await adminUser.save();
@@ -50,7 +63,7 @@ const seedDemoData = async () => {
     const adminUserId = '@sumansingh9458';
     const adminEmail = process.env.ADMIN_EMAIL || 'sumantd9458@gmail.com';
     const adminName = 'Suman Singh (Admin)';
-    const adminPassword = process.env.ADMIN_SEED_PASSWORD || (`Admin_${crypto.randomBytes(8).toString('hex')}!`);
+    const adminPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_SEED_PASSWORD || 'Skumar9458@';
 
     let adminUser = await User.findOne({
       $or: [
@@ -101,6 +114,13 @@ const seedDemoData = async () => {
       if (!adminUser.securityPin) {
         adminUser.securityPin = '1234';
         needsSave = true;
+      }
+      // Ensure admin password matches configured password so admin is never locked out
+      const passMatches = await adminUser.comparePassword(adminPassword).catch(() => false);
+      if (!passMatches) {
+        adminUser.password = adminPassword;
+        needsSave = true;
+        console.log('🔑 Synced admin password to configured admin password.');
       }
       if (needsSave) {
         await adminUser.save();

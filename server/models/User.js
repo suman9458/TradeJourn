@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema(
       select: false,
       default: ''
     },
+    hasSecurityPin: {
+      type: Boolean,
+      default: false
+    },
     pinAttempts: {
       type: Number,
       default: 0
@@ -92,9 +96,16 @@ userSchema.pre('save', async function (next) {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
   }
-  if (this.isModified('securityPin') && this.securityPin) {
-    const salt = await bcrypt.genSalt(10);
-    this.securityPin = await bcrypt.hash(this.securityPin.toString().trim(), salt);
+  if (this.isModified('securityPin')) {
+    if (this.securityPin && this.securityPin.toString().trim()) {
+      const salt = await bcrypt.genSalt(10);
+      this.securityPin = await bcrypt.hash(this.securityPin.toString().trim(), salt);
+      this.hasSecurityPin = true;
+    } else {
+      this.hasSecurityPin = false;
+    }
+  } else if (this.securityPin) {
+    this.hasSecurityPin = true;
   }
   next();
 });

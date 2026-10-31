@@ -1,12 +1,12 @@
-const API_BASE = import.meta.env.VITE_API_URL 
-  ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '') 
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '')
   : '';
 const BASE_URL = API_BASE ? `${API_BASE}/api` : '/api';
 
-const isLocal = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || 
-   window.location.hostname === '127.0.0.1' || 
-   window.location.hostname === '::1');
+const isLocal = typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1');
 
 const getToken = () => localStorage.getItem('tradejourn_token');
 
@@ -44,7 +44,7 @@ const ensureToken = async () => {
 
 const request = async (endpoint, options = {}, isRetry = false) => {
   let token = getToken();
-  
+
   // For protected routes, ensure token exists before sending
   if (!token && !endpoint.startsWith('/auth')) {
     token = await ensureToken();
@@ -227,5 +227,11 @@ export const api = {
   sendFeedback: (payload) => request('/feedback', { method: 'POST', body: JSON.stringify(payload) }),
   getFeedbacks: () => request('/feedback'),
   updateFeedbackStatus: (id, payload) => request(`/feedback/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  deleteFeedback: (id) => request(`/feedback/${id}`, { method: 'DELETE' })
+  deleteFeedback: (id) => request(`/feedback/${id}`, { method: 'DELETE' }),
+
+  // Admin User Directory
+  getAdminUsers: () => request('/admin/users'),
+  getAdminUserDetails: (id) => request(`/admin/users/${id}`),
+  updateAdminUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  deleteAdminUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' })
 };

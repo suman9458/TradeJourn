@@ -188,6 +188,10 @@ export const SettingsModal = ({ isOpen, onClose }) => {
 
       const updatedUser = await updateUserSettings(updatePayload);
       setSecurityPin(updatedUser?.hasSecurityPin || user?.hasSecurityPin ? '••••' : '');
+      if (updatedUser?.hasSecurityPin || updatePayload.securityPin) {
+        const userKey = user?._id || user?.id || user?.userId || 'current_user';
+        localStorage.setItem(`tradejourn_pin_set_${userKey}`, 'true');
+      }
 
       setGlobalCurrency(currency);
       setSaved(true);

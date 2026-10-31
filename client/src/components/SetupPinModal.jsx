@@ -33,6 +33,11 @@ export const SetupPinModal = ({ isOpen, onClose }) => {
     setSaving(true);
     try {
       await updateUserSettings({ securityPin: cleanPin });
+      if (user) {
+        const userKey = user._id || user.id || user.userId || 'current_user';
+        localStorage.setItem(`tradejourn_pin_set_${userKey}`, 'true');
+        sessionStorage.setItem('tradejourn_dismissed_pin_prompt', 'true');
+      }
       setSavedSuccess(true);
       setTimeout(() => {
         setSavedSuccess(false);

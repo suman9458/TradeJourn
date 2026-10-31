@@ -22,12 +22,13 @@ import { AuthPage } from './components/AuthPage';
 import { SettingsModal } from './components/SettingsModal';
 import { SetupPinModal } from './components/SetupPinModal';
 import { FeedbackResponsesView } from './components/FeedbackResponsesView';
+import { UserDetailsView } from './components/UserDetailsView';
 import { FloatingFeedbackWidget } from './components/FloatingFeedbackWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { exportTradeHistoryPDF } from './utils/exportPDF';
 
-const VALID_TABS = ['overview', 'charts', 'analytics', 'ai-coach', 'reviews', 'goals', 'database', 'mt5', 'feedback-responses'];
+const VALID_TABS = ['overview', 'charts', 'analytics', 'ai-coach', 'reviews', 'goals', 'database', 'mt5', 'feedback-responses', 'user-details'];
 
 const TAB_TITLES = {
   overview: 'TradeJourn - Command Overview',
@@ -38,7 +39,8 @@ const TAB_TITLES = {
   goals: 'TradeJourn - Prop Goals & Milestones',
   database: 'TradeJourn - Database Ledger',
   mt5: 'TradeJourn - MT5 Integration',
-  'feedback-responses': 'TradeJourn - Feedback Responses'
+  'feedback-responses': 'TradeJourn - Feedback Responses',
+  'user-details': 'TradeJourn - User Details'
 };
 
 const DashboardContent = () => {
@@ -89,21 +91,36 @@ const DashboardContent = () => {
     localStorage.setItem('tradejourn_theme', theme);
   }, [theme]);
 
-  // Auto-prompt to set 4-digit Security PIN on login or restart if not yet configured
+  // Auto-prompt to set 4-digit Security PIN on login or restart ONLY if genuinely not yet configured
   useEffect(() => {
     if (!loading && token && user) {
       const isDemo = user.role === 'demo' || user.isDemo || user.email === 'protrader@tradejourn.com';
-      const isDismissed = sessionStorage.getItem('tradejourn_dismissed_pin_prompt') === 'true';
-      if (!isDemo && !user.hasSecurityPin && !isDismissed) {
+      const userKey = user._id || user.id || user.userId || 'current_user';
+      const localPinSet = localStorage.getItem(`tradejourn_pin_set_${userKey}`) === 'true';
+      const isDismissed = localStorage.getItem(`tradejourn_pin_dismissed_${userKey}`) === 'true' ||
+                          sessionStorage.getItem('tradejourn_dismissed_pin_prompt') === 'true';
+
+      // If user has already configured PIN in DB or local record, record it permanently and DO NOT pop up
+      if (user.hasSecurityPin || localPinSet) {
+        localStorage.setItem(`tradejourn_pin_set_${userKey}`, 'true');
+        setIsSetupPinOpen(false);
+        return;
+      }
+
+      if (!isDemo && !isDismissed) {
         const timer = setTimeout(() => {
           setIsSetupPinOpen(true);
         }, 700);
         return () => clearTimeout(timer);
       }
     }
-  }, [loading, token, user?.hasSecurityPin]);
+  }, [loading, token, user?._id, user?.userId, user?.hasSecurityPin]);
 
   const handleCloseSetupPin = () => {
+    if (user) {
+      const userKey = user._id || user.id || user.userId || 'current_user';
+      localStorage.setItem(`tradejourn_pin_dismissed_${userKey}`, 'true');
+    }
     sessionStorage.setItem('tradejourn_dismissed_pin_prompt', 'true');
     setIsSetupPinOpen(false);
   };
@@ -389,6 +406,10 @@ const DashboardContent = () => {
 
           {activeTab === 'feedback-responses' && (
             <FeedbackResponsesView theme={theme} />
+          )}
+
+          {activeTab === 'user-details' && (
+            <UserDetailsView theme={theme} />
           )}
         </ErrorBoundary>
       </main>

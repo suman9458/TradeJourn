@@ -53,9 +53,20 @@ app.use(
 );
 app.use(compression());
 
+// Serve production static assets before API middleware
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath) && process.env.NODE_ENV === 'production') {
+  app.use(express.static(clientDistPath, {
+    maxAge: '1d',
+    index: false
+  }));
+}
+
 // SEC-05: Strict CORS whitelist - eliminate reflected origin credentials bypass
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  process.env.RENDER_EXTERNAL_URL,
+  'https://tradejourn.onrender.com',
   ...(isProduction ? [] : [
     'http://localhost:5173',
     'http://localhost:5174',
@@ -71,7 +82,18 @@ app.use(
       // Allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.some(allowed => origin === allowed || (!isProduction && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))))) {
+      // Check explicit allowed origins list
+      if (allowedOrigins.some(allowed => origin === allowed || allowed.includes(origin))) {
+        return callback(null, true);
+      }
+
+      // Allow any onrender.com deployment subdomain
+      if (origin.endsWith('.onrender.com')) {
+        return callback(null, true);
+      }
+
+      // Allow local development servers
+      if (!isProduction && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
         return callback(null, true);
       }
 
@@ -156,10 +178,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/mt5', mt5Routes);
 app.use('/api/upload', uploadRoutes);
 
-// Root route handler: Redirect to frontend dev server or serve production build
-const clientDistPath = path.join(__dirname, '../client/dist');
+// SPA Fallback: Serve index.html in production, or redirect to Vite dev server in development
 if (fs.existsSync(clientDistPath) && process.env.NODE_ENV === 'production') {
-  app.use(express.static(clientDistPath));
   app.get('*', (req, res, next) => {
     if (req.url.startsWith('/api')) return next();
     res.sendFile(path.join(clientDistPath, 'index.html'));

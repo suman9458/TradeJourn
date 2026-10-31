@@ -221,5 +221,11 @@ export const api = {
   deleteUploadedImage: (publicId) => request('/upload/image', {
     method: 'DELETE',
     body: JSON.stringify({ publicId })
-  })
+  }),
+
+  // Feedback & Bug Reporting
+  sendFeedback: (payload) => request('/feedback', { method: 'POST', body: JSON.stringify(payload) }),
+  getFeedbacks: () => request('/feedback'),
+  updateFeedbackStatus: (id, payload) => request(`/feedback/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteFeedback: (id) => request(`/feedback/${id}`, { method: 'DELETE' })
 };

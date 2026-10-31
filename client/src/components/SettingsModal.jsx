@@ -166,6 +166,17 @@ export const SettingsModal = ({ isOpen, onClose }) => {
         updatedSettings.aiApiKey = aiApiKey;
       }
 
+      const updatePayload = {
+        name: name.trim(),
+        userId: userId.trim(),
+        dob: dob.trim(),
+        email: email.trim(),
+        phoneNumber: phoneNumber.trim(),
+        tradingExperience,
+        avatar,
+        settings: updatedSettings
+      };
+
       if (securityPin.trim() && securityPin.trim() !== '••••' && securityPin.trim() !== '****') {
         if (!/^\d{4}$/.test(securityPin.trim())) {
           setErrorMsg('Security PIN must be exactly 4 digits (e.g. 1234)');

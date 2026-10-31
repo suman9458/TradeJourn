@@ -22,6 +22,7 @@ const goalRoutes = require('./routes/goalRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const mt5Routes = require('./routes/mt5Routes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes');
 
 const app = express();
 
@@ -177,6 +178,7 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/mt5', mt5Routes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // SPA Fallback: Serve index.html in production, or redirect to Vite dev server in development
 if (fs.existsSync(clientDistPath) && process.env.NODE_ENV === 'production') {

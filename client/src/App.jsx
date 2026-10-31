@@ -21,11 +21,13 @@ import { AuthModal } from './components/AuthModal';
 import { AuthPage } from './components/AuthPage';
 import { SettingsModal } from './components/SettingsModal';
 import { SetupPinModal } from './components/SetupPinModal';
+import { FeedbackResponsesView } from './components/FeedbackResponsesView';
+import { FloatingFeedbackWidget } from './components/FloatingFeedbackWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { exportTradeHistoryPDF } from './utils/exportPDF';
 
-const VALID_TABS = ['overview', 'charts', 'analytics', 'ai-coach', 'reviews', 'goals', 'database', 'mt5'];
+const VALID_TABS = ['overview', 'charts', 'analytics', 'ai-coach', 'reviews', 'goals', 'database', 'mt5', 'feedback-responses'];
 
 const TAB_TITLES = {
   overview: 'TradeJourn - Command Overview',
@@ -35,7 +37,8 @@ const TAB_TITLES = {
   reviews: 'TradeJourn - Performance Reviews',
   goals: 'TradeJourn - Prop Goals & Milestones',
   database: 'TradeJourn - Database Ledger',
-  mt5: 'TradeJourn - MT5 Integration'
+  mt5: 'TradeJourn - MT5 Integration',
+  'feedback-responses': 'TradeJourn - Feedback Responses'
 };
 
 const DashboardContent = () => {
@@ -383,8 +386,17 @@ const DashboardContent = () => {
           {activeTab === 'mt5' && (
             <MT5IntegrationView trades={allTrades} stats={stats} />
           )}
+
+          {activeTab === 'feedback-responses' && (
+            <FeedbackResponsesView />
+          )}
         </ErrorBoundary>
       </main>
+
+      <FloatingFeedbackWidget
+        activeTab={activeTab}
+        onNavigateTab={handleTabChange}
+      />
 
       <QuickAddTradeModal
         isOpen={isAddTradeOpen}

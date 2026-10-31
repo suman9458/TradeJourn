@@ -14,7 +14,8 @@ import {
   Zap,
   Cpu,
   X,
-  Camera
+  Camera,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -29,7 +30,8 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
     { id: 'reviews', label: 'Performance Reviews', icon: CalendarCheck },
     { id: 'goals', label: 'Prop Goals & Milestones', icon: Target },
     { id: 'database', label: 'Database Ledger', icon: Database },
-    { id: 'mt5', label: 'MT5 Integration', icon: Cpu, badge: 'LIVE' }
+    { id: 'mt5', label: 'MT5 Integration', icon: Cpu, badge: 'LIVE' },
+    ...(user?.role === 'admin' ? [{ id: 'feedback-responses', label: 'Feedback Responses', icon: MessageSquare, badge: 'ADMIN' }] : [])
   ];
 
   const discipline = Math.round(stats?.disciplineScoreAverage || 0);
@@ -74,11 +76,11 @@ export const Sidebar = ({ activeTab, setActiveTab, stats, onOpenAuth, onOpenSett
                   <span style={{
                     fontSize: '0.62rem',
                     fontWeight: '800',
-                    color: item.badge === 'LIVE' ? 'var(--profit)' : 'var(--accent-cyan)',
-                    background: item.badge === 'LIVE' ? 'rgba(0, 245, 155, 0.12)' : 'var(--accent-cyan-soft)',
+                    color: item.badge === 'ADMIN' ? '#f59e0b' : item.badge === 'LIVE' ? 'var(--profit)' : 'var(--accent-cyan)',
+                    background: item.badge === 'ADMIN' ? 'rgba(245, 158, 11, 0.15)' : item.badge === 'LIVE' ? 'rgba(0, 245, 155, 0.12)' : 'var(--accent-cyan-soft)',
                     padding: '2px 7px',
                     borderRadius: '4px',
-                    border: item.badge === 'LIVE' ? '1px solid rgba(0, 245, 155, 0.35)' : '1px solid rgba(0, 210, 255, 0.3)',
+                    border: item.badge === 'ADMIN' ? '1px solid rgba(245, 158, 11, 0.4)' : item.badge === 'LIVE' ? '1px solid rgba(0, 245, 155, 0.35)' : '1px solid rgba(0, 210, 255, 0.3)',
                     whiteSpace: 'nowrap',
                     letterSpacing: '0.04em',
                     display: 'inline-flex',
